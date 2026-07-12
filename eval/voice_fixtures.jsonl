@@ -1,0 +1,4 @@
+{"steps":[{"delayMs":200,"partial":"set a"},{"delayMs":200,"partial":"set a timer"},{"delayMs":300,"partial":"set a timer for 5 minutes","final":true}]}
+{"steps":[{"delayMs":150,"partial":"what's the"},{"delayMs":250,"partial":"what's the weather like","final":true}]}
+{"steps":[{"delayMs":180,"partial":"remind me to"},{"delayMs":220,"partial":"remind me to call mom tonight","final":true}]}
+{"steps":[{"delayMs":100,"partial":"hey"},{"delayMs":400,"partial":"hey what's on my calendar today","final":true}]}

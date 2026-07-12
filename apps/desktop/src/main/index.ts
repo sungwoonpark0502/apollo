@@ -5,7 +5,12 @@ import { createTray, getTray } from './tray';
 import { createAudioWindow, createOrbWindow, createPaletteWindow, openSettingsWindow, togglePalette } from './windows';
 import { createOrbController } from './orbController';
 import { createWorkerHost } from './voice/workerHost';
-import { AUDIO_PORT_CHANNEL } from '@apollo/shared';
+import { createVoiceController } from './voice/voiceController';
+import { createDeepgramStt } from './voice/sttDeepgram';
+import { FakeStt, type FakeSttFixture } from './voice/sttFake';
+import { wavToFrames } from './voice/wav';
+import { readFileSync } from 'node:fs';
+import { AUDIO_PORT_CHANNEL, newId, type VoiceState } from '@apollo/shared';
 import { createLogger } from './logger';
 import { loadConfig } from './config';
 import { openDb } from './db/connection';
@@ -70,9 +75,13 @@ function boot(): void {
   logger.info({ schemaVersion }, 'db ready');
 
   const repos = createRepos(db);
+  const onHotkeyPress = (): void => {
+    togglePalette();
+    if (settings.get().ptt.enabled && !voiceController.isVoiceDisabled()) voiceController.onHotkey();
+  };
   const settings = createSettingsService(repos.settings, {
     onChange: (next, prev) => {
-      if (next.hotkey !== prev.hotkey) registerHotkey(next.hotkey, togglePalette, log);
+      if (next.hotkey !== prev.hotkey) registerHotkey(next.hotkey, onHotkeyPress, log);
     },
   });
   const secrets = createSecrets({ settings: repos.settings, codec: safeStorageCodec(safeStorage), env: config.env, log });
@@ -151,6 +160,7 @@ function boot(): void {
 
   function emitToAll(event: AgentEvent): void {
     orbController.onAgentEvent(event);
+    if (event.type === 'done' || event.type === 'error') voiceController.turnDone();
     for (const win of BrowserWindow.getAllWindows()) {
       if (!win.isDestroyed()) pushTo(win.webContents, 'agent.events', event);
     }
@@ -180,16 +190,59 @@ function boot(): void {
       APOLLO_WAKE_KEYWORD_PATH: join(__dirname, '../../resources/hey_apollo.ppn'),
       APOLLO_WAKE_SENSITIVITY: String(settings.get().wake.sensitivity),
     },
-    onMessage: (msg) => {
-      // VoiceController FSM consumes these in 2.2; wake/vad logged until then
-      if (msg.t === 'fatal') log(`audio worker fatal: ${msg.msg}`);
-      else if (msg.t !== 'frame') log(`audio worker: ${msg.t}`);
-    },
+    onMessage: (msg) => voiceController.onWorkerMessage(msg),
     onDisabled: () => {
       new Notification({ title: STRINGS.app.name, body: STRINGS.notifications.voiceDisabled }).show();
     },
     log,
   });
+  function pushVoiceState(state: VoiceState): void {
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (!win.isDestroyed()) pushTo(win.webContents, 'voice.state', { state });
+    }
+  }
+
+  // STT adapter selection (C17 auto): Deepgram when a key exists, else FakeSTT fixtures.
+  const sttMode = settings.get().adapters.stt;
+  const useRealStt = sttMode === 'real' || (sttMode === 'auto' && secrets.get('deepgram') !== null);
+  const sttAdapter = useRealStt
+    ? createDeepgramStt({ apiKey: () => secrets.get('deepgram'), log })
+    : new FakeStt(loadVoiceFixtures());
+
+  function loadVoiceFixtures(): FakeSttFixture[] {
+    try {
+      return readFileSync(join(app.getAppPath(), '../../eval/voice_fixtures.jsonl'), 'utf8')
+        .split('\n')
+        .filter(Boolean)
+        .map((l) => JSON.parse(l) as FakeSttFixture);
+    } catch {
+      return [];
+    }
+  }
+
+  const voiceConvId = newId(); // voice turns share one conversation per app session
+  const voiceController = createVoiceController({
+    stt: sttAdapter,
+    workerSend: (m) => workerHost.send(m),
+    dispatch: (text) => {
+      orchestrator.handleUserMessage({ text, source: 'voice', convId: voiceConvId });
+    },
+    pushState: pushVoiceState,
+    pushPartial: (transcript, rms) => {
+      for (const win of BrowserWindow.getAllWindows()) {
+        if (!win.isDestroyed()) pushTo(win.webContents, 'voice.partial', { transcript, rms });
+      }
+    },
+    playEarcon: (name) => log(`earcon: ${name}`), // orb playback lands in 2.3
+    stopTts: () => {
+      for (const win of BrowserWindow.getAllWindows()) {
+        if (!win.isDestroyed()) pushTo(win.webContents, 'tts.stop', {});
+      }
+    },
+    notify: (copy) => new Notification({ title: STRINGS.app.name, body: copy }).show(),
+    log,
+  });
+
   workerHost.start();
 
   ipcMain.on(AUDIO_PORT_CHANNEL, (event) => {
@@ -209,11 +262,18 @@ function boot(): void {
     settings,
     secrets,
     testKey,
-    setMuted: (on) => {
-      workerHost.send({ t: 'mute', on });
-      for (const win of BrowserWindow.getAllWindows()) {
-        if (!win.isDestroyed()) pushTo(win.webContents, 'voice.state', { state: on ? 'muted' : 'idle' });
+    setMuted: (on) => voiceController.setMuted(on),
+    debugWake: () => voiceController.onWake(),
+    debugInjectAudio: async (wavPath) => {
+      // A2.2a: drives wake → listen → EOT with mic-identical frames.
+      voiceController.onWake();
+      await new Promise((r) => setTimeout(r, 30));
+      voiceController.onWorkerMessage({ t: 'vad', speech: true });
+      for (const f of wavToFrames(wavPath)) {
+        voiceController.onWorkerMessage({ t: 'frame', pcm: f.buffer as ArrayBuffer });
+        await new Promise((r) => setTimeout(r, 2));
       }
+      voiceController.onWorkerMessage({ t: 'vad', speech: false });
     },
     log,
   });
@@ -225,7 +285,8 @@ function boot(): void {
 
   createTray({ onOpenSettings: () => openSettingsWindow() });
   const palette = createPaletteWindow();
-  registerHotkey(settings.get().hotkey, togglePalette, log);
+  // B1: the hotkey activates Apollo — palette for typing, and (PTT) listening when voice is up
+  registerHotkey(settings.get().hotkey, onHotkeyPress, log);
 
   const missed = scheduler.start();
   const missedCount = missed.timers.length + missed.reminders.length + missed.alarms.length;

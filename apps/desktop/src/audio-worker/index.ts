@@ -54,7 +54,7 @@ async function main(): Promise<void> {
     const parsed = mainToWorkerSchema.safeParse(e.data);
     if (parsed.success) core.control(parsed.data);
   });
-  console.log('audio worker ready');
+  console.warn('audio worker ready');
 }
 
 void main();
