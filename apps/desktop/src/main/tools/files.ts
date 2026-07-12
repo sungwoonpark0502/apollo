@@ -33,7 +33,7 @@ export function createFilesTool(deps: FilesToolDeps): ToolDef {
 
       for (const dir of dirs) {
         if (results.length >= CAP) break;
-        let entries: string[] = [];
+        let entries: string[];
         try {
           entries = await fg('**/*', {
             cwd: dir,

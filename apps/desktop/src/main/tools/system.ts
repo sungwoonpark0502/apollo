@@ -33,7 +33,7 @@ export function scanApps(platform: NodeJS.Platform, dirs?: string[]): AppEntry[]
   if (platform === 'darwin') {
     const roots = dirs ?? ['/Applications', '/System/Applications', join(homedir(), 'Applications')];
     for (const root of roots) {
-      let entries: string[] = [];
+      let entries: string[];
       try {
         entries = readdirSync(root);
       } catch {
@@ -50,7 +50,7 @@ export function scanApps(platform: NodeJS.Platform, dirs?: string[]): AppEntry[]
       join(process.env['APPDATA'] ?? '', 'Microsoft/Windows/Start Menu/Programs'),
     ];
     for (const root of roots) {
-      let entries: string[] = [];
+      let entries: string[];
       try {
         entries = readdirSync(root, { recursive: true }) as string[];
       } catch {
