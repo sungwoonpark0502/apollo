@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Notification, safeStorage } from 'electron';
+import { app, BrowserWindow, ipcMain, Notification, safeStorage, shell } from 'electron';
 import { join } from 'node:path';
 import { STRINGS, type AgentEvent } from '@apollo/shared';
 import { createTray, getTray } from './tray';
@@ -24,6 +24,8 @@ import { createUndoTool } from './tools/undo';
 import { createCalendarTools } from './tools/calendar';
 import { createReminderTools } from './tools/reminder';
 import { createNewsTool, createLlmSummarizer, DEFAULT_FEEDS } from './tools/news';
+import { createFilesTool } from './tools/files';
+import { createSystemTools, spawnRunner } from './tools/system';
 import { createWeatherTools } from './tools/weather';
 import { createSearchWebTool } from './tools/searchWeb';
 import { createOrchestrator, type Orchestrator } from './agent/orchestrator';
@@ -91,6 +93,11 @@ function boot(): void {
   });
 
   repos.feeds.seed(DEFAULT_FEEDS);
+  if (settings.get().approvedDirs.length === 0) {
+    settings.patch({
+      approvedDirs: [app.getPath('documents'), app.getPath('desktop'), app.getPath('downloads')],
+    });
+  }
 
   // Streams through the egress-checked fetch; throws KEY_MISSING (mapped to
   // Settings > Keys copy) until a key exists, while fast path and tools work.
@@ -126,6 +133,12 @@ function boot(): void {
       }),
       createSearchWebTool({ http, getBraveKey: () => secrets.get('brave') }),
       createNewsTool({ http, feeds: repos.feeds, summarize: createLlmSummarizer(llm) }),
+      createFilesTool({ getApprovedDirs: () => settings.get().approvedDirs }),
+      ...createSystemTools({
+        run: spawnRunner(),
+        openPath: (p) => shell.openPath(p),
+        picturesDir: () => app.getPath('pictures'),
+      }),
     ],
     { perf: (turnId, name, durMs) => repos.perf.record(turnId, name, durMs), log },
   );

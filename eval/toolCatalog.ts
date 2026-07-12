@@ -15,6 +15,8 @@ import { createSearchWebTool } from '../apps/desktop/src/main/tools/searchWeb';
 import { createCalendarTools } from '../apps/desktop/src/main/tools/calendar';
 import { createReminderTools } from '../apps/desktop/src/main/tools/reminder';
 import { createNewsTool } from '../apps/desktop/src/main/tools/news';
+import { createFilesTool } from '../apps/desktop/src/main/tools/files';
+import { createSystemTools } from '../apps/desktop/src/main/tools/system';
 
 export interface RecordedCall {
   name: string;
@@ -24,12 +26,6 @@ export interface RecordedCall {
 /** Stub defs for tools whose real implementations land in later phases (C7 signatures). */
 function futureToolDefs(): ToolDef[] {
   const defs: Array<{ name: string; tier: 1 | 2 | 3; networked?: boolean; description: string; params: z.ZodType }> = [
-    { name: 'files.find', tier: 1, description: 'Find files by name substring in the user\'s approved folders; optional extension filter.', params: z.object({ query: z.string().min(1), extension: z.string().optional() }) },
-    { name: 'system.openApp', tier: 2, description: 'Open an installed application by (fuzzy) name.', params: z.object({ name: z.string().min(1) }) },
-    { name: 'system.volume', tier: 2, description: 'Set system volume: op "set" with value 0..100, or "up"/"down" (10-point steps).', params: z.object({ op: z.enum(['set', 'up', 'down']), value: z.number().int().min(0).max(100).optional() }) },
-    { name: 'system.media', tier: 2, description: 'Media control: playpause, next, prev.', params: z.object({ op: z.enum(['playpause', 'next', 'prev']) }) },
-    { name: 'system.screenshot', tier: 2, description: 'Capture the full screen to Pictures/Apollo.', params: z.object({}) },
-    { name: 'system.lock', tier: 2, description: 'Lock the session.', params: z.object({}) },
     { name: 'email.list', tier: 1, networked: true, description: 'List recent emails (subject, sender, snippet).', params: z.object({ query: z.string().optional(), max: z.number().int().max(20).optional() }) },
     { name: 'email.read', tier: 1, networked: true, description: 'Read one email by id.', params: z.object({ id: z.string() }) },
     { name: 'email.search', tier: 1, networked: true, description: 'Search the mailbox.', params: z.object({ query: z.string().min(1) }) },
@@ -144,6 +140,13 @@ export function buildEvalTools(calls: RecordedCall[]): ToolDef[] {
     ...createCalendarTools({ events: repos.events, undo: repos.undo }),
     ...createReminderTools({ reminders: repos.reminders, undo: repos.undo }),
     createNewsTool({ http: noHttp, feeds: repos.feeds }),
+    createFilesTool({ getApprovedDirs: () => [] }),
+    ...createSystemTools({
+      platform: 'darwin',
+      run: async () => ({ code: 0, stdout: '' }),
+      openPath: async () => '',
+      listAppDirs: () => [],
+    }),
     ...createWeatherTools({ http: noHttp, getHome: () => ({ name: 'Home', lat: 0, lon: 0 }), getUnits: () => 'imperial' }),
     createSearchWebTool({ http: noHttp, getBraveKey: () => 'eval' }),
   ];
