@@ -79,4 +79,9 @@ export const DEV_ONLY_CHANNELS: readonly InvokeChannelName[] = ['debug.wake', 'd
 export interface ApolloBridge {
   call<K extends InvokeChannelName>(channel: K, payload: InvokeReq<K>): Promise<InvokeRes<K>>;
   on<K extends PushChannelName>(channel: K, listener: (payload: PushPayload<K>) => void): () => void;
+  /** Capture renderer only: hands the audio-frame MessagePort to main (→ audio worker). */
+  sendAudioPort(port: MessagePort): void;
 }
+
+/** postMessage channel name for the audio port hand-off (not an invoke channel). */
+export const AUDIO_PORT_CHANNEL = 'audio.port';

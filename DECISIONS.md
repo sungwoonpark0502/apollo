@@ -22,3 +22,7 @@
 - 2026-07-12: Minimal scheduler pulled forward from 1.2 into 0.7 because the 0.7 gate ("timer fires after restart") requires it; 1.2 extends it with recurring re-arm + missed grouping UX.
 - 2026-07-12: Eval runner executes via vite-node (tsx can't transform vite `?raw` imports); tool catalog = real defs with recorded canned executors + C7-signature stubs for later-phase tools (stubs replaced as phases land).
 - 2026-07-12: Eval reference "now" pinned to the C11 example instant (Sat 2026-07-11 10:00 PT) so time-resolution rows are deterministic.
+- 2026-07-12: Silero VAD v5 onnx (input/state/sr signature) bundled at resources/silero_vad.onnx, downloaded from the official snakers4/silero-vad repo; verified 512-sample input works.
+- 2026-07-12: PTT = hotkey press starts listening (wake-free path). Electron globalShortcut has no key-up event, so hold-400ms is not implementable without a native keyboard hook; press-to-talk single-tap chosen instead.
+- 2026-07-12: debug.wake short-circuits in main into the VoiceController rather than round-tripping the worker; FakeWake is inert (MainToWorker contract unchanged).
+- 2026-07-12: Porcupine gated (+0.15 threshold) mode = second engine at sensitivity−0.15 (sensitivity is bake-in-at-construction in porcupine-node).

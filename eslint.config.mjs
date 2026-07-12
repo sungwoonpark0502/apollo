@@ -15,6 +15,7 @@ export default tseslint.config(
     files: ['**/*.ts', '**/*.tsx'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
       '@typescript-eslint/consistent-type-imports': ['error', { fixStyle: 'inline-type-imports' }],
       'no-console': ['warn', { allow: ['warn', 'error'] }],
     },
@@ -27,5 +28,11 @@ export default tseslint.config(
   {
     files: ['**/*.test.ts', '**/scripts/**', 'eval/**'],
     rules: { 'no-console': 'off' },
+  },
+  {
+    files: ['**/renderer/public/*.js'],
+    languageOptions: {
+      globals: { AudioWorkletProcessor: 'readonly', registerProcessor: 'readonly', sampleRate: 'readonly' },
+    },
   },
 );

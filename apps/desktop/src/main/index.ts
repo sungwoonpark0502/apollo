@@ -2,8 +2,10 @@ import { app, BrowserWindow, ipcMain, Notification, safeStorage, shell } from 'e
 import { join } from 'node:path';
 import { STRINGS, type AgentEvent } from '@apollo/shared';
 import { createTray, getTray } from './tray';
-import { createOrbWindow, createPaletteWindow, openSettingsWindow, togglePalette } from './windows';
+import { createAudioWindow, createOrbWindow, createPaletteWindow, openSettingsWindow, togglePalette } from './windows';
 import { createOrbController } from './orbController';
+import { createWorkerHost } from './voice/workerHost';
+import { AUDIO_PORT_CHANNEL } from '@apollo/shared';
 import { createLogger } from './logger';
 import { loadConfig } from './config';
 import { openDb } from './db/connection';
@@ -165,13 +167,54 @@ function boot(): void {
     log,
   });
 
+  // Audio worker (C12.2): FakeWake unless a Picovoice key exists (C17 auto mode)
+  const wakeMode = settings.get().adapters.wake;
+  const picovoiceKey = secrets.get('picovoice');
+  const useRealWake = wakeMode === 'real' || (wakeMode === 'auto' && picovoiceKey !== null);
+  const workerHost = createWorkerHost({
+    modulePath: join(__dirname, 'audioWorker.js'),
+    env: {
+      APOLLO_VAD_MODEL: join(__dirname, '../../resources/silero_vad.onnx'),
+      APOLLO_WAKE: useRealWake ? 'porcupine' : 'fake',
+      ...(picovoiceKey ? { APOLLO_PICOVOICE_KEY: picovoiceKey } : {}),
+      APOLLO_WAKE_KEYWORD_PATH: join(__dirname, '../../resources/hey_apollo.ppn'),
+      APOLLO_WAKE_SENSITIVITY: String(settings.get().wake.sensitivity),
+    },
+    onMessage: (msg) => {
+      // VoiceController FSM consumes these in 2.2; wake/vad logged until then
+      if (msg.t === 'fatal') log(`audio worker fatal: ${msg.msg}`);
+      else if (msg.t !== 'frame') log(`audio worker: ${msg.t}`);
+    },
+    onDisabled: () => {
+      new Notification({ title: STRINGS.app.name, body: STRINGS.notifications.voiceDisabled }).show();
+    },
+    log,
+  });
+  workerHost.start();
+
+  ipcMain.on(AUDIO_PORT_CHANNEL, (event) => {
+    const trusted = makeTrustedUrlCheck(process.env['ELECTRON_RENDERER_URL']);
+    if (!event.senderFrame || !trusted(event.senderFrame.url)) {
+      log('audio.port dropped: untrusted sender');
+      return;
+    }
+    const port = event.ports[0];
+    if (port) workerHost.attachAudioPort(port);
+  });
+  createAudioWindow();
+
   const handlers = buildHandlers({
     orchestrator: () => orchestrator,
     repos,
     settings,
     secrets,
     testKey,
-    setMuted: () => undefined, // voice lands in Phase 2
+    setMuted: (on) => {
+      workerHost.send({ t: 'mute', on });
+      for (const win of BrowserWindow.getAllWindows()) {
+        if (!win.isDestroyed()) pushTo(win.webContents, 'voice.state', { state: on ? 'muted' : 'idle' });
+      }
+    },
     log,
   });
   registerRouter(ipcMain, handlers, {

@@ -114,6 +114,30 @@ export function createOrbWindow(): BrowserWindow {
   return orb;
 }
 
+let audioWin: BrowserWindow | null = null;
+
+/** Hidden capture renderer (C12.1). Never shown; exists only to run getUserMedia + AudioWorklet. */
+export function createAudioWindow(): BrowserWindow {
+  if (audioWin && !audioWin.isDestroyed()) return audioWin;
+  audioWin = new BrowserWindow({
+    show: false,
+    width: 1,
+    height: 1,
+    skipTaskbar: true,
+    webPreferences: secureWebPreferences(),
+  });
+  hardenWindow(audioWin);
+  audioWin.on('closed', () => {
+    audioWin = null;
+  });
+  if (process.env['ELECTRON_RENDERER_URL']) {
+    void audioWin.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/windows/audio/index.html`);
+  } else {
+    void audioWin.loadFile(join(__dirname, '../renderer/windows/audio/index.html'));
+  }
+  return audioWin;
+}
+
 let settingsWin: BrowserWindow | null = null;
 
 export function openSettingsWindow(): BrowserWindow {

@@ -29,10 +29,12 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.111.0",
     "@apollo/shared": "workspace:*",
+    "@picovoice/porcupine-node": "^4.0.2",
     "better-sqlite3": "^12.11.1",
     "chrono-node": "^2.10.0",
     "fast-glob": "^3.3.3",
     "luxon": "^3.7.2",
+    "onnxruntime-node": "^1.27.0",
     "pino": "^9.14.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",

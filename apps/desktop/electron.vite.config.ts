@@ -15,7 +15,10 @@ export default defineConfig({
     },
     build: {
       rollupOptions: {
-        input: { index: resolve(__dirname, 'src/main/index.ts') },
+        input: {
+          index: resolve(__dirname, 'src/main/index.ts'),
+          audioWorker: resolve(__dirname, 'src/audio-worker/index.ts'),
+        },
         external: nodeExternals,
       },
     },
@@ -44,6 +47,7 @@ export default defineConfig({
           palette: resolve(__dirname, 'src/renderer/windows/palette/index.html'),
           settings: resolve(__dirname, 'src/renderer/windows/settings/index.html'),
           orb: resolve(__dirname, 'src/renderer/windows/orb/index.html'),
+          audio: resolve(__dirname, 'src/renderer/windows/audio/index.html'),
         },
       },
     },

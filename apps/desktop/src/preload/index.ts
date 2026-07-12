@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
-import { invokeChannels, pushChannels, type ApolloBridge } from '@apollo/shared';
+import { AUDIO_PORT_CHANNEL, invokeChannels, pushChannels, type ApolloBridge } from '@apollo/shared';
 
 const invokeNames = new Set<string>(Object.keys(invokeChannels));
 const pushNames = new Set<string>(Object.keys(pushChannels));
@@ -17,6 +17,9 @@ const apollo: ApolloBridge = {
     };
     ipcRenderer.on(channel, wrapped);
     return () => ipcRenderer.removeListener(channel, wrapped);
+  },
+  sendAudioPort(port) {
+    ipcRenderer.postMessage(AUDIO_PORT_CHANNEL, null, [port]);
   },
 };
 
