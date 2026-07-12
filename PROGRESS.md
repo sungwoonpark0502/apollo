@@ -2,6 +2,18 @@
 
 ## Phase 0
 
+### [x] 0.6 Palette UI streaming + cards + Settings Keys + secrets — verified: 186 tests green incl. redaction (keys never in logs) + secrets precedence/ciphertext; smoke boot `SMOKE_OK … e2e=turn-ok` proves renderer→IPC→orchestrator→fast-path→events round trip; manual look-and-feel script in HUMAN_TODO
+Planned files:
+- apps/desktop/src/main/{logger.ts, config.ts, shortcuts.ts}
+- apps/desktop/src/main/security/secrets.ts (+ secrets.test.ts)
+- apps/desktop/src/main/settingsService.ts (+ test)
+- apps/desktop/src/main/ipc/handlers/index.ts
+- apps/desktop/src/main/index.ts (full bootstrap: db, repos, registry, orchestrator, router, shortcuts)
+- apps/desktop/src/main/logger.test.ts (redaction: keys never in logs)
+- apps/desktop/src/renderer/state/store.ts, windows/palette/* (streaming UI), windows/settings/* (Keys tab), components/cards/{TextCard,TimerCard,WeatherCard,ConfirmCard}.tsx
+- HUMAN_TODO.md: manual palette verification script
+Verify: unit tests incl. redaction grep; smoke boot proves window.apollo bridge + streaming turn end-to-end with stub LLM.
+
 ### [x] 0.5 Orchestrator with FakeLLM scripted tests — verified: 23-test suite green (tool loop, parallel calls, 8-iter cap, taint flags incl. user-stated exemption, confirm approve/deny/lexicon/supersede/expiry, email cancel-window abort, dead-end guard + capability_misses, silent cancellation, fast-path LLM bypass, perf spans, context assembly)
 Planned files:
 - apps/desktop/src/main/agent/{llm.ts, llmFake.ts, systemPrompt.ts, confirmations.ts, taint.ts, orchestrator.ts}

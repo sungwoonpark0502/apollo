@@ -1,5 +1,8 @@
 import { DateTime } from 'luxon';
-import { RRule } from 'rrule';
+import * as rrulePkg from 'rrule';
+
+// rrule ships CJS; under Electron's ESM main the classes live on the default export.
+const { RRule } = (rrulePkg as { default?: typeof rrulePkg }).default ?? rrulePkg;
 import { newId, nowMs, MS, type OccurrenceDTO } from '@apollo/shared';
 import { type Db } from '../connection';
 

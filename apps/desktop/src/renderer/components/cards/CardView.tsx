@@ -1,0 +1,51 @@
+import React from 'react';
+import type { CardPayload } from '@apollo/shared';
+import { TextCard } from './TextCard';
+import { TimerCard } from './TimerCard';
+import { WeatherCard } from './WeatherCard';
+import { ConfirmCard } from './ConfirmCard';
+
+/** One component per CardPayload.kind (C18); kinds from later phases render as text for now. */
+export function CardView({ card }: { card: CardPayload }): React.JSX.Element {
+  switch (card.kind) {
+    case 'text':
+      return <TextCard body={card.body} />;
+    case 'timer':
+      return <TimerCard id={card.id} label={card.label} endsAt={card.endsAt} />;
+    case 'weather':
+      return <WeatherCard place={card.place} now={card.now} days={card.days} />;
+    case 'confirm':
+      return <ConfirmCard confirmationId={card.confirmationId} action={card.action} expiresAt={card.expiresAt} />;
+    case 'newsList':
+      return (
+        <div>
+          {card.items.map((it) => (
+            <div key={it.url} style={{ marginBottom: 'var(--sp-2)' }}>
+              <a href={it.url} target="_blank" rel="noreferrer" style={{ color: 'var(--text-1)', textDecoration: 'none', fontWeight: 500 }}>
+                {it.title}
+              </a>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-3)' }}>{it.source}</div>
+            </div>
+          ))}
+        </div>
+      );
+    default:
+      return <TextCard body={JSON.stringify(card, null, 2)} />;
+  }
+}
+
+export function CardShell({ children }: { children: React.ReactNode }): React.JSX.Element {
+  return (
+    <div
+      style={{
+        padding: 'var(--sp-4)',
+        borderRadius: 'var(--radius-card)',
+        background: 'var(--surface)',
+        border: '1px solid var(--border)',
+        boxShadow: 'var(--shadow-card)',
+      }}
+    >
+      {children}
+    </div>
+  );
+}

@@ -69,3 +69,31 @@ export function togglePalette(): void {
     win.focus();
   }
 }
+
+let settingsWin: BrowserWindow | null = null;
+
+export function openSettingsWindow(): BrowserWindow {
+  if (settingsWin && !settingsWin.isDestroyed()) {
+    settingsWin.show();
+    settingsWin.focus();
+    return settingsWin;
+  }
+  settingsWin = new BrowserWindow({
+    width: 720,
+    height: 520,
+    resizable: false,
+    fullscreenable: false,
+    title: 'Apollo Settings',
+    webPreferences: secureWebPreferences(),
+  });
+  hardenWindow(settingsWin);
+  settingsWin.on('closed', () => {
+    settingsWin = null;
+  });
+  if (process.env['ELECTRON_RENDERER_URL']) {
+    void settingsWin.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/windows/settings/index.html`);
+  } else {
+    void settingsWin.loadFile(join(__dirname, '../renderer/windows/settings/index.html'));
+  }
+  return settingsWin;
+}

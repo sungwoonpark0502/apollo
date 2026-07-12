@@ -16,3 +16,6 @@
 - 2026-07-12: C11 weekday rows: the table's example values win over its prose ("this Friday"→07-17, "next Friday"→07-24 from Sat 07-11). Implemented as: bare/"this" weekday = upcoming occurrence; "next" = upcoming + 7 days.
 - 2026-07-12: fastPath "open X" accepts any name and full-matches; the openApp tool's allowlist rejects non-apps (keeps grammar simple, no dead end).
 - 2026-07-12: httpClient maps 401/403→KEY_INVALID, 429→RATE_LIMITED, network exhaustion→OFFLINE; egress requires https and exact hostname match.
+- 2026-07-12: Preload forced to CJS output (sandboxed preloads cannot be ESM); main bundle externals include all runtime deps (rrule pulled tslib in otherwise); rrule imported via default-interop for Electron ESM.
+- 2026-07-12: Until 0.7, the LLM client is a KEY_MISSING stub: fast path and tools work, LLM turns show the Settings > Keys copy.
+- 2026-07-12: pino rotation implemented as boot-time size check (5MB, keep 3) rather than a transport dependency.

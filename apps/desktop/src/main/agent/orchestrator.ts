@@ -253,7 +253,7 @@ export function createOrchestrator(deps: OrchestratorDeps) {
         return;
       }
       const code = toErrorCode(e);
-      const copy = code === 'LLM_DOWN' ? STRINGS.errors.LLM_DOWN : STRINGS.errors.INTERNAL;
+      const copy = errorCopy(code);
       deps.log?.(`turn ${state.turnId} failed: ${e instanceof Error ? e.message : String(e)}`);
       emit({ type: 'error', code, userMessage: copy });
       emit({ type: 'done', turnId: state.turnId });
@@ -481,6 +481,24 @@ export function createOrchestrator(deps: OrchestratorDeps) {
       return confirmations.get() !== null;
     },
   };
+}
+
+function errorCopy(code: ReturnType<typeof toErrorCode>): string {
+  switch (code) {
+    case 'KEY_MISSING':
+    case 'KEY_INVALID':
+      return STRINGS.errors.KEY_MISSING('Anthropic');
+    case 'RATE_LIMITED':
+      return STRINGS.errors.RATE_LIMITED;
+    case 'OFFLINE':
+      return STRINGS.errors.LLM_DOWN;
+    case 'LLM_DOWN':
+      return STRINGS.errors.LLM_DOWN;
+    case 'TIMEOUT':
+      return STRINGS.errors.TIMEOUT;
+    default:
+      return STRINGS.errors.INTERNAL;
+  }
 }
 
 function describeDurationSpoken(totalSec: number): string {
