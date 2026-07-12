@@ -14,6 +14,7 @@ import { createWeatherTools } from '../apps/desktop/src/main/tools/weather';
 import { createSearchWebTool } from '../apps/desktop/src/main/tools/searchWeb';
 import { createCalendarTools } from '../apps/desktop/src/main/tools/calendar';
 import { createReminderTools } from '../apps/desktop/src/main/tools/reminder';
+import { createNewsTool } from '../apps/desktop/src/main/tools/news';
 
 export interface RecordedCall {
   name: string;
@@ -23,7 +24,6 @@ export interface RecordedCall {
 /** Stub defs for tools whose real implementations land in later phases (C7 signatures). */
 function futureToolDefs(): ToolDef[] {
   const defs: Array<{ name: string; tier: 1 | 2 | 3; networked?: boolean; description: string; params: z.ZodType }> = [
-    { name: 'news.brief', tier: 1, networked: true, description: 'Fetch and summarize the news from the user\'s feeds; optional category filter (e.g. "tech").', params: z.object({ category: z.string().optional() }) },
     { name: 'files.find', tier: 1, description: 'Find files by name substring in the user\'s approved folders; optional extension filter.', params: z.object({ query: z.string().min(1), extension: z.string().optional() }) },
     { name: 'system.openApp', tier: 2, description: 'Open an installed application by (fuzzy) name.', params: z.object({ name: z.string().min(1) }) },
     { name: 'system.volume', tier: 2, description: 'Set system volume: op "set" with value 0..100, or "up"/"down" (10-point steps).', params: z.object({ op: z.enum(['set', 'up', 'down']), value: z.number().int().min(0).max(100).optional() }) },
@@ -143,6 +143,7 @@ export function buildEvalTools(calls: RecordedCall[]): ToolDef[] {
     createUndoTool(repos),
     ...createCalendarTools({ events: repos.events, undo: repos.undo }),
     ...createReminderTools({ reminders: repos.reminders, undo: repos.undo }),
+    createNewsTool({ http: noHttp, feeds: repos.feeds }),
     ...createWeatherTools({ http: noHttp, getHome: () => ({ name: 'Home', lat: 0, lon: 0 }), getUnits: () => 'imperial' }),
     createSearchWebTool({ http: noHttp, getBraveKey: () => 'eval' }),
   ];

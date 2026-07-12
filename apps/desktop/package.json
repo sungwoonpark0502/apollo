@@ -36,6 +36,7 @@
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "rrule": "^2.8.1",
+    "rss-parser": "^3.13.0",
     "zod": "^3.25.76",
     "zod-to-json-schema": "^3.25.2",
     "zustand": "^4.5.7"

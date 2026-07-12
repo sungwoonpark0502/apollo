@@ -2,7 +2,9 @@
 
 ## Phase 1
 
-### [ ] 1.2 Reminders + scheduler + boot catch-up + missed grouping
+### [x] 1.3 news.brief + feeds settings — verified: 12-test suite (dedupe by canonical URL, top-8 recency, category filter, per-feed WARNING degradation, one summarize call + snippet fallback); default feeds seeded at boot; feeds synced through settings.get/set
+
+### [x] 1.2 Reminders + scheduler + boot catch-up + missed grouping
 Planned files:
 - apps/desktop/src/main/tools/reminder.ts (+ reminder.test.ts)
 - apps/desktop/src/main/scheduler/scheduler.ts: rrule re-arm for recurring reminders/alarms (+ tests)

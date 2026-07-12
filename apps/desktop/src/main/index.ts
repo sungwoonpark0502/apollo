@@ -23,6 +23,7 @@ import { createMemoryTools } from './tools/memory';
 import { createUndoTool } from './tools/undo';
 import { createCalendarTools } from './tools/calendar';
 import { createReminderTools } from './tools/reminder';
+import { createNewsTool, createLlmSummarizer, DEFAULT_FEEDS } from './tools/news';
 import { createWeatherTools } from './tools/weather';
 import { createSearchWebTool } from './tools/searchWeb';
 import { createOrchestrator, type Orchestrator } from './agent/orchestrator';
@@ -89,6 +90,24 @@ function boot(): void {
     log,
   });
 
+  repos.feeds.seed(DEFAULT_FEEDS);
+
+  // Streams through the egress-checked fetch; throws KEY_MISSING (mapped to
+  // Settings > Keys copy) until a key exists, while fast path and tools work.
+  const llm = createAnthropicLlm({
+    apiKey: () => secrets.get('anthropic'),
+    model: () => settings.get().anthropic.model,
+    fetchFn: ((input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      if (!egress.isAllowedUrl(url)) {
+        log(`egress blocked (llm): ${url}`);
+        return Promise.reject(new Error('egress blocked'));
+      }
+      return fetch(input, init);
+    }) as typeof fetch,
+    log,
+  });
+
   const registry = createRegistry(
     [
       ...createTimerTools({ timers: repos.timers, undo: repos.undo, onArm: () => scheduler.rearm() }),
@@ -106,6 +125,7 @@ function boot(): void {
         getUnits: () => settings.get().units,
       }),
       createSearchWebTool({ http, getBraveKey: () => secrets.get('brave') }),
+      createNewsTool({ http, feeds: repos.feeds, summarize: createLlmSummarizer(llm) }),
     ],
     { perf: (turnId, name, durMs) => repos.perf.record(turnId, name, durMs), log },
   );
@@ -115,22 +135,6 @@ function boot(): void {
       if (!win.isDestroyed()) pushTo(win.webContents, 'agent.events', event);
     }
   }
-
-  // Streams through the egress-checked fetch; throws KEY_MISSING (mapped to
-  // Settings > Keys copy) until a key exists, while fast path and tools work.
-  const llm = createAnthropicLlm({
-    apiKey: () => secrets.get('anthropic'),
-    model: () => settings.get().anthropic.model,
-    fetchFn: ((input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
-      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-      if (!egress.isAllowedUrl(url)) {
-        log(`egress blocked (llm): ${url}`);
-        return Promise.reject(new Error('egress blocked'));
-      }
-      return fetch(input, init);
-    }) as typeof fetch,
-    log,
-  });
 
   const orchestrator: Orchestrator = createOrchestrator({
     registry,

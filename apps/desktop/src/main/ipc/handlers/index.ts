@@ -54,9 +54,16 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
       }
       return { ok: true as const };
     },
-    'settings.get': () => deps.settings.get(),
+    // feeds live in the feeds table; settings.get/set present them as the C3 settings field
+    'settings.get': () => ({ ...deps.settings.get(), feeds: deps.repos.feeds.list() }),
     'settings.set': (req) => {
-      deps.settings.set(req);
+      deps.settings.set({ ...req, feeds: [] });
+      const existing = new Set(deps.repos.feeds.list().map((f) => f.id));
+      for (const f of req.feeds) {
+        deps.repos.feeds.upsert(f);
+        existing.delete(f.id);
+      }
+      for (const gone of existing) deps.repos.feeds.remove(gone);
       return { ok: true as const };
     },
     'keys.set': (req) => {
