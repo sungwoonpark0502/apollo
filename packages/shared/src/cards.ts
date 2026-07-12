@@ -15,6 +15,20 @@ export interface EmailDetailSanitized {
   ts: number; safeHtml: string; plainText: string; remoteImagesBlocked: number;
 }
 
+/** One concrete occurrence of a (possibly recurring) event, expanded by eventsRepo (C6). */
+export interface OccurrenceDTO {
+  eventId: string; title: string; startTs: number; endTs: number;
+  tz: string; allDay: boolean; location: string | null; notes: string | null;
+  dateIso: string;        // local calendar date of this occurrence (exdate key)
+  rrule: string | null;   // the parent event's rule, null for one-offs
+}
+
+export const occurrenceDTOSchema: z.ZodType<OccurrenceDTO> = z.object({
+  eventId: z.string(), title: z.string(), startTs: z.number(), endTs: z.number(),
+  tz: z.string(), allDay: z.boolean(), location: z.string().nullable(), notes: z.string().nullable(),
+  dateIso: z.string(), rrule: z.string().nullable(),
+});
+
 export type CardPayload =
   | { kind: 'text'; body: string }
   | { kind: 'event'; event: EventDTO }

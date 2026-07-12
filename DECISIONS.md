@@ -10,3 +10,6 @@
 - 2026-07-12: TypeScript pinned to ^5 (not 7.x native): typescript-eslint and electron-vite do not support the TS7 Go-based API yet.
 - 2026-07-12: `electron` marked explicitly external in electron-vite main/preload rollupOptions; electron-vite 5 (rolldown) inlined the npm shim otherwise.
 - 2026-07-12: Dev runs must unset ELECTRON_RUN_AS_NODE (set by some agent/CI shells); documented in README later.
+- 2026-07-12: better-sqlite3 12.11.1 instead of C1's major 11: v11 does not compile against Electron 43's V8. v12 builds from source for Electron (no arm64 prebuild published).
+- 2026-07-12: scripts/native-abi.mjs caches and swaps the better-sqlite3 binary between Node ABI (pretest) and Electron ABI (predev); electron-builder install-app-deps still runs at package time.
+- 2026-07-12: Migration SQL files bundled via vite `?raw` imports so packaged main needs no loose .sql files; files remain the source of truth in db/migrations/.

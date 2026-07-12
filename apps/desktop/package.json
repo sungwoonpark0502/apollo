@@ -5,15 +5,18 @@
   "type": "module",
   "main": "out/main/index.js",
   "scripts": {
-    "predev": "node scripts/gen-assets.mjs",
+    "predev": "node scripts/gen-assets.mjs && node scripts/native-abi.mjs electron",
     "dev": "electron-vite dev",
     "prebuild": "node scripts/gen-assets.mjs",
     "build": "electron-vite build",
     "typecheck": "tsc -p tsconfig.node.json && tsc -p tsconfig.web.json",
+    "pretest": "node scripts/native-abi.mjs node",
     "test": "vitest run",
     "postinstall": "node scripts/postinstall.mjs"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/luxon": "^3.7.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
@@ -25,8 +28,11 @@
   },
   "dependencies": {
     "@apollo/shared": "workspace:*",
+    "better-sqlite3": "^12.11.1",
+    "luxon": "^3.7.2",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
+    "rrule": "^2.8.1",
     "zod": "^3.25.76"
   }
 }

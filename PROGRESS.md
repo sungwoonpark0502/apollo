@@ -2,6 +2,16 @@
 
 ## Phase 0
 
+### [x] 0.3 DB layer — verified: 23 repo tests green incl. DST wall-time golden case, exdates, FTS sync, undo LIFO, snooze lifecycle; migrations idempotent on :memory:
+Planned files:
+- apps/desktop/src/main/db/{connection.ts, migrate.ts}
+- apps/desktop/src/main/db/migrations/0001_init.sql (verbatim C6)
+- apps/desktop/src/main/db/repos/{events,reminders,timers,alarms,notes,todos,contacts,conversations,memory,capabilityMisses,feeds,perf,undo,settings}.ts (+ index.ts)
+- apps/desktop/src/main/db/repos.test.ts (incl. rrule DST expansion golden case)
+- apps/desktop/scripts/native-abi.mjs (swaps better-sqlite3 prebuild between node/electron ABI for tests vs dev)
+- packages/shared/src/cards.ts: add OccurrenceDTO
+Verify: repo test suite green including DST case; in-memory mode used by tests.
+
 ### [x] 0.2 packages/shared complete + ipc router + preload — verified: 54 tests green (round-trips all 13 invoke + 5 push channels, malformed rejection, spoofed-frame drop); smoke boot OK
 Note: router registration wiring into main happens in 0.6 when the first real handlers (settings/keys) exist.
 Planned files:

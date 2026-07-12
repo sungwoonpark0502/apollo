@@ -20,4 +20,8 @@ const r = spawnSync('pnpm', ['exec', 'electron-builder', 'install-app-deps'], {
   stdio: 'inherit',
   shell: false,
 });
-process.exit(r.status ?? 1);
+if (r.status !== 0) {
+  // Dev/test ABI is managed by scripts/native-abi.mjs; packaging reruns this.
+  console.warn('postinstall: install-app-deps failed; continuing (native ABI handled per-task)');
+}
+process.exit(0);
