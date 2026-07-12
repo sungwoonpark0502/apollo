@@ -2,6 +2,13 @@
 
 ## Phase 1
 
+### [ ] 1.2 Reminders + scheduler + boot catch-up + missed grouping
+Planned files:
+- apps/desktop/src/main/tools/reminder.ts (+ reminder.test.ts)
+- apps/desktop/src/main/scheduler/scheduler.ts: rrule re-arm for recurring reminders/alarms (+ tests)
+- index.ts wiring (reminder tools + rearm hooks); eval catalog real reminder defs
+Verify: missed-reminder-on-boot test (gate), recurring re-arm across DST, reminder tool suite.
+
 ### [x] 1.1 Calendar complete + cards — verified: 18-test suite (tz, overlap/past warnings, 20-occurrence cap, scope single via exdate+detached with undo, scope all with revert undo); Event/EventList cards wired; eval catalog uses real calendar defs
 Planned files:
 - apps/desktop/src/main/tools/calendar.ts (+ calendar.test.ts): create/update/delete (scope single|all via exdates + detached events)/list (max 20 occurrences)/search

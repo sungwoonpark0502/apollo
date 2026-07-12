@@ -22,6 +22,7 @@ import { createContactTools } from './tools/contact';
 import { createMemoryTools } from './tools/memory';
 import { createUndoTool } from './tools/undo';
 import { createCalendarTools } from './tools/calendar';
+import { createReminderTools } from './tools/reminder';
 import { createWeatherTools } from './tools/weather';
 import { createSearchWebTool } from './tools/searchWeb';
 import { createOrchestrator, type Orchestrator } from './agent/orchestrator';
@@ -98,6 +99,7 @@ function boot(): void {
       ...createMemoryTools({ memory: repos.memory, undo: repos.undo }),
       createUndoTool(repos),
       ...createCalendarTools({ events: repos.events, undo: repos.undo }),
+      ...createReminderTools({ reminders: repos.reminders, undo: repos.undo, onArm: () => scheduler.rearm() }),
       ...createWeatherTools({
         http,
         getHome: () => settings.get().home,

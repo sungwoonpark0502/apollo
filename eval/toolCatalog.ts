@@ -13,6 +13,7 @@ import { createUndoTool } from '../apps/desktop/src/main/tools/undo';
 import { createWeatherTools } from '../apps/desktop/src/main/tools/weather';
 import { createSearchWebTool } from '../apps/desktop/src/main/tools/searchWeb';
 import { createCalendarTools } from '../apps/desktop/src/main/tools/calendar';
+import { createReminderTools } from '../apps/desktop/src/main/tools/reminder';
 
 export interface RecordedCall {
   name: string;
@@ -22,10 +23,6 @@ export interface RecordedCall {
 /** Stub defs for tools whose real implementations land in later phases (C7 signatures). */
 function futureToolDefs(): ToolDef[] {
   const defs: Array<{ name: string; tier: 1 | 2 | 3; networked?: boolean; description: string; params: z.ZodType }> = [
-    { name: 'reminder.create', tier: 2, description: 'Create a reminder with text and a due time (ISO 8601 local). Use rrule for recurring reminders.', params: z.object({ text: z.string().min(1), dueIso: z.string(), rrule: z.string().optional() }) },
-    { name: 'reminder.complete', tier: 2, description: 'Mark a reminder done by id or fuzzy text match.', params: z.object({ id: z.string().optional(), text: z.string().optional() }) },
-    { name: 'reminder.snooze', tier: 2, description: 'Snooze a reminder by minutes (default 10).', params: z.object({ id: z.string().optional(), text: z.string().optional(), minutes: z.number().int().positive().default(10) }) },
-    { name: 'reminder.list', tier: 1, description: 'List pending reminders.', params: z.object({}) },
     { name: 'news.brief', tier: 1, networked: true, description: 'Fetch and summarize the news from the user\'s feeds; optional category filter (e.g. "tech").', params: z.object({ category: z.string().optional() }) },
     { name: 'files.find', tier: 1, description: 'Find files by name substring in the user\'s approved folders; optional extension filter.', params: z.object({ query: z.string().min(1), extension: z.string().optional() }) },
     { name: 'system.openApp', tier: 2, description: 'Open an installed application by (fuzzy) name.', params: z.object({ name: z.string().min(1) }) },
@@ -145,6 +142,7 @@ export function buildEvalTools(calls: RecordedCall[]): ToolDef[] {
     ...createMemoryTools({ memory: repos.memory, undo: repos.undo }),
     createUndoTool(repos),
     ...createCalendarTools({ events: repos.events, undo: repos.undo }),
+    ...createReminderTools({ reminders: repos.reminders, undo: repos.undo }),
     ...createWeatherTools({ http: noHttp, getHome: () => ({ name: 'Home', lat: 0, lon: 0 }), getUnits: () => 'imperial' }),
     createSearchWebTool({ http: noHttp, getBraveKey: () => 'eval' }),
   ];

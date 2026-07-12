@@ -1,7 +1,38 @@
+import { DateTime } from 'luxon';
+import * as rrulePkg from 'rrule';
 import { type Repos } from '../db/repos/index';
 import { type TimerRow } from '../db/repos/timers';
 import { type ReminderRow } from '../db/repos/reminders';
 import { type AlarmRow } from '../db/repos/alarms';
+
+const { RRule } = (rrulePkg as { default?: typeof rrulePkg }).default ?? rrulePkg;
+
+/**
+ * Next occurrence strictly after `afterMs`, preserving local wall time across
+ * DST (same fake-UTC technique as eventsRepo.expandOccurrences).
+ */
+export function nextOccurrence(rule: string, anchorMs: number, afterMs: number, tz: string): number | null {
+  let opts;
+  try {
+    opts = RRule.parseString(rule);
+  } catch {
+    return null;
+  }
+  const anchor = DateTime.fromMillis(anchorMs, { zone: tz });
+  opts.dtstart = new Date(Date.UTC(anchor.year, anchor.month - 1, anchor.day, anchor.hour, anchor.minute, anchor.second));
+  const r = new RRule(opts);
+  const after = DateTime.fromMillis(afterMs, { zone: tz });
+  const wallAfter = new Date(Date.UTC(after.year, after.month - 1, after.day, after.hour, after.minute, after.second));
+  const next = r.after(wallAfter, false);
+  if (!next) return null;
+  return DateTime.fromObject(
+    {
+      year: next.getUTCFullYear(), month: next.getUTCMonth() + 1, day: next.getUTCDate(),
+      hour: next.getUTCHours(), minute: next.getUTCMinutes(), second: next.getUTCSeconds(),
+    },
+    { zone: tz },
+  ).toMillis();
+}
 
 /**
  * C19 tick strategy: one setTimeout armed to the next due timestamp,
@@ -12,6 +43,7 @@ import { type AlarmRow } from '../db/repos/alarms';
 export interface SchedulerDeps {
   repos: Repos;
   now?: () => number;
+  tz?: () => string;
   onTimerFire: (t: TimerRow) => void;
   onReminderFire?: (r: ReminderRow) => void;
   onAlarmFire?: (a: AlarmRow) => void;
@@ -43,15 +75,24 @@ export function createScheduler(deps: SchedulerDeps) {
       deps.repos.timers.markFired(t.id, at);
       deps.onTimerFire(t);
     }
+    const tz = deps.tz?.() ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
     const reminders = deps.repos.reminders.due(at);
     for (const r of reminders) {
       deps.repos.reminders.markFired(r.id, at);
       deps.onReminderFire?.(r);
+      if (r.rrule) {
+        const next = nextOccurrence(r.rrule, r.dueTs, at, tz);
+        if (next !== null) deps.repos.reminders.rearm(r.id, next);
+      }
     }
     const alarms = deps.repos.alarms.due(at);
     for (const a of alarms) {
       deps.repos.alarms.markFired(a.id, at);
       deps.onAlarmFire?.(a);
+      if (a.rrule) {
+        const next = nextOccurrence(a.rrule, a.atTs, at, tz);
+        if (next !== null) deps.repos.alarms.rearm(a.id, next);
+      }
     }
     return { timers, reminders, alarms };
   }
