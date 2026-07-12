@@ -1,5 +1,14 @@
 # PROGRESS
 
+## Phase 1
+
+### [x] 1.1 Calendar complete + cards — verified: 18-test suite (tz, overlap/past warnings, 20-occurrence cap, scope single via exdate+detached with undo, scope all with revert undo); Event/EventList cards wired; eval catalog uses real calendar defs
+Planned files:
+- apps/desktop/src/main/tools/calendar.ts (+ calendar.test.ts): create/update/delete (scope single|all via exdates + detached events)/list (max 20 occurrences)/search
+- apps/desktop/src/renderer/components/cards/{EventCard,EventListCard}.tsx; CardView wiring
+- eval/toolCatalog.ts: calendar stubs replaced by real defs
+Verify: calendar tool suite incl. recurrence scope edits, tz, past/overlap warnings.
+
 ## Phase 0
 
 ### [x] 0.7 Real LLM + eval harness — GREEN-WITH-MOCK (A2.4): Anthropic streaming adapter wired (egress-checked fetch); scheduler test proves timer fires after restart; dead-end gate covered by 0.5 test + eval rows; eval harness (50 rows) machinery self-verified via LLM-free row; real-model run requires ANTHROPIC_API_KEY → exact step in HUMAN_TODO; runner reports SKIPPED per C22 meanwhile

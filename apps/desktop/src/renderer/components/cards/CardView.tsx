@@ -4,6 +4,7 @@ import { TextCard } from './TextCard';
 import { TimerCard } from './TimerCard';
 import { WeatherCard } from './WeatherCard';
 import { ConfirmCard } from './ConfirmCard';
+import { EventCard, EventListCard } from './EventCard';
 
 /** One component per CardPayload.kind (C18); kinds from later phases render as text for now. */
 export function CardView({ card }: { card: CardPayload }): React.JSX.Element {
@@ -16,6 +17,10 @@ export function CardView({ card }: { card: CardPayload }): React.JSX.Element {
       return <WeatherCard place={card.place} now={card.now} days={card.days} />;
     case 'confirm':
       return <ConfirmCard confirmationId={card.confirmationId} action={card.action} expiresAt={card.expiresAt} />;
+    case 'event':
+      return <EventCard event={card.event} />;
+    case 'eventList':
+      return <EventListCard title={card.title} events={card.events} />;
     case 'newsList':
       return (
         <div>

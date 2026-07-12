@@ -12,6 +12,7 @@ import { createMemoryTools } from '../apps/desktop/src/main/tools/memory';
 import { createUndoTool } from '../apps/desktop/src/main/tools/undo';
 import { createWeatherTools } from '../apps/desktop/src/main/tools/weather';
 import { createSearchWebTool } from '../apps/desktop/src/main/tools/searchWeb';
+import { createCalendarTools } from '../apps/desktop/src/main/tools/calendar';
 
 export interface RecordedCall {
   name: string;
@@ -21,27 +22,6 @@ export interface RecordedCall {
 /** Stub defs for tools whose real implementations land in later phases (C7 signatures). */
 function futureToolDefs(): ToolDef[] {
   const defs: Array<{ name: string; tier: 1 | 2 | 3; networked?: boolean; description: string; params: z.ZodType }> = [
-    {
-      name: 'calendar.create', tier: 2,
-      description: 'Create a calendar event. startIso/endIso are ISO 8601. tz "LOCAL" means the user\'s timezone. Use rrule (RFC 5545) for recurrence.',
-      params: z.object({
-        title: z.string().min(1), startIso: z.string(), endIso: z.string().optional(),
-        tz: z.string().default('LOCAL'), rrule: z.string().optional(), allDay: z.boolean().optional(),
-        location: z.string().optional(), reminderMin: z.number().int().min(0).optional(),
-      }),
-    },
-    {
-      name: 'calendar.update', tier: 2,
-      description: 'Patch an event by id. For recurring events pass scope "single" (this occurrence only) or "all".',
-      params: z.object({
-        id: z.string(), scope: z.enum(['single', 'all']).optional(), occurrenceDateIso: z.string().optional(),
-        title: z.string().optional(), startIso: z.string().optional(), endIso: z.string().optional(),
-        location: z.string().optional(), rrule: z.string().optional(),
-      }),
-    },
-    { name: 'calendar.delete', tier: 2, description: 'Delete an event by id (soft delete, undoable). Same scope semantics as update.', params: z.object({ id: z.string(), scope: z.enum(['single', 'all']).optional(), occurrenceDateIso: z.string().optional() }) },
-    { name: 'calendar.list', tier: 1, description: 'List calendar occurrences in a date range (expands recurrence). Defaults to today when no range given.', params: z.object({ startIso: z.string().optional(), endIso: z.string().optional() }) },
-    { name: 'calendar.search', tier: 1, description: 'Search events by title/location/notes.', params: z.object({ query: z.string().min(1) }) },
     { name: 'reminder.create', tier: 2, description: 'Create a reminder with text and a due time (ISO 8601 local). Use rrule for recurring reminders.', params: z.object({ text: z.string().min(1), dueIso: z.string(), rrule: z.string().optional() }) },
     { name: 'reminder.complete', tier: 2, description: 'Mark a reminder done by id or fuzzy text match.', params: z.object({ id: z.string().optional(), text: z.string().optional() }) },
     { name: 'reminder.snooze', tier: 2, description: 'Snooze a reminder by minutes (default 10).', params: z.object({ id: z.string().optional(), text: z.string().optional(), minutes: z.number().int().positive().default(10) }) },
@@ -164,6 +144,7 @@ export function buildEvalTools(calls: RecordedCall[]): ToolDef[] {
     ...createContactTools({ contacts: repos.contacts, undo: repos.undo }),
     ...createMemoryTools({ memory: repos.memory, undo: repos.undo }),
     createUndoTool(repos),
+    ...createCalendarTools({ events: repos.events, undo: repos.undo }),
     ...createWeatherTools({ http: noHttp, getHome: () => ({ name: 'Home', lat: 0, lon: 0 }), getUnits: () => 'imperial' }),
     createSearchWebTool({ http: noHttp, getBraveKey: () => 'eval' }),
   ];
