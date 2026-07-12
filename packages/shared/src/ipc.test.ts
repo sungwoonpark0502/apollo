@@ -19,6 +19,7 @@ const invokeFixtures: Record<InvokeChannelName, { req: unknown; res: unknown }> 
   'keys.test': { req: { provider: 'deepgram' }, res: { ok: false, message: 'no key stored' } },
   'oauth.google.start': { req: {}, res: { ok: true, address: 'user@gmail.com' } },
   'oauth.google.revoke': { req: {}, res: { ok: true } },
+  'tts.drained': { req: {}, res: { ok: true } },
   'debug.wake': { req: {}, res: { ok: true } },
   'debug.injectAudio': { req: { wavPath: '/tmp/fixture.wav' }, res: { ok: true } },
 };

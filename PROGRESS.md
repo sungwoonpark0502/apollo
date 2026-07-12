@@ -2,6 +2,8 @@
 
 ## Phase 2
 
+### [x] 2.3 Chunker + edge TTS + FakeTTS + orb playback + barge-in + gating + earcons + waveform + captions — verified: chunker suite (8 tests incl. C21 abbreviation/decimal paragraph, 220-char force-flush, <50ms first flush); pipeline suite (13 tests: sequenced audio w/ last marker, barge-in synchronous flush via generation guard, one-time TTS_DOWN degrade, text-only guard, TTS→STT overlap>=90% round-trip per A2.2b on fakes); edge-tts adapter produces real mp3 (probed: 25 chunks / 17KB, keyless); earcons generated deterministically (wake=two rising notes 120ms, done, error); orb renders 24-bar rms waveform + live caption strip + gated playback; smoke green
+
 ### [x] 2.2 Deepgram adapter + FakeSTT + VoiceController FSM — verified: 14-test FSM suite covering every C12.3 row (wake/hotkey entry, partial+rms, endpoint EOT, VAD-600ms EOT first-wins, 4s no-speech idle, 30s cap, thinking→speaking gating, barge-in with STT reopen, drain→idle, mute/unmute, empty-transcript idle, 2-failure STT_DOWN degrade); Deepgram live adapter (keepalive 8s, one reconnect w/ buffered frames); debug.injectAudio drives wake→listen→EOT from a WAV; smoke green
 
 ### [x] 2.1 Audio capture + worker + Silero VAD + FakeWake — verified: 10-test audio suite (VAD hangover mechanics, real Silero onnx inference, worker mode machine passive/stream/gated/mute, WAV parse/frame/stereo-downmix for debug.injectAudio); smoke shows "audio worker ready" in the utilityProcess; crash backoff 1s/5s/15s then voice-disabled notification. PTT design: hotkey press = wake-free listening entry (Electron global shortcuts cannot observe key-up; recorded in DECISIONS).

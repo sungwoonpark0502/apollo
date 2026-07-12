@@ -59,4 +59,67 @@ for (const [name, size] of [
   const p = join(resources, name);
   if (!existsSync(p)) writeFileSync(p, circleIcon(size));
 }
+
+// ---- earcons (C12.7): short tones ~-14 LUFS, written to resources/ and renderer public/ ----
+const SR = 16000;
+const AMP = 0.35;
+
+function tone(freq, ms, fadeMs = 8) {
+  const n = Math.round((SR * ms) / 1000);
+  const fade = Math.round((SR * fadeMs) / 1000);
+  const out = new Int16Array(n);
+  for (let i = 0; i < n; i++) {
+    let env = 1;
+    if (i < fade) env = i / fade;
+    else if (i > n - fade) env = (n - i) / fade;
+    out[i] = Math.round(Math.sin((2 * Math.PI * freq * i) / SR) * AMP * env * 32767);
+  }
+  return out;
+}
+
+function concat(parts) {
+  const total = parts.reduce((s, p) => s + p.length, 0);
+  const out = new Int16Array(total);
+  let at = 0;
+  for (const p of parts) {
+    out.set(p, at);
+    at += p.length;
+  }
+  return out;
+}
+
+function wav(samples) {
+  const dataSize = samples.length * 2;
+  const buf = Buffer.alloc(44 + dataSize);
+  buf.write('RIFF', 0, 'ascii');
+  buf.writeUInt32LE(36 + dataSize, 4);
+  buf.write('WAVE', 8, 'ascii');
+  buf.write('fmt ', 12, 'ascii');
+  buf.writeUInt32LE(16, 16);
+  buf.writeUInt16LE(1, 20);
+  buf.writeUInt16LE(1, 22);
+  buf.writeUInt32LE(SR, 24);
+  buf.writeUInt32LE(SR * 2, 28);
+  buf.writeUInt16LE(2, 32);
+  buf.writeUInt16LE(16, 34);
+  buf.write('data', 36, 'ascii');
+  buf.writeUInt32LE(dataSize, 40);
+  Buffer.from(samples.buffer, samples.byteOffset, dataSize).copy(buf, 44);
+  return buf;
+}
+
+const earcons = {
+  'wake.wav': concat([tone(660, 60), tone(880, 60)]), // two rising notes, 120ms
+  'done.wav': tone(520, 100),
+  'error.wav': tone(220, 150),
+};
+const publicEarcons = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'src/renderer/public/earcons');
+mkdirSync(publicEarcons, { recursive: true });
+for (const [name, samples] of Object.entries(earcons)) {
+  const data = wav(samples);
+  for (const dir of [resources, publicEarcons]) {
+    const p = join(dir, name);
+    if (!existsSync(p)) writeFileSync(p, data);
+  }
+}
 console.log('assets ok:', resources);

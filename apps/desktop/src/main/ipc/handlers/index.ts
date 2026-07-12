@@ -12,6 +12,7 @@ export interface HandlerDeps {
   secrets: Secrets;
   testKey: (provider: KeyProvider) => Promise<{ ok: boolean; message: string }>;
   setMuted: (on: boolean) => void;
+  ttsDrained?: () => void;
   debugWake?: () => void;
   debugInjectAudio?: (wavPath: string) => Promise<void>;
   log: (msg: string) => void;
@@ -33,6 +34,10 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
     },
     'voice.setMuted': (req) => {
       deps.setMuted(req.muted);
+      return { ok: true as const };
+    },
+    'tts.drained': () => {
+      deps.ttsDrained?.();
       return { ok: true as const };
     },
     'data.mutate': (req) => {

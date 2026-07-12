@@ -6,6 +6,9 @@ import { createAudioWindow, createOrbWindow, createPaletteWindow, openSettingsWi
 import { createOrbController } from './orbController';
 import { createWorkerHost } from './voice/workerHost';
 import { createVoiceController } from './voice/voiceController';
+import { createTtsPipeline } from './voice/tts/pipeline';
+import { createEdgeTts } from './voice/tts/edge';
+import { FakeTts } from './voice/tts/fake';
 import { createDeepgramStt } from './voice/sttDeepgram';
 import { FakeStt, type FakeSttFixture } from './voice/sttFake';
 import { wavToFrames } from './voice/wav';
@@ -160,7 +163,14 @@ function boot(): void {
 
   function emitToAll(event: AgentEvent): void {
     orbController.onAgentEvent(event);
-    if (event.type === 'done' || event.type === 'error') voiceController.turnDone();
+    if (voiceTurnActive && event.type === 'token') ttsPipeline.feedToken(event.text);
+    if (event.type === 'done' || event.type === 'error') {
+      if (voiceTurnActive) {
+        voiceTurnActive = false;
+        ttsPipeline.endTurn();
+      }
+      if (!ttsPipeline.isActive()) voiceController.turnDone(); // text-only reply → idle
+    }
     for (const win of BrowserWindow.getAllWindows()) {
       if (!win.isDestroyed()) pushTo(win.webContents, 'agent.events', event);
     }
@@ -220,11 +230,30 @@ function boot(): void {
     }
   }
 
+  // TTS pipeline (C12.5): edge is keyless, so 'auto' means real unless forced fake
+  const ttsAdapter = settings.get().adapters.tts === 'fake' ? new FakeTts() : createEdgeTts({ voice: () => settings.get().tts.voice, log });
+  const ttsPipeline = createTtsPipeline({
+    adapter: ttsAdapter,
+    pushAudio: (p) => {
+      if (!orbWindow.isDestroyed()) pushTo(orbWindow.webContents, 'tts.audio', p);
+    },
+    pushStop: () => {
+      if (!orbWindow.isDestroyed()) pushTo(orbWindow.webContents, 'tts.stop', {});
+    },
+    onFirstChunk: () => voiceController.ttsStarted(),
+    onError: (copy) => new Notification({ title: STRINGS.app.name, body: copy }).show(),
+    perf: (name, dur) => repos.perf.record('voice', name, dur),
+    log,
+  });
+  let voiceTurnActive = false;
+
   const voiceConvId = newId(); // voice turns share one conversation per app session
   const voiceController = createVoiceController({
     stt: sttAdapter,
     workerSend: (m) => workerHost.send(m),
     dispatch: (text) => {
+      voiceTurnActive = true;
+      ttsPipeline.beginTurn();
       orchestrator.handleUserMessage({ text, source: 'voice', convId: voiceConvId });
     },
     pushState: pushVoiceState,
@@ -233,12 +262,8 @@ function boot(): void {
         if (!win.isDestroyed()) pushTo(win.webContents, 'voice.partial', { transcript, rms });
       }
     },
-    playEarcon: (name) => log(`earcon: ${name}`), // orb playback lands in 2.3
-    stopTts: () => {
-      for (const win of BrowserWindow.getAllWindows()) {
-        if (!win.isDestroyed()) pushTo(win.webContents, 'tts.stop', {});
-      }
-    },
+    playEarcon: (name) => log(`earcon: ${name}`), // audible earcons play in the orb on voice.state changes
+    stopTts: () => ttsPipeline.stop(),
     notify: (copy) => new Notification({ title: STRINGS.app.name, body: copy }).show(),
     log,
   });
@@ -263,6 +288,7 @@ function boot(): void {
     secrets,
     testKey,
     setMuted: (on) => voiceController.setMuted(on),
+    ttsDrained: () => voiceController.ttsFinished(),
     debugWake: () => voiceController.onWake(),
     debugInjectAudio: async (wavPath) => {
       // A2.2a: drives wake → listen → EOT with mic-identical frames.
