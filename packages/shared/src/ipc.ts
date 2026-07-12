@@ -47,6 +47,14 @@ export const invokeChannels = {
   'keys.test': { req: z.object({ provider: keyProviderSchema }), res: z.object({ ok: z.boolean(), message: z.string() }) },
   'oauth.google.start': { req: z.object({}), res: z.object({ ok: z.boolean(), address: z.string().optional() }) },
   'oauth.google.revoke': { req: z.object({}), res: z.object({ ok: z.boolean() }) },
+  'diagnostics.get': {
+    req: z.object({}),
+    res: z.object({
+      perf: z.array(z.object({ name: z.string(), count: z.number(), p50: z.number(), p95: z.number() })),
+      adapters: z.object({ stt: z.string(), tts: z.string(), wake: z.string(), llm: z.string() }),
+      logTail: z.array(z.string()),
+    }),
+  },
   'tts.drained': { req: z.object({}), res: ackSchema },      // orb player → FSM "queue drained"
   'debug.wake': { req: z.object({}), res: ackSchema },       // dev only: drives FakeWake
   'debug.injectAudio': { req: z.object({ wavPath: z.string() }), res: ackSchema }, // dev only: A2.2a

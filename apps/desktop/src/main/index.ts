@@ -14,7 +14,7 @@ import { FakeStt, type FakeSttFixture } from './voice/sttFake';
 import { wavToFrames } from './voice/wav';
 import { readFileSync } from 'node:fs';
 import { AUDIO_PORT_CHANNEL, newId, type VoiceState } from '@apollo/shared';
-import { createLogger } from './logger';
+import { createLogger, readLogTail } from './logger';
 import { loadConfig } from './config';
 import { openDb } from './db/connection';
 import { migrate } from './db/migrate';
@@ -85,6 +85,7 @@ function boot(): void {
   const settings = createSettingsService(repos.settings, {
     onChange: (next, prev) => {
       if (next.hotkey !== prev.hotkey) registerHotkey(next.hotkey, onHotkeyPress, log);
+      if (next.wake.sensitivity !== prev.wake.sensitivity) workerHost.send({ t: 'setSensitivity', v: next.wake.sensitivity });
     },
   });
   const secrets = createSecrets({ settings: repos.settings, codec: safeStorageCodec(safeStorage), env: config.env, log });
@@ -289,6 +290,13 @@ function boot(): void {
     testKey,
     setMuted: (on) => voiceController.setMuted(on),
     ttsDrained: () => voiceController.ttsFinished(),
+    adapterStates: () => ({
+      stt: useRealStt ? 'deepgram' : 'fake',
+      tts: settings.get().adapters.tts === 'fake' ? 'fake' : 'edge',
+      wake: useRealWake ? 'porcupine' : 'fake',
+      llm: secrets.get('anthropic') ? 'anthropic' : 'no-key',
+    }),
+    logTail: (lines) => readLogTail(join(userData, 'logs', 'apollo.log'), lines),
     debugWake: () => voiceController.onWake(),
     debugInjectAudio: async (wavPath) => {
       // A2.2a: drives wake → listen → EOT with mic-identical frames.

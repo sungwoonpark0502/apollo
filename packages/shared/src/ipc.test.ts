@@ -19,6 +19,14 @@ const invokeFixtures: Record<InvokeChannelName, { req: unknown; res: unknown }> 
   'keys.test': { req: { provider: 'deepgram' }, res: { ok: false, message: 'no key stored' } },
   'oauth.google.start': { req: {}, res: { ok: true, address: 'user@gmail.com' } },
   'oauth.google.revoke': { req: {}, res: { ok: true } },
+  'diagnostics.get': {
+    req: {},
+    res: {
+      perf: [{ name: 'turn_total', count: 3, p50: 120, p95: 480 }],
+      adapters: { stt: 'fake', tts: 'real', wake: 'fake', llm: 'real' },
+      logTail: ['line one', 'line two'],
+    },
+  },
   'tts.drained': { req: {}, res: { ok: true } },
   'debug.wake': { req: {}, res: { ok: true } },
   'debug.injectAudio': { req: { wavPath: '/tmp/fixture.wav' }, res: { ok: true } },

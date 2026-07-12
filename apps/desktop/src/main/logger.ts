@@ -1,5 +1,5 @@
 import pino, { type Logger } from 'pino';
-import { existsSync, mkdirSync, renameSync, statSync, unlinkSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, statSync, unlinkSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 /** C20/C14.2: pino with secret redaction, 5MB rotation, 3 files kept. */
@@ -63,6 +63,16 @@ export function createLoggerTo(stream: NodeJS.WritableStream): Logger {
 
 export function logPathFor(logDir: string): string {
   return join(logDir, 'apollo.log');
+}
+
+/** Diagnostics tab: last N lines of the log (redaction already applied at write time). */
+export function readLogTail(logPath: string, lines: number): string[] {
+  try {
+    const text = readFileSync(logPath, 'utf8');
+    return text.split('\n').filter(Boolean).slice(-lines);
+  } catch {
+    return [];
+  }
 }
 
 export function ensureDirFor(p: string): void {

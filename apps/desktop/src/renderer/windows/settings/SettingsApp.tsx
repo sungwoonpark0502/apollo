@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { STRINGS, type KeyProvider } from '@apollo/shared';
 import { KeysTab } from './KeysTab';
+import { VoiceTab } from './VoiceTab';
+import { DiagnosticsTab } from './DiagnosticsTab';
 
 type TabId = keyof typeof STRINGS.settings.tabs;
 const TAB_ORDER: TabId[] = ['general', 'voice', 'accounts', 'keys', 'privacy', 'diagnostics'];
@@ -35,7 +37,15 @@ export function SettingsApp(): React.JSX.Element {
         ))}
       </nav>
       <main style={{ flex: 1, padding: 'var(--sp-5)', overflowY: 'auto' }}>
-        {tab === 'keys' ? <KeysTab /> : <Placeholder tab={STRINGS.settings.tabs[tab]} />}
+        {tab === 'keys' ? (
+          <KeysTab />
+        ) : tab === 'voice' ? (
+          <VoiceTab />
+        ) : tab === 'diagnostics' ? (
+          <DiagnosticsTab />
+        ) : (
+          <Placeholder tab={STRINGS.settings.tabs[tab]} />
+        )}
       </main>
     </div>
   );
