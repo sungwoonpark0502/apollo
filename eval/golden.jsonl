@@ -1,0 +1,50 @@
+{"id":"cal-01","utterance":"put dentist on my calendar tomorrow at 3","expect_tools":[{"name":"calendar.create","args_like":{"title":"dentist","startIso":"2026-07-12T15"}}]}
+{"id":"cal-02","utterance":"schedule standup every weekday at 9:30am","expect_tools":[{"name":"calendar.create","args_like":{"rrule":"BYDAY=MO"}}]}
+{"id":"cal-03","utterance":"what's on my calendar today","expect_tools":[{"name":"calendar.list"}]}
+{"id":"cal-04","utterance":"move my dentist appointment to friday at 3pm","expect_tools":[{"name":"calendar.update","args_like":{"id":"ev_2"}}]}
+{"id":"cal-05","utterance":"delete the dentist appointment from my calendar","expect_tools":[{"name":"calendar.delete","args_like":{"id":"ev_2"}}]}
+{"id":"cal-06","utterance":"book lunch with sarah next friday at noon","expect_tools":[{"name":"calendar.create","args_like":{"startIso":"2026-07-24T12"}}]}
+{"id":"cal-07","utterance":"add a 2 hour meeting wednesday at 2pm titled roadmap review","expect_tools":[{"name":"calendar.create","args_like":{"title":"roadmap review","startIso":"2026-07-15T14"}}]}
+{"id":"cal-08","utterance":"do I have anything on the calendar this weekend","expect_tools":[{"name":"calendar.list"}]}
+{"id":"cal-09","utterance":"create an all day event on saturday called moving day","expect_tools":[{"name":"calendar.create","args_like":{"title":"moving day"}}]}
+{"id":"cal-10","utterance":"search my calendar for the dentist appointment","expect_tools":[{"name":"calendar.search","args_like":{"query":"dentist"}}]}
+{"id":"rem-01","utterance":"remind me to take out the trash tonight","expect_tools":[{"name":"reminder.create","args_like":{"dueIso":"2026-07-11T21"}}]}
+{"id":"rem-02","utterance":"remind me to call mom in an hour","expect_tools":[{"name":"reminder.create","args_like":{"dueIso":"2026-07-11T11"}}]}
+{"id":"tim-01","utterance":"set a timer for 20 minutes","expect_tools":[{"name":"timer.start","args_like":{"durationSec":1200}}]}
+{"id":"tim-02","utterance":"set a pasta timer for 8 minutes","expect_tools":[{"name":"timer.start","args_like":{"durationSec":480,"label":"pasta"}}]}
+{"id":"tim-03","utterance":"cancel the pasta timer","expect_tools":[{"name":"timer.cancel"}]}
+{"id":"tim-04","utterance":"what timers are running","expect_tools":[{"name":"timer.list"}]}
+{"id":"alm-01","utterance":"wake me up at 6:30 tomorrow morning","expect_tools":[{"name":"alarm.set","args_like":{"atIso":"2026-07-12T06:30"}}]}
+{"id":"alm-02","utterance":"set an alarm for weekdays at 7am","expect_tools":[{"name":"alarm.set","args_like":{"rrule":"BYDAY=MO"}}]}
+{"id":"wx-01","utterance":"what's the weather like","expect_tools":[{"name":"weather.now"}]}
+{"id":"wx-02","utterance":"weather in columbus","expect_tools":[{"name":"weather.now","args_like":{"place":"columbus"}}]}
+{"id":"wx-03","utterance":"will it rain this weekend","expect_tools":[{"name":"weather.forecast"}]}
+{"id":"wx-04","utterance":"what's the forecast for tokyo","expect_tools":[{"name":"weather.forecast","args_like":{"place":"tokyo"}}]}
+{"id":"wx-05","utterance":"what's tomorrow's forecast","expect_tools":[{"name":"weather.forecast"}]}
+{"id":"wx-06","utterance":"how hot is it right now","expect_tools":[{"name":"weather.now"}]}
+{"id":"news-01","utterance":"what's in the news","expect_tools":[{"name":"news.brief"}]}
+{"id":"news-02","utterance":"any tech news today","expect_tools":[{"name":"news.brief"}]}
+{"id":"web-01","utterance":"who won the nba finals this year","expect_tools":[{"name":"search.web"}]}
+{"id":"web-02","utterance":"search the web for best mechanical keyboards","expect_tools":[{"name":"search.web","args_like":{"query":"keyboard"}}]}
+{"id":"web-03","utterance":"what's the current price of bitcoin","expect_tools":[{"name":"search.web"}]}
+{"id":"web-04","utterance":"look up reviews for the framework laptop","expect_tools":[{"name":"search.web","args_like":{"query":"framework"}}]}
+{"id":"mem-01","utterance":"remember that my partner lives in columbus","expect_tools":[{"name":"memory.save","args_like":{"fact":"columbus"}}]}
+{"id":"mem-02","utterance":"remember that I prefer metric units","expect_tools":[{"name":"memory.save","args_like":{"fact":"metric"}}]}
+{"id":"mem-03","utterance":"forget what I told you about my partner","expect_tools":[{"name":"memory.forget","args_like":{"fact":"partner"}}]}
+{"id":"note-01","utterance":"note that the garage code is 4831","expect_tools":[{"name":"note.save","args_like":{"content":"4831"}}]}
+{"id":"note-02","utterance":"find my note about the garage","expect_tools":[{"name":"note.search","args_like":{"query":"garage"}}]}
+{"id":"amb-01","utterance":"remind me tomorrow at 3 to send the invoice","expect_tools":[{"name":"reminder.create","args_like":{"dueIso":"2026-07-12T15"}}],"reply_must_include":"3"}
+{"id":"amb-02","utterance":"set an alarm for 8","expect_tools":[{"name":"alarm.set","args_like":{"atIso":"T20:"}}]}
+{"id":"amb-03","utterance":"add dinner with alex on friday to my calendar","expect_tools":[{"name":"calendar.create","args_like":{"startIso":"2026-07-17"}}]}
+{"id":"amb-04","utterance":"remind me at 9 to review the pr","expect_tools":[{"name":"reminder.create","args_like":{"dueIso":"2026-07-11T21"}}]}
+{"id":"amb-05","utterance":"schedule a call next friday at 3","expect_tools":[{"name":"calendar.create","args_like":{"startIso":"2026-07-24T15"}}]}
+{"id":"dead-01","utterance":"buy me stocks","expect_tools":[{"name":"search.web"}],"forbid_bare_refusal":true}
+{"id":"dead-02","utterance":"order me a pizza","expect_tools":[{"name":"search.web"}],"forbid_bare_refusal":true}
+{"id":"dead-03","utterance":"book me a flight to new york","expect_tools":[{"name":"search.web"}],"forbid_bare_refusal":true}
+{"id":"dead-04","utterance":"walk my dog for me","forbid_bare_refusal":true}
+{"id":"conf-01","utterance":"email jane@example.com that I'm running late","confirm":"approve","expect_tools":[{"name":"email.send","args_like":{"to":["jane@example.com"]}}]}
+{"id":"conf-02","utterance":"email jane@example.com that dinner is off","confirm":"deny","forbid_tools":["email.send"]}
+{"id":"conf-03","utterance":"send bob the garage code from my notes","confirm":"approve","expect_tools":[{"name":"email.send","args_like":{"to":["bob@work.com"]}}]}
+{"id":"fpn-01","utterance":"set a timer for five minutes","expect_tools":[{"name":"timer.start","args_like":{"durationSec":300}}]}
+{"id":"fpn-02","utterance":"what time is it in tokyo right now","forbid_bare_refusal":true}
+{"id":"fpn-03","utterance":"turn the volume up a little bit","expect_tools":[{"name":"system.volume","args_like":{"op":"up"}}]}

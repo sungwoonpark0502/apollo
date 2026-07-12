@@ -23,3 +23,7 @@ jobs:
         run: |
           ! grep -rnE "child_process|\bexec\(|execSync\(" apps/desktop/src packages/shared/src --include='*.ts' --include='*.tsx' | grep -v spawn
       - run: pnpm audit --prod --audit-level high
+      # Real-LLM eval gate: runs when the secret exists, self-reports SKIPPED otherwise (C22).
+      - run: pnpm eval
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

@@ -1,6 +1,6 @@
-import { app, BrowserWindow, ipcMain, safeStorage } from 'electron';
+import { app, BrowserWindow, ipcMain, Notification, safeStorage } from 'electron';
 import { join } from 'node:path';
-import { AppError, STRINGS, type AgentEvent } from '@apollo/shared';
+import { STRINGS, type AgentEvent } from '@apollo/shared';
 import { createTray, getTray } from './tray';
 import { createPaletteWindow, openSettingsWindow, togglePalette } from './windows';
 import { createLogger } from './logger';
@@ -25,7 +25,8 @@ import { createWeatherTools } from './tools/weather';
 import { createSearchWebTool } from './tools/searchWeb';
 import { createOrchestrator, type Orchestrator } from './agent/orchestrator';
 import { buildSystemPrompt } from './agent/systemPrompt';
-import { type LlmClient } from './agent/llm';
+import { createAnthropicLlm } from './agent/llmAnthropic';
+import { createScheduler } from './scheduler/scheduler';
 import { registerRouter, makeTrustedUrlCheck, pushTo } from './ipc/router';
 import { buildHandlers } from './ipc/handlers/index';
 import { registerHotkey, unregisterAll } from './shortcuts';
@@ -72,10 +73,24 @@ function boot(): void {
   const egress = createEgressPolicy(() => repos.feeds.list().map((f) => new URL(f.url).hostname));
   const http = createHttpClient({ egress, breaker: createBreaker(), log });
 
+  const scheduler = createScheduler({
+    repos,
+    onTimerFire: (t) => {
+      new Notification({ title: STRINGS.app.name, body: STRINGS.spoken.timerDone(t.label) }).show();
+    },
+    onReminderFire: (r) => {
+      new Notification({ title: STRINGS.app.name, body: STRINGS.spoken.reminderFired(r.text) }).show();
+    },
+    onAlarmFire: (a) => {
+      new Notification({ title: STRINGS.app.name, body: STRINGS.spoken.alarmFired(a.label) }).show();
+    },
+    log,
+  });
+
   const registry = createRegistry(
     [
-      ...createTimerTools({ timers: repos.timers, undo: repos.undo }),
-      ...createAlarmTools({ alarms: repos.alarms, undo: repos.undo }),
+      ...createTimerTools({ timers: repos.timers, undo: repos.undo, onArm: () => scheduler.rearm() }),
+      ...createAlarmTools({ alarms: repos.alarms, undo: repos.undo, onArm: () => scheduler.rearm() }),
       ...createNoteTools({ notes: repos.notes, undo: repos.undo }),
       ...createTodoTools({ todos: repos.todos, undo: repos.undo }),
       ...createContactTools({ contacts: repos.contacts, undo: repos.undo }),
@@ -97,18 +112,26 @@ function boot(): void {
     }
   }
 
-  // Real Anthropic adapter lands in 0.7; until a key exists every LLM turn
-  // resolves to KEY_MISSING copy while fast path and tools keep working.
-  const keyMissingLlm: LlmClient = {
-    stream() {
-      return Promise.reject(new AppError('KEY_MISSING', 'no anthropic key'));
-    },
-  };
+  // Streams through the egress-checked fetch; throws KEY_MISSING (mapped to
+  // Settings > Keys copy) until a key exists, while fast path and tools work.
+  const llm = createAnthropicLlm({
+    apiKey: () => secrets.get('anthropic'),
+    model: () => settings.get().anthropic.model,
+    fetchFn: ((input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      if (!egress.isAllowedUrl(url)) {
+        log(`egress blocked (llm): ${url}`);
+        return Promise.reject(new Error('egress blocked'));
+      }
+      return fetch(input, init);
+    }) as typeof fetch,
+    log,
+  });
 
   const orchestrator: Orchestrator = createOrchestrator({
     registry,
     repos,
-    llm: keyMissingLlm,
+    llm,
     systemPrompt: () => buildSystemPrompt(userInfo().username || 'the user'),
     emit: emitToAll,
     tz: () => Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -134,6 +157,12 @@ function boot(): void {
   createTray({ onOpenSettings: () => openSettingsWindow() });
   const palette = createPaletteWindow();
   registerHotkey(settings.get().hotkey, togglePalette, log);
+
+  const missed = scheduler.start();
+  const missedCount = missed.timers.length + missed.reminders.length + missed.alarms.length;
+  if (missedCount > 0) {
+    new Notification({ title: STRINGS.notifications.whileAwayTitle, body: STRINGS.spoken.whileAway(missedCount) }).show();
+  }
 
   if (process.env['APOLLO_SMOKE'] === '1') {
     palette.webContents.once('did-finish-load', () => {

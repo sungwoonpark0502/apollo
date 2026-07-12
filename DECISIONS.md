@@ -19,3 +19,6 @@
 - 2026-07-12: Preload forced to CJS output (sandboxed preloads cannot be ESM); main bundle externals include all runtime deps (rrule pulled tslib in otherwise); rrule imported via default-interop for Electron ESM.
 - 2026-07-12: Until 0.7, the LLM client is a KEY_MISSING stub: fast path and tools work, LLM turns show the Settings > Keys copy.
 - 2026-07-12: pino rotation implemented as boot-time size check (5MB, keep 3) rather than a transport dependency.
+- 2026-07-12: Minimal scheduler pulled forward from 1.2 into 0.7 because the 0.7 gate ("timer fires after restart") requires it; 1.2 extends it with recurring re-arm + missed grouping UX.
+- 2026-07-12: Eval runner executes via vite-node (tsx can't transform vite `?raw` imports); tool catalog = real defs with recorded canned executors + C7-signature stubs for later-phase tools (stubs replaced as phases land).
+- 2026-07-12: Eval reference "now" pinned to the C11 example instant (Sat 2026-07-11 10:00 PT) so time-resolution rows are deterministic.

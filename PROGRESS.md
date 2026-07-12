@@ -2,6 +2,14 @@
 
 ## Phase 0
 
+### [x] 0.7 Real LLM + eval harness — GREEN-WITH-MOCK (A2.4): Anthropic streaming adapter wired (egress-checked fetch); scheduler test proves timer fires after restart; dead-end gate covered by 0.5 test + eval rows; eval harness (50 rows) machinery self-verified via LLM-free row; real-model run requires ANTHROPIC_API_KEY → exact step in HUMAN_TODO; runner reports SKIPPED per C22 meanwhile
+Planned files:
+- apps/desktop/src/main/agent/llmAnthropic.ts (streaming adapter, egress-checked fetch)
+- apps/desktop/src/main/scheduler/scheduler.ts (+ test) — minimal timer arm/fire/catch-up for the restart gate; extended in 1.2
+- apps/desktop/src/main/index.ts: use Anthropic adapter when key exists; wire scheduler + OS notification
+- eval/golden.jsonl (50+ rows), eval/toolCatalog.ts (real registry + mocked executors + future-tool stubs), eval/run.ts, root script `pnpm eval`
+Gate: eval >= 90% with real key (no key on this machine → runner prints SKIPPED per C22, item goes to HUMAN_TODO, milestone green-with-mock per A2.4); timer fires after restart (scheduler test); unsupported request → alternative + capability_misses (0.5 test + eval rows).
+
 ### [x] 0.6 Palette UI streaming + cards + Settings Keys + secrets — verified: 186 tests green incl. redaction (keys never in logs) + secrets precedence/ciphertext; smoke boot `SMOKE_OK … e2e=turn-ok` proves renderer→IPC→orchestrator→fast-path→events round trip; manual look-and-feel script in HUMAN_TODO
 Planned files:
 - apps/desktop/src/main/{logger.ts, config.ts, shortcuts.ts}
