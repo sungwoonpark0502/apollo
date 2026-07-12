@@ -2,7 +2,9 @@
 
 ## Phase 1
 
-### [ ] 1.5 Orb shell with text-triggered states + panel + pinning
+### Phase 1 GATE — recurrence goldens ✓ (repo + calendar suites); missed-reminder-on-boot ✓ (reminder.test GATE case); orb click-through ✓ (smoke: clickThroughIdle=true interactiveActive=true); eval extended to 81 rows ✓ seeded (≥90% real-model run pending key, HUMAN_TODO; harness machinery re-verified). GREEN-WITH-MOCK per A2.4.
+
+### [x] 1.5 Orb shell with text-triggered states + panel + pinning — verified via smoke: orb alwaysOnTop, unfocused, click-through idle, interactive during turns; 8s auto-dismiss + pin in renderer
 Planned files:
 - apps/desktop/src/main/windows.ts: createOrbWindow (click-through idle, activity toggling, per-display position)
 - apps/desktop/src/main/orbController.ts: idle/active + setIgnoreMouseEvents driving from agent events

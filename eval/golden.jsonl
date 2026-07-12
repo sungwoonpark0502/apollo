@@ -48,3 +48,34 @@
 {"id":"fpn-01","utterance":"set a timer for five minutes","expect_tools":[{"name":"timer.start","args_like":{"durationSec":300}}]}
 {"id":"fpn-02","utterance":"what time is it in tokyo right now","forbid_bare_refusal":true}
 {"id":"fpn-03","utterance":"turn the volume up a little bit","expect_tools":[{"name":"system.volume","args_like":{"op":"up"}}]}
+{"id":"cal-11","utterance":"cancel friday's occurrence of my standup but keep the series","expect_tools":[{"name":"calendar.delete","args_like":{"scope":"single"}}]}
+{"id":"cal-12","utterance":"what's on my calendar next week","expect_tools":[{"name":"calendar.list"}]}
+{"id":"cal-13","utterance":"push the dentist appointment back an hour","expect_tools":[{"name":"calendar.update"}]}
+{"id":"cal-14","utterance":"schedule yoga tuesdays and thursdays at 6pm","expect_tools":[{"name":"calendar.create","args_like":{"rrule":"BYDAY=TU,TH"}}]}
+{"id":"cal-15","utterance":"rename my roadmap review meeting to product sync","expect_tools":[{"name":"calendar.update"}]}
+{"id":"rem-03","utterance":"snooze the trash reminder for 20 minutes","expect_tools":[{"name":"reminder.snooze","args_like":{"minutes":20}}]}
+{"id":"rem-04","utterance":"what reminders do I have","expect_tools":[{"name":"reminder.list"}]}
+{"id":"wx-07","utterance":"is it going to be hotter tomorrow than today","expect_tools":[{"name":"weather.forecast"}]}
+{"id":"wx-08","utterance":"weather for the weekend in san diego","expect_tools":[{"name":"weather.forecast","args_like":{"place":"san diego"}}]}
+{"id":"web-05","utterance":"find out when the next apple event is","expect_tools":[{"name":"search.web"}]}
+{"id":"news-03","utterance":"give me a quick news rundown","expect_tools":[{"name":"news.brief"}]}
+{"id":"eml-01","utterance":"check my email","expect_tools":[{"name":"email.list"}]}
+{"id":"eml-02","utterance":"any unread emails","expect_tools":[{"name":"email.list"}]}
+{"id":"eml-03","utterance":"read the email from jane","expect_tools":[{"name":"email.read","args_like":{"id":"em_1"}}]}
+{"id":"eml-04","utterance":"search my email for the lease","expect_tools":[{"name":"email.search","args_like":{"query":"lease"}}]}
+{"id":"eml-05","utterance":"draft a reply to jane@example.com saying friday works","expect_tools":[{"name":"email.draft","args_like":{"to":["jane@example.com"]}}],"forbid_tools":["email.send"]}
+{"id":"eml-06","utterance":"did jane email me about lunch","expect_tools":[]}
+{"id":"eml-07","utterance":"summarize my inbox","expect_tools":[{"name":"email.list"}]}
+{"id":"eml-08","utterance":"what did the shop newsletter say","expect_tools":[{"name":"email.read","args_like":{"id":"em_2"}}]}
+{"id":"mem-04","utterance":"what do you remember about my partner","expect_tools":[],"reply_must_include":"Columbus"}
+{"id":"mem-05","utterance":"remember my anniversary is october 12","expect_tools":[{"name":"memory.save","args_like":{"fact":"october 12"}}]}
+{"id":"amb-06","utterance":"book a haircut for the 20th at 10","expect_tools":[{"name":"calendar.create","args_like":{"startIso":"2026-07-20T10"}}]}
+{"id":"amb-07","utterance":"remind me in a bit to check the oven","expect_tools":[{"name":"reminder.create","args_like":{"dueIso":"2026-07-11T13"}}]}
+{"id":"amb-08","utterance":"set something up with sam for the morning","expect_tools":[{"name":"calendar.create","args_like":{"startIso":"2026-07-12T09"}}]}
+{"id":"dead-05","utterance":"transfer 100 dollars to my savings account","expect_tools":[{"name":"search.web"}],"forbid_bare_refusal":true}
+{"id":"dead-06","utterance":"turn on my living room lights","forbid_bare_refusal":true}
+{"id":"conf-04","utterance":"email jane@example.com and bob@work.com that the meeting moved","confirm":"approve","expect_tools":[{"name":"email.send","args_like":{"to":["jane@example.com","bob@work.com"]}}]}
+{"id":"conf-05","utterance":"send an email to jane@example.com apologizing for the delay","confirm":"deny","forbid_tools":["email.send"]}
+{"id":"fpn-04","utterance":"open spotify and play my discover weekly","expect_tools":[{"name":"system.openApp","args_like":{"name":"spotify"}}]}
+{"id":"fpn-05","utterance":"set a timer","forbid_bare_refusal":true}
+{"id":"fpn-06","utterance":"mute the tv","forbid_bare_refusal":true}

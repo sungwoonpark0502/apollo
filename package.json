@@ -11,7 +11,7 @@
     "lint": "eslint .",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
-    "eval": "vite-node eval/run.ts"
+    "eval": "node apps/desktop/scripts/native-abi.mjs node && vite-node eval/run.ts"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
