@@ -24,7 +24,9 @@
     "vitest": "^4.1.10"
   },
   "dependencies": {
+    "@apollo/shared": "workspace:*",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "zod": "^3.25.76"
   }
 }
