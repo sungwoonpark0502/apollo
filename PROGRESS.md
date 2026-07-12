@@ -2,6 +2,12 @@
 
 ## Phase 0
 
+### [x] 0.5 Orchestrator with FakeLLM scripted tests — verified: 23-test suite green (tool loop, parallel calls, 8-iter cap, taint flags incl. user-stated exemption, confirm approve/deny/lexicon/supersede/expiry, email cancel-window abort, dead-end guard + capability_misses, silent cancellation, fast-path LLM bypass, perf spans, context assembly)
+Planned files:
+- apps/desktop/src/main/agent/{llm.ts, llmFake.ts, systemPrompt.ts, confirmations.ts, taint.ts, orchestrator.ts}
+- apps/desktop/src/main/agent/{taint.test.ts, orchestrator.test.ts}
+Verify: scripted suites for tool loop, parallel calls, taint flags, confirmation approve/deny/supersede/expiry/lexicon, email cancel-window, dead-end guard + capability_misses, cancellation, 8-iteration cap, fast-path bypass, perf spans.
+
 ### [x] 0.4 Registry + tools + fastPath + timeResolver — verified: 110 desktop tests green (32 resolver golden rows, 12 fastPath, registry timeout/validation/error, tool suites vs in-memory DB, breaker transitions, egress allow/deny, weather cache, brave KEY_MISSING path)
 Planned files:
 - apps/desktop/src/main/agent/{timeResolver.ts, timeResolver.test.ts, fastPath.ts, fastPath.test.ts}
