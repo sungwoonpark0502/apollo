@@ -13,3 +13,6 @@
 - 2026-07-12: better-sqlite3 12.11.1 instead of C1's major 11: v11 does not compile against Electron 43's V8. v12 builds from source for Electron (no arm64 prebuild published).
 - 2026-07-12: scripts/native-abi.mjs caches and swaps the better-sqlite3 binary between Node ABI (pretest) and Electron ABI (predev); electron-builder install-app-deps still runs at package time.
 - 2026-07-12: Migration SQL files bundled via vite `?raw` imports so packaged main needs no loose .sql files; files remain the source of truth in db/migrations/.
+- 2026-07-12: C11 weekday rows: the table's example values win over its prose ("this Friday"→07-17, "next Friday"→07-24 from Sat 07-11). Implemented as: bare/"this" weekday = upcoming occurrence; "next" = upcoming + 7 days.
+- 2026-07-12: fastPath "open X" accepts any name and full-matches; the openApp tool's allowlist rejects non-apps (keeps grammar simple, no dead end).
+- 2026-07-12: httpClient maps 401/403→KEY_INVALID, 429→RATE_LIMITED, network exhaustion→OFFLINE; egress requires https and exact hostname match.

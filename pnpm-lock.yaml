@@ -44,6 +44,9 @@ importers:
       better-sqlite3:
         specifier: ^12.11.1
         version: 12.11.1
+      chrono-node:
+        specifier: ^2.10.0
+        version: 2.10.0
       luxon:
         specifier: ^3.7.2
         version: 3.7.2
@@ -59,6 +62,9 @@ importers:
       zod:
         specifier: ^3.25.76
         version: 3.25.76
+      zod-to-json-schema:
+        specifier: ^3.25.2
+        version: 3.25.2(zod@3.25.76)
     devDependencies:
       '@types/better-sqlite3':
         specifier: ^7.6.13
@@ -941,6 +947,10 @@ packages:
 
   chromium-pickle-js@0.2.0:
     resolution: {integrity: sha512-1R5Fho+jBq0DDydt+/vHWj5KJNJCKdARKOCwZUen84I5BreWoLqRLANH1U87eJy1tiASPtMnGqJJq0ZsLoRPOw==}
+
+  chrono-node@2.10.0:
+    resolution: {integrity: sha512-5fJ4zr5W/5DEf+8FMPMXF2qk9L5dc1rAP9Pw009iMlKAghPgx5o7aUcnjEMe6PTwqiqTa5yzmfSm05EHuwr31Q==}
+    engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
 
   ci-info@4.3.1:
     resolution: {integrity: sha512-Wdy2Igu8OcBpI2pZePZ5oWjPC38tmDVx5WKUXKwlLYkA0ozo85sLsLvkBbBn/sZaSCMFOGZJ14fvW9t5/d7kdA==}
@@ -2280,6 +2290,11 @@ packages:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
 
+  zod-to-json-schema@3.25.2:
+    resolution: {integrity: sha512-O/PgfnpT1xKSDeQYSCfRI5Gy3hPf91mKVDuYLUHZJMiDFptvP41MSnWofm8dnCm0256ZNfZIM7DSzuSMAFnjHA==}
+    peerDependencies:
+      zod: ^3.25.28 || ^4
+
   zod-validation-error@4.0.2:
     resolution: {integrity: sha512-Q6/nZLe6jxuU80qb/4uJ4t5v2VEZ44lzQjPDhYJNztRQ4wyWc6VF3D3Kb/fAuPetZQnhS3hnajCf9CsWesghLQ==}
     engines: {node: '>=18.0.0'}
@@ -3187,6 +3202,8 @@ snapshots:
   chownr@3.0.0: {}
 
   chromium-pickle-js@0.2.0: {}
+
+  chrono-node@2.10.0: {}
 
   ci-info@4.3.1: {}
 
@@ -4518,6 +4535,10 @@ snapshots:
       yargs-parser: 21.1.1
 
   yocto-queue@0.1.0: {}
+
+  zod-to-json-schema@3.25.2(zod@3.25.76):
+    dependencies:
+      zod: 3.25.76
 
   zod-validation-error@4.0.2(zod@3.25.76):
     dependencies:

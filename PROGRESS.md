@@ -2,6 +2,14 @@
 
 ## Phase 0
 
+### [x] 0.4 Registry + tools + fastPath + timeResolver — verified: 110 desktop tests green (32 resolver golden rows, 12 fastPath, registry timeout/validation/error, tool suites vs in-memory DB, breaker transitions, egress allow/deny, weather cache, brave KEY_MISSING path)
+Planned files:
+- apps/desktop/src/main/agent/{timeResolver.ts, timeResolver.test.ts, fastPath.ts, fastPath.test.ts}
+- apps/desktop/src/main/net/{egress.ts, breaker.ts, httpClient.ts, net.test.ts}
+- apps/desktop/src/main/tools/{registry.ts, timer.ts, alarm.ts, note.ts, todo.ts, contact.ts, memory.ts, weather.ts, searchWeb.ts, undo.ts}
+- apps/desktop/src/main/tools/{registry.test.ts, tools.test.ts, weather.test.ts}
+Verify: resolver golden table (25+), fastPath full-match vs residue, registry timeout/validation/error wrap, tool suites, breaker transitions, egress allow/deny.
+
 ### [x] 0.3 DB layer — verified: 23 repo tests green incl. DST wall-time golden case, exdates, FTS sync, undo LIFO, snooze lifecycle; migrations idempotent on :memory:
 Planned files:
 - apps/desktop/src/main/db/{connection.ts, migrate.ts}
