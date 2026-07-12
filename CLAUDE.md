@@ -1,0 +1,1 @@
+Read SPEC.md fully before any work. Follow the Part A operating protocol and the Part D milestone order exactly. Never proceed past a failing gate. Log to PROGRESS.md, DECISIONS.md, HUMAN_TODO.md as specified. Do not add scope.
