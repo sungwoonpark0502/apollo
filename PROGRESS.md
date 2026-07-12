@@ -2,6 +2,16 @@
 
 ## Phase 1
 
+### [ ] 1.5 Orb shell with text-triggered states + panel + pinning
+Planned files:
+- apps/desktop/src/main/windows.ts: createOrbWindow (click-through idle, activity toggling, per-display position)
+- apps/desktop/src/main/orbController.ts: idle/active + setIgnoreMouseEvents driving from agent events
+- apps/desktop/src/renderer/windows/orb/{index.html, main.tsx, OrbApp.tsx}
+- electron.vite.config.ts: orb input; index.ts wiring; smoke check extended (orb + click-through flag)
+Verify: click-through verified programmatically in smoke; states flip on turnStart/done; cards auto-dismiss after 8s unless pinned/hovered.
+
+### [x] 1.4 files.find + system tools + allowlist scan — verified: 17-test suite (approved-dir confinement, extension filter, .app scan + fuzzy rank, closest-candidates fallback, fixed spawn templates with validated integers, schema rejection before spawn, CGSession lock, screenshot path)
+
 ### [x] 1.3 news.brief + feeds settings — verified: 12-test suite (dedupe by canonical URL, top-8 recency, category filter, per-feed WARNING degradation, one summarize call + snippet fallback); default feeds seeded at boot; feeds synced through settings.get/set
 
 ### [x] 1.2 Reminders + scheduler + boot catch-up + missed grouping

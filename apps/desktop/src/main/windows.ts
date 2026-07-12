@@ -1,4 +1,4 @@
-import { BrowserWindow, shell } from 'electron';
+import { BrowserWindow, screen, shell } from 'electron';
 import { join } from 'node:path';
 
 const PALETTE_WIDTH = 640;
@@ -68,6 +68,50 @@ export function togglePalette(): void {
     win.show();
     win.focus();
   }
+}
+
+const ORB_WIDTH = 420; // orb + panel
+const ORB_HEIGHT = 640;
+
+let orb: BrowserWindow | null = null;
+
+export function getOrbWindow(): BrowserWindow | null {
+  return orb;
+}
+
+/** C18 orb window: docked to the right edge, 30% from top, never focusable. */
+export function createOrbWindow(): BrowserWindow {
+  if (orb && !orb.isDestroyed()) return orb;
+  const display = screen.getPrimaryDisplay();
+  const { width, height, y: workY } = display.workArea;
+  orb = new BrowserWindow({
+    width: ORB_WIDTH,
+    height: ORB_HEIGHT,
+    x: display.workArea.x + width - ORB_WIDTH,
+    y: workY + Math.round(height * 0.3),
+    show: false,
+    frame: false,
+    transparent: true,
+    resizable: false,
+    movable: false,
+    focusable: false,
+    skipTaskbar: true,
+    hasShadow: false,
+    webPreferences: secureWebPreferences(),
+  });
+  hardenWindow(orb);
+  orb.setAlwaysOnTop(true, 'screen-saver');
+  orb.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  orb.on('closed', () => {
+    orb = null;
+  });
+  if (process.env['ELECTRON_RENDERER_URL']) {
+    void orb.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/windows/orb/index.html`);
+  } else {
+    void orb.loadFile(join(__dirname, '../renderer/windows/orb/index.html'));
+  }
+  orb.showInactive(); // visible without stealing focus
+  return orb;
 }
 
 let settingsWin: BrowserWindow | null = null;

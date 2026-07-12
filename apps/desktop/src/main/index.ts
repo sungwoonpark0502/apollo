@@ -2,7 +2,8 @@ import { app, BrowserWindow, ipcMain, Notification, safeStorage, shell } from 'e
 import { join } from 'node:path';
 import { STRINGS, type AgentEvent } from '@apollo/shared';
 import { createTray, getTray } from './tray';
-import { createPaletteWindow, openSettingsWindow, togglePalette } from './windows';
+import { createOrbWindow, createPaletteWindow, openSettingsWindow, togglePalette } from './windows';
+import { createOrbController } from './orbController';
 import { createLogger } from './logger';
 import { loadConfig } from './config';
 import { openDb } from './db/connection';
@@ -143,7 +144,11 @@ function boot(): void {
     { perf: (turnId, name, durMs) => repos.perf.record(turnId, name, durMs), log },
   );
 
+  const orbWindow = createOrbWindow();
+  const orbController = createOrbController(orbWindow);
+
   function emitToAll(event: AgentEvent): void {
+    orbController.onAgentEvent(event);
     for (const win of BrowserWindow.getAllWindows()) {
       if (!win.isDestroyed()) pushTo(win.webContents, 'agent.events', event);
     }
@@ -198,12 +203,17 @@ function boot(): void {
         const active = events.includes('turnStart') && events.includes('card') && events.includes('done');
         return res.turnId && active ? 'turn-ok' : 'turn-bad:' + events.join(',');
       })()`;
+      const idleClickThrough = orbController.isClickThrough(); // sampled before the turn activates the orb
       void palette.webContents
         .executeJavaScript(script)
         .then((result: string) => {
+          const orbOk = !orbWindow.isDestroyed() && orbWindow.isAlwaysOnTop() && !orbWindow.isFocused();
+          const activeInteractive = !orbController.isClickThrough(); // turn just ran: orb must be interactive during linger
           // eslint-disable-next-line no-console
-          console.log(`SMOKE_OK tray=${getTray() !== null} palette=${!palette.isDestroyed()} e2e=${result}`);
-          app.exit(result === 'turn-ok' ? 0 : 1);
+          console.log(
+            `SMOKE_OK tray=${getTray() !== null} palette=${!palette.isDestroyed()} e2e=${result} orb=${orbOk} clickThroughIdle=${idleClickThrough} interactiveActive=${activeInteractive}`,
+          );
+          app.exit(result === 'turn-ok' && orbOk && idleClickThrough && activeInteractive ? 0 : 1);
         })
         .catch((e: unknown) => {
           // eslint-disable-next-line no-console

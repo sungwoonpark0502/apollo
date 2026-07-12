@@ -43,6 +43,7 @@ export default defineConfig({
         input: {
           palette: resolve(__dirname, 'src/renderer/windows/palette/index.html'),
           settings: resolve(__dirname, 'src/renderer/windows/settings/index.html'),
+          orb: resolve(__dirname, 'src/renderer/windows/orb/index.html'),
         },
       },
     },
