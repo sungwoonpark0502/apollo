@@ -508,3 +508,117 @@ Milestones (Phase 5, strict order):
 5.7 Onboarding v2 + Settings Profile/About + live settings broadcast + app.open tool + eval rows + README update.
 
 Phase 5 gate: all suites green, eval (now 95+ rows) >= 90%, injection 100%, keyboard-only pass through Calendar and Notes, reduced-motion honored in Stage, pnpm build still produces installable artifacts, Global DoD (Part D) re-verified.
+
+PART F: Proactive Engine and Quick Capture (v3.2 addendum, Phase 6)
+Status: normative extension. Parts A through E remain in force. Where Part F conflicts with earlier parts, Part F wins. Prerequisite: Phase 5 gate passed.
+F0. Scope statement
+Apollo is currently 100% reactive: it acts only when spoken to. Part F adds two capabilities:
+
+A Proactive Engine: Apollo notices things in the user's own local data (upcoming meetings, overdue todos, stale email threads, tomorrow's load, weather risk) and surfaces a small, polite nudge without being asked.
+Quick Capture: a global-hotkey micro-window that saves a thought as a note, todo, or reminder in under two seconds, with zero LLM involvement.
+
+Design law for this phase: proactivity must never violate the Quiet invariant (B2.5). A nudge the user resents is a bug equal in severity to a missed meeting. Every mechanism below (budget, DND, dedupe, feedback, auto-tune) exists to enforce that law. All rule evaluation is deterministic and local; no LLM calls and no network egress are introduced by this phase.
+F1. Shared contract additions (packages/shared)
+ts// agent.ts additions
+export type Urgency = 'low' | 'normal' | 'time-sensitive';
+export interface SuggestionAction { id: string; label: string; kind: 'primary'|'snooze'|'dismiss'; }
+export interface SuggestionDTO {
+  id: string; ruleId: string; urgency: Urgency;
+  title: string; body: string;
+  card?: CardPayload;                 // optional rich payload (e.g. eventList)
+  actions: SuggestionAction[];        // always includes a dismiss
+  createdAt: number;
+}
+ts// cards.ts addition
+| { kind: 'nudge'; suggestion: SuggestionDTO }
+| { kind: 'nudgeGroup'; suggestions: SuggestionDTO[] }
+Settings schema additions:
+tsproactive: z.object({
+  enabled: z.boolean().default(true),
+  maxPerDay: z.number().int().min(0).max(20).default(6),   // budget for low/normal only
+  voiceOnNudges: z.boolean().default(false),               // default OFF: chime + card only
+  rules: z.record(z.string(), z.object({
+    enabled: z.boolean(),
+    params: z.record(z.string(), z.union([z.number(), z.string(), z.boolean()])).default({}),
+  })).default({}),
+}),
+quickCapture: z.object({
+  hotkey: z.string().default('CommandOrControl+Shift+N'),
+  defaultType: z.enum(['note','todo']).default('note'),
+}),
+New IPC channels (same router, zod, senderFrame rules):
+ChannelDirRequest → Responsesuggestion.showM→R push{suggestion: SuggestionDTO} or {group: SuggestionDTO[]}suggestion.actionR→M{suggestionId, actionId} → ackcapture.openR→M{} → ack (opens/focuses capture window)capture.submitR→M{text, type:'note'|'todo'|'reminder', reminderIso?} → {ok, savedAs, id}
+New strings in strings.ts for all nudge copy, capture placeholders, and the auto-tune question. New earcon resources/nudge.wav: single soft note, 90ms, -18 LUFS (quieter than wake).
+F2. Data layer
+Migration 0003_proactive.sql:
+sqlCREATE TABLE suggestions(
+  id TEXT PRIMARY KEY, rule_id TEXT NOT NULL, dedupe_key TEXT NOT NULL,
+  urgency TEXT NOT NULL CHECK(urgency IN ('low','normal','time-sensitive')),
+  payload TEXT NOT NULL,              -- SuggestionDTO JSON
+  created_at INTEGER NOT NULL, shown_at INTEGER,
+  outcome TEXT CHECK(outcome IN ('acted','dismissed','snoozed','expired')),
+  acted_at INTEGER);
+CREATE UNIQUE INDEX idx_sugg_dedupe ON suggestions(rule_id, dedupe_key);
+CREATE INDEX idx_sugg_day ON suggestions(created_at);
+suggestionsRepo: create-if-absent by (rule_id, dedupe_key), mark shown, record outcome, count shown-today (for the budget), last-N outcomes per rule (for auto-tune).
+F3. Proactive engine architecture
+New module src/main/proactive/: engine.ts, governor.ts, rules/*.ts, plus tests beside each file.
+F3.1 Rule interface
+tsexport interface ProactiveRule {
+  id: string;                          // 'meeting_lead'
+  name: string; description: string;   // for Settings UI, from strings.ts
+  defaultEnabled: boolean;
+  defaultParams: Record<string, number|string|boolean>;
+  triggers: Array<'tick' | 'data:event' | 'data:todo' | 'data:reminder' | 'boot' | 'resume'>;
+  evaluate(ctx: RuleCtx): Promise<CandidateSuggestion[]>;   // pure w.r.t. RuleCtx; no side effects
+}
+// RuleCtx: { now, tz, repos (read-only facades), settings, gmailConnected: boolean }
+// CandidateSuggestion: SuggestionDTO fields minus id, plus dedupeKey and expiresAt
+Engine: subscribes to the DataBus and a coarse tick (single setTimeout armed to the earliest next-relevant timestamp across rules, recomputed on any mutation; never per-second polling, same discipline as C19). On trigger, runs only the rules subscribed to that trigger, collects candidates, passes them to the governor. All evaluate calls are wrapped in try/catch; a throwing rule is logged and skipped, never crashes the engine.
+F3.2 Governor (the politeness layer, code-enforced)
+Pipeline for each batch of candidates, in order:
+
+Rule enabled check (settings), master proactive.enabled check.
+Dedupe: drop any candidate whose (ruleId, dedupeKey) already exists in suggestions regardless of outcome. Snoozed items re-enter by writing a new row with dedupeKey suffixed :s{n} when the snooze elapses.
+Expiry: drop candidates past their expiresAt.
+DND window (settings): time-sensitive candidates are delivered silently (orb pulse + card + OS notification, no chime, no TTS). low/normal candidates are deferred: re-queued for the first minute after DND ends, re-checked for relevance (expiry) before delivery.
+Budget: count of low+normal suggestions shown today >= maxPerDay → defer to tomorrow's first delivery slot or drop if expiring. time-sensitive is exempt.
+Busy check: if VoiceController state is listening|thinking|speaking, defer delivery 30s. If the frontmost app is fullscreen (Electron screen + platform APIs), deliver only time-sensitive; others defer 10 min.
+Rate spacing: minimum 20 minutes between non-time-sensitive deliveries.
+Batching: candidates surviving 1 through 7 within the same delivery moment merge into one nudgeGroup card (max 4; overflow deferred).
+Delivery: write shown_at; emit suggestion.show to the orb; orb plays nudge.wav (skipped for silent DND delivery) and pulses a small accent dot on the idle orb; card auto-dismisses after 20s (records outcome expired) unless hovered or pinned. TTS one-liner only when proactive.voiceOnNudges is true AND urgency is time-sensitive AND not DND. OS notification fires only for meeting_lead.
+Feedback: suggestion.action records the outcome. Auto-tune: when a rule's last 5 recorded outcomes are all dismissed or expired, the next candidate from that rule is replaced once by a meta-nudge: "Want me to stop {rule name} nudges?" with Yes (disables the rule in settings) / Keep. The meta-nudge itself never repeats more than once per 30 days per rule.
+
+F3.3 Built-in rules (v1 set, all deterministic)
+Rule idDefaultTriggerLogicUrgencyActionsmeeting_leadon, leadMin:10tick, data:eventNon-all-day occurrence starts in leadMin min. dedupeKey = eventId+occStartTs. Body: title, time, location. expiresAt = occStart.time-sensitiveSnooze 5 min, Dismisstomorrow_previewon, atHH:21tickAt atHH, if tomorrow has >=3 occurrences OR any occurrence before 09:00: one summary nudge with an eventList card. dedupeKey = dateIso.normalOpen calendar (deep link, counts as acted), Dismissoverdue_todoson, atHH:16tick, data:todoAt atHH, todos overdue >24h exist: one grouped nudge listing up to 5. dedupeKey = dateIso.lowOpen today, Dismissneeds_replyon if Gmail connected, staleHours:48, atHH:13tickInbox threads where the last message is inbound, addressed To the user, older than staleHours, unreplied: one digest nudge (max 3 senders+subjects). Uses existing email.list plumbing read-only; results remain untrusted data and are rendered as text only, never fed to the LLM by this rule. dedupeKey = dateIso. Skips silently when Gmail is not connected.normalOpen inbox digest card, Dismissweather_heads_upontick (07:30 local), data:eventIf precipitation probability >=70% within the next 12h (cached weather, home place) AND today has at least one occurrence with a non-empty location: "Rain likely before your {event}, umbrella?" dedupeKey = dateIso. Skips when homePlace unset.lowDismiss
+Rule params surface in Settings with sensible input controls. Adding a rule later must require only a new file in rules/ plus strings; the engine discovers rules from an exported array.
+F3.4 Voice control of proactivity
+New tool proactive.configure, tier 2, params { ruleId: z.enum([...ruleIds, 'all']), enabled: z.boolean() }. "Stop reminding me about meetings" → disables meeting_lead and confirms in one line. llmText names the rule and new state. Undoable. Also proactive.status tier 1 returning enabled rules and today's remaining budget, so "why did you just ping me" has an answer: the orchestrator can explain the last shown suggestion (engine keeps the last delivery in memory for the session).
+F4. Quick Capture
+New frameless window: 520x64, centered horizontally at 22% viewport height, vibrancy/acrylic, opens on the global hotkey (quickCapture.hotkey), single text input, Esc or blur closes without saving.
+Classification, live as-you-type, shown as a chip on the right of the input:
+
+Default chip = quickCapture.defaultType (Note).
+Run timeResolver on the text (50ms debounce). If it finds a future datetime, chip auto-switches to Reminder · {resolved short label} and the matched time phrase is underlined in the input.
+Leading todo  (case-insensitive) or trailing ! forces Todo (prefix/suffix stripped on save).
+Tab cycles Note → Todo → Reminder (Reminder selectable only when a time was resolved; otherwise it is skipped in the cycle).
+Enter saves as the shown chip. Reminder saves text minus the time phrase as the reminder text. Todo saves as todo. Note saves verbatim.
+
+Save path: capture.submit → the same repos the tools use → DataBus → live in Workspace and available to voice instantly. On success the window shows a 150ms check morph and closes; on validation failure (empty text) it shakes 2px and stays. No toasts, no second window. The entire flow must work offline and must never invoke the LLM.
+Also: tray menu gains "Quick capture" and "Open Apollo" items; capture history is just the notes/todos/reminders themselves (no separate table).
+F5. Settings additions
+New tab Proactive: master toggle; per-rule rows (name, description, toggle, inline params: lead minutes stepper, digest time pickers); max-per-day stepper; "Speak time-sensitive nudges" toggle; a short explanation of quiet behavior (DND, fullscreen, budget) sourced from strings.ts; "Recent nudges" list (last 10 from suggestions with outcomes) for transparency. General tab: Quick Capture hotkey recorder + default type. All writes broadcast via settings.changed and take effect immediately (engine re-arms its tick).
+F6. Security and privacy notes
+No new egress hosts. Nudge payloads derive exclusively from local data plus the already-allowlisted weather cache and Gmail metadata. needs_reply renders sender/subject as inert text in a card and never routes that content into an LLM turn. Suggestion payloads are logged at debug level only, bodies redacted at info per C14.2. suggestion.action and capture.submit are zod-validated and senderFrame-verified like every channel. Wipe-all-data clears suggestions.
+F7. Testing and gates
+Unit (all governor logic tested with an injected fake clock): meeting_lead fires exactly once per occurrence and never after start; dedupe across restarts; snooze re-entry; DND deferral then delivery with re-check; time-sensitive silent delivery during DND; budget exhaustion defers normal but not time-sensitive; 20-min spacing; fullscreen deferral; batching into nudgeGroup with overflow; auto-tune triggers after 5 dismissals and the meta-nudge appears exactly once; rule throwing is isolated. Rules: each rule's evaluate against seeded repos (positive, negative, boundary: all-day excluded, staleHours edge, precipitation 69 vs 70). Quick Capture: classifier golden set (15+ cases: plain note, "todo buy milk", "call mom tomorrow at 6" → reminder with stripped text, trailing "!", no-future-time keeps Note, Tab cycle skips Reminder when no time). IPC round-trips + malformed rejection for all new channels. Integration: capture.submit note visible via notes.list within one tick (reuses the E9 live-sync harness). Eval additions (minimum 10 rows): 4 proactive.configure phrasings incl. "stop all nudges"; 2 proactive.status; 4 forbid_tools rows proving informational questions ("what meetings do I have") never call proactive tools. Injection suite re-run must stay 100%. Perf: governor pipeline for a 50-candidate batch under 10ms.
+Milestones (Phase 6, strict order):
+
+6.1 Contracts + migration 0003 + suggestionsRepo + nudge/nudgeGroup cards + earcon asset. Verify: repo + IPC tests.
+6.2 Engine + governor + fake-clock harness + rules meeting_lead, tomorrow_preview, overdue_todos. Verify: governor and rule suites green.
+6.3 Delivery UI: orb accent dot + pulse, nudge cards with actions, grouped digest, outcome recording, auto-tune meta-nudge. Verify: outcome flow tests + manual checklist entry to HUMAN_TODO.
+6.4 needs_reply + weather_heads_up rules (Gmail-conditional, homePlace-conditional). Verify: conditional-skip tests.
+6.5 Quick Capture window + classifier + hotkey + tray items. Verify: classifier golden set + live-sync integration test.
+6.6 Settings Proactive tab + proactive.configure/proactive.status tools + eval rows + README/docs update. Verify: settings broadcast test, eval >= 90%.
+
+Phase 6 gate: all suites green; full Phase 0 through 5 test, eval, and injection suites re-run clean (injection 100%); zero nudges delivered during a simulated DND window except silent time-sensitive; pnpm build still produces installable artifacts; Global DoD re-verified.

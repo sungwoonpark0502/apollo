@@ -1,10 +1,12 @@
 import { type Db } from './connection';
 import m0001 from './migrations/0001_init.sql?raw';
 import m0002 from './migrations/0002_workspace.sql?raw';
+import m0003 from './migrations/0003_proactive.sql?raw';
 
 const MIGRATIONS: ReadonlyArray<{ version: number; sql: string }> = [
   { version: 1, sql: m0001 },
   { version: 2, sql: m0002 },
+  { version: 3, sql: m0003 },
 ];
 
 /** Applies pending numbered migrations in one transaction; returns the schema version. */

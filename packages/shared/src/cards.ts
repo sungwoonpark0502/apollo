@@ -1,5 +1,8 @@
 import { z } from 'zod';
-import { type ConfirmAction } from './agent';
+// Type-only imports from agent.ts keep this module free of a runtime cycle
+// (cards.ts is evaluated by agent.ts for cardPayloadSchema). The suggestion
+// sub-schemas are defined locally below rather than imported at runtime.
+import { type ConfirmAction, type SuggestionDTO } from './agent';
 
 // ---- DTO interfaces (verbatim contracts, C3) ----
 
@@ -55,7 +58,9 @@ export type CardPayload =
   | { kind: 'emailDetail'; email: EmailDetailSanitized }
   | { kind: 'draft'; to: string[]; subject: string; body: string }
   | { kind: 'confirm'; confirmationId: string; action: ConfirmAction; expiresAt: number }
-  | { kind: 'brief'; sections: CardPayload[] };
+  | { kind: 'brief'; sections: CardPayload[] }
+  | { kind: 'nudge'; suggestion: SuggestionDTO }
+  | { kind: 'nudgeGroup'; suggestions: SuggestionDTO[] };
 
 // ---- zod schemas (each DTO JSON-safe with a schema, C3) ----
 
@@ -93,6 +98,21 @@ const newsItemSchema = z.object({
   title: z.string(), source: z.string(), url: z.string(), summary: z.string(),
 });
 
+/** F1: schema for SuggestionDTO (type defined in agent.ts); the optional `card`
+ *  references cardPayloadSchema via z.lazy to break the mutual recursion. */
+export const suggestionDTOSchema: z.ZodType<SuggestionDTO> = z.lazy(() =>
+  z.object({
+    id: z.string(),
+    ruleId: z.string(),
+    urgency: z.enum(['low', 'normal', 'time-sensitive']),
+    title: z.string(),
+    body: z.string(),
+    card: cardPayloadSchema.optional(),
+    actions: z.array(z.object({ id: z.string(), label: z.string(), kind: z.enum(['primary', 'snooze', 'dismiss']) })),
+    createdAt: z.number(),
+  }),
+) as unknown as z.ZodType<SuggestionDTO>;
+
 export const cardPayloadSchema: z.ZodType<CardPayload> = z.lazy(() =>
   z.discriminatedUnion('kind', [
     z.object({ kind: z.literal('text'), body: z.string() }),
@@ -106,5 +126,7 @@ export const cardPayloadSchema: z.ZodType<CardPayload> = z.lazy(() =>
     z.object({ kind: z.literal('draft'), to: z.array(z.string()), subject: z.string(), body: z.string() }),
     z.object({ kind: z.literal('confirm'), confirmationId: z.string(), action: confirmActionSchema, expiresAt: z.number() }),
     z.object({ kind: z.literal('brief'), sections: z.array(cardPayloadSchema) }),
+    z.object({ kind: z.literal('nudge'), suggestion: suggestionDTOSchema }),
+    z.object({ kind: z.literal('nudgeGroup'), suggestions: z.array(suggestionDTOSchema) }),
   ]) as unknown as z.ZodType<CardPayload>,
 );

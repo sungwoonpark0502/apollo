@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { agentEventSchema, messageSourceSchema } from './agent';
 import { voiceStateSchema } from './voice';
 import { SettingsSchema } from './settings';
-import { cardPayloadSchema, eventDTOSchema, noteListItemSchema, occurrenceDTOSchema, weatherNowSchema } from './cards';
+import { cardPayloadSchema, eventDTOSchema, noteListItemSchema, occurrenceDTOSchema, suggestionDTOSchema, weatherNowSchema } from './cards';
 
 /**
  * Single source of truth for everything crossing the IPC bridge (C4).
@@ -153,6 +153,17 @@ export const invokeChannels = {
   'todos.toggle': { req: z.object({ id: z.string(), done: z.boolean() }), res: ackSchema },
   'todos.delete': { req: z.object({ id: z.string() }), res: ackSchema },
   'undo.apply': { req: z.object({ undoToken: z.string() }), res: ackSchema }, // UI undo toasts
+  // ---- F1 Proactive + Quick Capture channels ----
+  'suggestion.action': { req: z.object({ suggestionId: z.string(), actionId: z.string() }), res: ackSchema },
+  'capture.open': { req: z.object({}), res: ackSchema },
+  'capture.submit': {
+    req: z.object({
+      text: z.string().min(1),
+      type: z.enum(['note', 'todo', 'reminder']),
+      reminderIso: z.string().optional(),
+    }),
+    res: z.object({ ok: z.boolean(), savedAs: z.enum(['note', 'todo', 'reminder']), id: z.string() }),
+  },
   'settings.open': { req: z.object({}), res: ackSchema }, // rail gear → settings window
   'geocode.search': {
     req: z.object({ query: z.string().min(1) }),
@@ -205,6 +216,13 @@ export const pushChannels = {
   'data.changed': dataChangedSchema,        // E2 live sync fan-out
   'settings.changed': SettingsSchema,       // E7 live settings broadcast
   'workspace.navigate': workspaceNavigateSchema, // main → workspace window routing
+  // F1: governor → orb delivery; either a single suggestion or a batched group, plus a silent flag for DND
+  'suggestion.show': z.object({
+    suggestion: suggestionDTOSchema.optional(),
+    group: z.array(suggestionDTOSchema).optional(),
+    silent: z.boolean().default(false),
+  }),
+  'capture.result': z.object({ ok: z.boolean() }), // main → capture window: morph + close, or shake
 } as const satisfies Record<string, z.ZodType>;
 
 export type InvokeChannelName = keyof typeof invokeChannels;

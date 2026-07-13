@@ -14,9 +14,9 @@ beforeEach(() => {
 });
 
 describe('migrations', () => {
-  it('applies to version 2 and is idempotent', () => {
-    expect(migrate(db)).toBe(2);
-    expect(migrate(db)).toBe(2);
+  it('applies to version 3 and is idempotent', () => {
+    expect(migrate(db)).toBe(3);
+    expect(migrate(db)).toBe(3);
     const tables = (db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as Array<{ name: string }>).map((t) => t.name);
     for (const t of ['events', 'reminders', 'timers', 'alarms', 'notes', 'todos', 'contacts', 'conversations', 'messages', 'memory_facts', 'oauth_accounts', 'capability_misses', 'feeds', 'perf_spans', 'undo_log', 'settings']) {
       expect(tables).toContain(t);

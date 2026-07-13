@@ -33,6 +33,24 @@ const samples: CardPayload[] = [
     expiresAt: 1_800_000_000_000,
   },
   { kind: 'brief', sections: [{ kind: 'text', body: 'Good morning' }] },
+  {
+    kind: 'nudge',
+    suggestion: {
+      id: 's1', ruleId: 'meeting_lead', urgency: 'time-sensitive', title: 'Standup in 10 min',
+      body: '9:30 AM (Room 2)', actions: [{ id: 'dismiss', label: 'Dismiss', kind: 'dismiss' }], createdAt: 1,
+    },
+  },
+  {
+    kind: 'nudgeGroup',
+    suggestions: [
+      {
+        id: 's2', ruleId: 'overdue_todos', urgency: 'low', title: '2 overdue to-dos', body: '',
+        card: { kind: 'text', body: 'buy milk; file taxes' },
+        actions: [{ id: 'open', label: 'Open today', kind: 'primary' }, { id: 'dismiss', label: 'Dismiss', kind: 'dismiss' }],
+        createdAt: 2,
+      },
+    ],
+  },
 ];
 
 describe('card payload round-trips (every kind)', () => {
@@ -44,7 +62,7 @@ describe('card payload round-trips (every kind)', () => {
   it('covers every kind in the union', () => {
     const kinds = new Set(samples.map((s) => s.kind));
     expect([...kinds].sort()).toEqual(
-      ['brief', 'confirm', 'draft', 'emailDetail', 'emailList', 'event', 'eventList', 'newsList', 'text', 'timer', 'weather'].sort(),
+      ['brief', 'confirm', 'draft', 'emailDetail', 'emailList', 'event', 'eventList', 'newsList', 'nudge', 'nudgeGroup', 'text', 'timer', 'weather'].sort(),
     );
   });
   it('rejects unknown kind', () => {

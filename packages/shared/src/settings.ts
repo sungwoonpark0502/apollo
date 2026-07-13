@@ -61,6 +61,29 @@ export const SettingsSchema = z.object({
       weekStart: z.enum(['monday', 'sunday']).default('sunday'),
     })
     .default({}),
+  // F1 proactive engine + quick capture
+  proactive: z
+    .object({
+      enabled: z.boolean().default(true),
+      maxPerDay: z.number().int().min(0).max(20).default(6), // budget for low/normal only
+      voiceOnNudges: z.boolean().default(false), // default OFF: chime + card only
+      rules: z
+        .record(
+          z.string(),
+          z.object({
+            enabled: z.boolean(),
+            params: z.record(z.string(), z.union([z.number(), z.string(), z.boolean()])).default({}),
+          }),
+        )
+        .default({}),
+    })
+    .default({}),
+  quickCapture: z
+    .object({
+      hotkey: z.string().default('CommandOrControl+Shift+N'),
+      defaultType: z.enum(['note', 'todo']).default('note'),
+    })
+    .default({}),
   launchAtLogin: z.boolean().default(false),
   openWorkspaceOnLaunch: z.boolean().default(false), // E7 General tab
   workspaceBounds: z

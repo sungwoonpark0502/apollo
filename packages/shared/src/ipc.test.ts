@@ -85,6 +85,9 @@ const invokeFixtures: Record<InvokeChannelName, { req: unknown; res: unknown }> 
   'todos.toggle': { req: { id: 't1', done: true }, res: { ok: true } },
   'todos.delete': { req: { id: 't1' }, res: { ok: true } },
   'undo.apply': { req: { undoToken: 'u1' }, res: { ok: true } },
+  'suggestion.action': { req: { suggestionId: 's1', actionId: 'dismiss' }, res: { ok: true } },
+  'capture.open': { req: {}, res: { ok: true } },
+  'capture.submit': { req: { text: 'buy milk', type: 'todo' }, res: { ok: true, savedAs: 'todo', id: 't1' } },
   'settings.open': { req: {}, res: { ok: true } },
   'geocode.search': { req: { query: 'columbus' }, res: [{ label: 'Columbus, Ohio', lat: 39.96, lon: -83, tz: 'America/New_York' }] },
   'update.check': { req: {}, res: { status: 'none' } },
@@ -111,6 +114,15 @@ const pushFixtures: Record<PushChannelName, unknown> = {
   'data.changed': { entity: 'note', op: 'create', id: 'n1' },
   'settings.changed': defaultSettings(),
   'workspace.navigate': { view: 'calendar', dateIso: '2026-07-14' },
+  'suggestion.show': {
+    suggestion: {
+      id: 's1', ruleId: 'meeting_lead', urgency: 'time-sensitive', title: 'Standup in 10 min', body: '9:30 AM',
+      actions: [{ id: 'snooze', label: 'Snooze 5 min', kind: 'snooze' }, { id: 'dismiss', label: 'Dismiss', kind: 'dismiss' }],
+      createdAt: 1_800_000_000_000,
+    },
+    silent: false,
+  },
+  'capture.result': { ok: true },
 };
 
 describe('invoke channel round-trips', () => {
@@ -169,5 +181,11 @@ describe('malformed payload rejection', () => {
     expect(invokeChannels['undo.apply'].req.safeParse({}).success).toBe(false);
     expect(pushChannels['data.changed'].safeParse({ entity: 'spaceship', op: 'create', id: 'x' }).success).toBe(false);
     expect(pushChannels['data.changed'].safeParse({ entity: 'note', op: 'upsert', id: 'x' }).success).toBe(false);
+  });
+  it('rejects malformed proactive/capture payloads (F1)', () => {
+    expect(invokeChannels['capture.submit'].req.safeParse({ text: '', type: 'note' }).success).toBe(false);
+    expect(invokeChannels['capture.submit'].req.safeParse({ text: 'x', type: 'calendar' }).success).toBe(false);
+    expect(invokeChannels['suggestion.action'].req.safeParse({ suggestionId: 's1' }).success).toBe(false);
+    expect(pushChannels['suggestion.show'].safeParse({ suggestion: { id: 's1', ruleId: 'r', urgency: 'urgent', title: 't', body: 'b', actions: [], createdAt: 1 } }).success).toBe(false);
   });
 });

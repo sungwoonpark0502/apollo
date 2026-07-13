@@ -59,3 +59,32 @@ export const agentEventSchema: z.ZodType<AgentEvent> = z.discriminatedUnion('typ
 
 export const messageSourceSchema = z.enum(['voice', 'text']);
 export type MessageSource = z.infer<typeof messageSourceSchema>;
+
+// ---- F1 Proactive Engine contracts ----
+
+export type Urgency = 'low' | 'normal' | 'time-sensitive';
+export const urgencySchema = z.enum(['low', 'normal', 'time-sensitive']);
+
+export interface SuggestionAction {
+  id: string;
+  label: string;
+  kind: 'primary' | 'snooze' | 'dismiss';
+}
+export const suggestionActionSchema: z.ZodType<SuggestionAction> = z.object({
+  id: z.string(),
+  label: z.string(),
+  kind: z.enum(['primary', 'snooze', 'dismiss']),
+});
+
+export interface SuggestionDTO {
+  id: string;
+  ruleId: string;
+  urgency: Urgency;
+  title: string;
+  body: string;
+  card?: CardPayload; // optional rich payload (e.g. eventList)
+  actions: SuggestionAction[]; // always includes a dismiss
+  createdAt: number;
+}
+// suggestionDTOSchema lives in cards.ts alongside cardPayloadSchema (SuggestionDTO.card
+// is a CardPayload); keeping it there avoids a circular schema-init between the files.

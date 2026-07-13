@@ -32,6 +32,10 @@ export interface HandlerDeps {
   todayData?: () => Promise<InvokeRes<'workspace.today'>>;
   geocode?: (query: string) => Promise<InvokeRes<'geocode.search'>>;
   checkForUpdates?: () => Promise<InvokeRes<'update.check'>>;
+  // F1 proactive + quick capture (wired in 6.2/6.3/6.5)
+  suggestionAction?: (suggestionId: string, actionId: string) => void;
+  openCapture?: () => void;
+  captureSubmit?: (req: InvokeReq<'capture.submit'>) => InvokeRes<'capture.submit'>;
   tz?: () => string;
   log: (msg: string) => void;
 }
@@ -51,6 +55,18 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
     'workspace.today': async () => (deps.todayData ? deps.todayData() : { weather: null, brief: null }),
     'geocode.search': async (req) => (deps.geocode ? deps.geocode(req.query) : []),
     'update.check': async () => (deps.checkForUpdates ? deps.checkForUpdates() : { status: 'disabled' as const }),
+    'suggestion.action': (req) => {
+      deps.suggestionAction?.(req.suggestionId, req.actionId);
+      return { ok: true as const };
+    },
+    'capture.open': () => {
+      deps.openCapture?.();
+      return { ok: true as const };
+    },
+    'capture.submit': (req) => {
+      if (!deps.captureSubmit) throw new Error('capture not available');
+      return deps.captureSubmit(req);
+    },
     'agent.userMessage': (req) => {
       deps.onUserActivity?.();
       const { turnId } = deps.orchestrator().handleUserMessage(req);

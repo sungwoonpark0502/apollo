@@ -64,7 +64,7 @@ for (const [name, size] of [
 const SR = 16000;
 const AMP = 0.35;
 
-function tone(freq, ms, fadeMs = 8) {
+function toneAmp(freq, ms, amp, fadeMs = 8) {
   const n = Math.round((SR * ms) / 1000);
   const fade = Math.round((SR * fadeMs) / 1000);
   const out = new Int16Array(n);
@@ -72,9 +72,13 @@ function tone(freq, ms, fadeMs = 8) {
     let env = 1;
     if (i < fade) env = i / fade;
     else if (i > n - fade) env = (n - i) / fade;
-    out[i] = Math.round(Math.sin((2 * Math.PI * freq * i) / SR) * AMP * env * 32767);
+    out[i] = Math.round(Math.sin((2 * Math.PI * freq * i) / SR) * amp * env * 32767);
   }
   return out;
+}
+
+function tone(freq, ms, fadeMs = 8) {
+  return toneAmp(freq, ms, AMP, fadeMs);
 }
 
 function concat(parts) {
@@ -112,6 +116,8 @@ const earcons = {
   'wake.wav': concat([tone(660, 60), tone(880, 60)]), // two rising notes, 120ms
   'done.wav': tone(520, 100),
   'error.wav': tone(220, 150),
+  // F1 nudge: single soft note, 90ms, quieter than wake (~-18 LUFS vs -14).
+  'nudge.wav': toneAmp(720, 90, 0.18),
 };
 const publicEarcons = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'src/renderer/public/earcons');
 mkdirSync(publicEarcons, { recursive: true });

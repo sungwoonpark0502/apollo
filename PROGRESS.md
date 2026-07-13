@@ -1,5 +1,9 @@
 # PROGRESS
 
+## Phase 6 (Part F — Proactive Engine + Quick Capture)
+
+### [x] 6.1 Contracts + migration 0003 + suggestionsRepo + nudge/nudgeGroup cards + earcon — verified: shared contracts (Urgency/SuggestionAction/SuggestionDTO in agent.ts; nudge + nudgeGroup card kinds + suggestionDTOSchema in cards.ts with z.lazy to break the CardPayload recursion; suggestion sub-schemas inlined in cards.ts to avoid a runtime import cycle that broke agentEventSchema); settings proactive{enabled,maxPerDay,voiceOnNudges,rules} + quickCapture{hotkey,defaultType}; new channels suggestion.action/capture.open/capture.submit (invoke) + suggestion.show/capture.result (push) with round-trip + malformed fixtures; migration 0003 (suggestions table, unique dedupe index); suggestionsRepo (10 tests: dedupe by rule+key, dedupe across restart, budget count of shown low/normal in local day w/ time-sensitive exempt, lastShownAt spacing, recentOutcomes newest-first, idempotent markShown, lastShown, wipeAll); nudge.wav earcon (720Hz 90ms, -18 LUFS). Full suite 455 green.
+
 ## Phase 5 (Part E)
 
 ### [x] PHASE 5 GATE — one-brain acceptance met and nothing from Phases 0–4 regressed.

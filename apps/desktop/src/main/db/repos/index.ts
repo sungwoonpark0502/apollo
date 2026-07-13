@@ -11,6 +11,7 @@ import { createConversationsRepo } from './conversations';
 import { createMemoryRepo } from './memory';
 import { createUndoRepo } from './undo';
 import { createCapabilityMissesRepo, createFeedsRepo, createPerfRepo, createSettingsRepo, createOAuthRepo } from './misc';
+import { createSuggestionsRepo } from './suggestions';
 
 /** All mutating repo methods publish onto the DataBus (E2). */
 export function createRepos(db: Db, bus: DataBus = createDataBus()) {
@@ -89,6 +90,7 @@ export function createRepos(db: Db, bus: DataBus = createDataBus()) {
     perf: createPerfRepo(db),
     settings: createSettingsRepo(db),
     oauth: createOAuthRepo(db),
+    suggestions: createSuggestionsRepo(db, { tz: () => Intl.DateTimeFormat().resolvedOptions().timeZone }),
   };
 }
 
@@ -105,3 +107,4 @@ export * from './conversations';
 export * from './memory';
 export * from './undo';
 export * from './misc';
+export * from './suggestions';
