@@ -196,6 +196,7 @@ export const pushChannels = {
     last: z.boolean(),
   }),
   'tts.stop': z.object({}),
+  'tts.spoken': z.object({ index: z.number().int().nonnegative() }), // E4 spoken-row sync
   'data.changed': dataChangedSchema,        // E2 live sync fan-out
   'settings.changed': SettingsSchema,       // E7 live settings broadcast
   'workspace.navigate': workspaceNavigateSchema, // main → workspace window routing

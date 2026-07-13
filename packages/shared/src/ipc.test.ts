@@ -105,6 +105,7 @@ const pushFixtures: Record<PushChannelName, unknown> = {
   'voice.partial': { transcript: 'set a tim', rms: 0.42 },
   'tts.audio': { seq: 0, mime: 'audio/mp3', data: new ArrayBuffer(8), last: false },
   'tts.stop': {},
+  'tts.spoken': { index: 0 },
   'data.changed': { entity: 'note', op: 'create', id: 'n1' },
   'settings.changed': defaultSettings(),
   'workspace.navigate': { view: 'calendar', dateIso: '2026-07-14' },

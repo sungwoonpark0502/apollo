@@ -35,6 +35,18 @@ describe('fast path full matches', () => {
     expect(matchFastPath('Good morning, Apollo!')).toEqual({ kind: 'brief' });
     expect(matchFastPath('hey apollo, good morning')).toEqual({ kind: 'brief' });
   });
+
+  it('E5 weather now variants', () => {
+    for (const u of ["what's the weather", "how's the weather", 'hows the weather like', "what's the weather today", "what's the weather right now", "how's the weather now"]) {
+      expect(matchFastPath(u)).toEqual({ kind: 'weatherNow' });
+    }
+    expect(matchFastPath('hey apollo, what\'s the weather?')).toEqual({ kind: 'weatherNow' });
+  });
+
+  it('E5 weather forecast variants', () => {
+    expect(matchFastPath("what's the weather tomorrow")).toEqual({ kind: 'weatherForecast', when: 'tomorrow' });
+    expect(matchFastPath("how's the weather this weekend")).toEqual({ kind: 'weatherForecast', when: 'weekend' });
+  });
 });
 
 describe('fast path residue routes to LLM (returns null)', () => {
@@ -48,6 +60,10 @@ describe('fast path residue routes to LLM (returns null)', () => {
     'timer for five minutes',                             // words, not digits (LLM handles)
     'pause for a second and think',
     'what date is my dentist appointment',
+    "what's the weather in paris",          // place given → LLM/weather tool, not fast path
+    "what's the weather going to be like",  // residue
+    'is it going to rain tomorrow',         // not the exact template
+    "what's the weather next week",         // unsupported horizon
   ];
   for (const utt of nearMisses) {
     it(`"${utt}"`, () => {

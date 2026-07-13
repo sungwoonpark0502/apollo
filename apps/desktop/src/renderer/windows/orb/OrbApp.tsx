@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { newId, STRINGS, type AgentEvent, type CardPayload, type VoiceState } from '@apollo/shared';
 import { CardShell, CardView } from '../../components/cards/CardView';
+import { StageCard } from '../../components/StageCard';
+import { isStageCard } from '../../lib/stage';
 import { CancelWindowBar } from '../../components/ConfirmBar';
 import { enqueueTtsChunk, playEarcon, stopPlayback } from '../../lib/audioPlayer';
 
@@ -10,9 +12,11 @@ interface PanelCard {
   id: string;
   card: CardPayload;
   pinned: boolean;
+  stage: boolean;
 }
 
-const AUTO_DISMISS_MS = 8_000;
+const AUTO_DISMISS_MS = 8_000;       // compact cards
+const STAGE_DISMISS_MS = 12_000;     // E4 Stage cards linger longer
 
 /** C18: live 24-bar waveform (2px bars, 3px gap, 32px tall) driven by rms. */
 function Waveform({ rms }: { rms: number }): React.JSX.Element {
@@ -37,23 +41,30 @@ export function OrbApp(): React.JSX.Element {
   const [rms, setRms] = useState(0);
   const [turnId, setTurnId] = useState<string | null>(null);
   const [cancelWindow, setCancelWindow] = useState<{ endsAt: number } | null>(null);
+  const [spokenIndex, setSpokenIndex] = useState(-1);
   const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hoveringRef = useRef(false);
+  const voiceTurnRef = useRef(false); // E4: is the current turn voice-sourced?
 
+  const cardsRef = useRef<PanelCard[]>([]);
   useEffect(() => {
     hoveringRef.current = hovering;
   }, [hovering]);
+  useEffect(() => {
+    cardsRef.current = cards;
+  }, [cards]);
 
   useEffect(() => {
     const armDismiss = (): void => {
       if (dismissTimer.current) clearTimeout(dismissTimer.current);
+      const anyStage = cardsRef.current.some((c) => c.stage && !c.pinned);
       dismissTimer.current = setTimeout(() => {
         if (hoveringRef.current) {
           armDismiss(); // hovered: try again later
         } else {
           setCards((cs) => cs.filter((c) => c.pinned));
         }
-      }, AUTO_DISMISS_MS);
+      }, anyStage ? STAGE_DISMISS_MS : AUTO_DISMISS_MS);
     };
 
     const offAgent = window.apollo.on('agent.events', (e: AgentEvent) => {
@@ -61,9 +72,11 @@ export function OrbApp(): React.JSX.Element {
         case 'turnStart':
           setState('thinking');
           setTurnId(e.turnId);
+          voiceTurnRef.current = false; // reset; voice.state will flip it if this is a voice turn
+          setSpokenIndex(-1);
           break;
         case 'card':
-          setCards((cs) => [...cs, { id: newId(), card: e.card, pinned: false }].slice(-6));
+          setCards((cs) => [...cs, { id: newId(), card: e.card, pinned: false, stage: isStageCard(e.card, voiceTurnRef.current ? 'voice' : 'text') }].slice(-6));
           break;
         case 'cancelWindow':
           setCancelWindow({ endsAt: Date.now() + e.ms });
@@ -80,6 +93,7 @@ export function OrbApp(): React.JSX.Element {
     });
     const offVoice = window.apollo.on('voice.state', ({ state: vs }) => {
       setState(vs as OrbState);
+      if (vs === 'listening' || vs === 'thinking' || vs === 'speaking') voiceTurnRef.current = true;
       if (vs === 'listening') void playEarcon('wake');
       else if (vs === 'error') void playEarcon('error');
       if (vs !== 'listening') setCaption('');
@@ -90,12 +104,14 @@ export function OrbApp(): React.JSX.Element {
     });
     const offAudio = window.apollo.on('tts.audio', ({ data, last }) => enqueueTtsChunk(data, last));
     const offStop = window.apollo.on('tts.stop', () => stopPlayback());
+    const offSpoken = window.apollo.on('tts.spoken', ({ index }) => setSpokenIndex(index));
     return () => {
       offAgent();
       offVoice();
       offPartial();
       offAudio();
       offStop();
+      offSpoken();
       if (dismissTimer.current) clearTimeout(dismissTimer.current);
     };
   }, []);
@@ -151,17 +167,24 @@ export function OrbApp(): React.JSX.Element {
       <style>{`
         @keyframes apollo-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
         @keyframes apollo-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes apollo-stage-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes apollo-row-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
+        .apollo-stage { animation: apollo-stage-in 160ms var(--ease) both; }
+        .apollo-stage-row { animation: apollo-row-in 160ms var(--ease) both; }
         @media (prefers-reduced-motion: reduce) {
+          /* E4: Stage collapses to a plain fade; row stagger + count-up disabled. */
+          .apollo-stage { animation: apollo-stage-in 120ms linear both; }
+          .apollo-stage-row { animation: none !important; }
           * { animation: none !important; transition: none !important; }
         }
       `}</style>
 
-      {/* card panel opens toward screen center (left of the orb) */}
+      {/* card panel opens toward screen center (left of the orb); widens in Stage mode */}
       {cards.length > 0 || cancelWindow ? (
         <div
           style={{
-            width: 380,
-            maxHeight: '60vh',
+            width: cards.some((c) => c.stage) ? 480 : 380,
+            maxHeight: cards.some((c) => c.stage) ? '70vh' : '60vh',
             overflowY: 'auto',
             display: 'flex',
             flexDirection: 'column',
@@ -180,25 +203,29 @@ export function OrbApp(): React.JSX.Element {
           ) : null}
           {cards.map((c) => (
             <div key={c.id} style={{ position: 'relative' }}>
-              <CardShell>
-                <button
-                  aria-label={c.pinned ? STRINGS.cards.unpin : STRINGS.cards.pin}
-                  onClick={() => setCards((cs) => cs.map((x) => (x.id === c.id ? { ...x, pinned: !x.pinned } : x)))}
-                  style={{
-                    position: 'absolute',
-                    top: 'var(--sp-2)',
-                    right: 'var(--sp-2)',
-                    border: 'none',
-                    background: 'transparent',
-                    cursor: 'pointer',
-                    fontSize: 'var(--fs-caption)',
-                    color: c.pinned ? 'var(--accent)' : 'var(--text-3)',
-                  }}
-                >
-                  ⦿
-                </button>
-                <CardView card={c.card} />
-              </CardShell>
+              {c.stage ? (
+                <StageCard card={c.card} spokenIndex={spokenIndex} />
+              ) : (
+                <CardShell>
+                  <button
+                    aria-label={c.pinned ? STRINGS.cards.unpin : STRINGS.cards.pin}
+                    onClick={() => setCards((cs) => cs.map((x) => (x.id === c.id ? { ...x, pinned: !x.pinned } : x)))}
+                    style={{
+                      position: 'absolute',
+                      top: 'var(--sp-2)',
+                      right: 'var(--sp-2)',
+                      border: 'none',
+                      background: 'transparent',
+                      cursor: 'pointer',
+                      fontSize: 'var(--fs-caption)',
+                      color: c.pinned ? 'var(--accent)' : 'var(--text-3)',
+                    }}
+                  >
+                    ⦿
+                  </button>
+                  <CardView card={c.card} />
+                </CardShell>
+              )}
             </div>
           ))}
         </div>

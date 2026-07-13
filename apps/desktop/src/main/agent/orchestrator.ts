@@ -436,6 +436,32 @@ export function createOrchestrator(deps: OrchestratorDeps) {
         finish('');
         return true;
       }
+      case 'weatherNow': {
+        if (!deps.registry.get('weather.now')) return false;
+        const res = await deps.registry.execute('weather.now', {}, ctx);
+        if (res.card) emit({ type: 'card', card: res.card });
+        if (res.card && res.card.kind === 'weather') {
+          finish(STRINGS.spoken.weatherNow(res.card.place, res.card.now.tempF, res.card.now.condition));
+        } else {
+          finish(res.llmText.includes('home location') ? STRINGS.spoken.weatherNoHome : res.llmText.replace(/^(ERROR|WARNING)\s*/, ''));
+        }
+        return true;
+      }
+      case 'weatherForecast': {
+        if (!deps.registry.get('weather.forecast')) return false;
+        const res = await deps.registry.execute('weather.forecast', {}, ctx);
+        if (res.card) emit({ type: 'card', card: res.card });
+        if (res.card && res.card.kind === 'weather') {
+          const idx = hit.when === 'tomorrow' ? 1 : dayIndexForWeekend(res.card.days);
+          const day = res.card.days[idx] ?? res.card.days[0];
+          const label = hit.when === 'tomorrow' ? 'Tomorrow' : 'This weekend';
+          if (day) finish(STRINGS.spoken.weatherForecast(res.card.place, label, day.hiF, day.loF, day.condition));
+          else finish(res.llmText.replace(/^(ERROR|WARNING)\s*/, ''));
+        } else {
+          finish(res.llmText.includes('home location') ? STRINGS.spoken.weatherNoHome : res.llmText.replace(/^(ERROR|WARNING)\s*/, ''));
+        }
+        return true;
+      }
       case 'brief': {
         // "good morning" → daily brief, composed locally so it works LLM-down (C19).
         if (!deps.registry.get('brief.daily')) return false;
@@ -547,6 +573,12 @@ function describeDurationSpoken(totalSec: number): string {
   if (m) parts.push(`${m} minute${m > 1 ? 's' : ''}`);
   if (s) parts.push(`${s} second${s > 1 ? 's' : ''}`);
   return parts.join(' ');
+}
+
+/** Finds the first Saturday in a forecast day list; falls back to the last day. */
+function dayIndexForWeekend(days: Array<{ dateIso: string }>): number {
+  const i = days.findIndex((d) => DateTime.fromISO(d.dateIso).weekday === 6);
+  return i >= 0 ? i : Math.max(0, days.length - 1);
 }
 
 export type Orchestrator = ReturnType<typeof createOrchestrator>;

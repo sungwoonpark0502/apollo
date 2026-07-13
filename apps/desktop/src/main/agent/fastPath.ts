@@ -11,6 +11,8 @@ export type FastPathIntent =
   | { kind: 'mute'; on: boolean }
   | { kind: 'stopTalking' }
   | { kind: 'media'; op: 'playpause' | 'next' | 'prev' }
+  | { kind: 'weatherNow' }
+  | { kind: 'weatherForecast'; when: 'tomorrow' | 'weekend' }
   | { kind: 'brief' };
 
 export function normalizeUtterance(text: string): string {
@@ -42,6 +44,13 @@ export function matchFastPath(text: string): FastPathIntent | null {
       const mult = UNIT_SECONDS[m[2] as string];
       if (n > 0 && mult) return { kind: 'timer', seconds: n * mult };
     }
+  }
+
+  // E5 weather fast path: template spoken reply + Stage weather card, zero LLM.
+  if (/^(?:what'?s|how'?s|hows) the weather(?: like)?(?: today| right now| now)?$/.test(t)) return { kind: 'weatherNow' };
+  {
+    const m = t.match(/^(?:what'?s|how'?s) the weather (tomorrow|this weekend)$/);
+    if (m) return { kind: 'weatherForecast', when: m[1] === 'tomorrow' ? 'tomorrow' : 'weekend' };
   }
 
   // C19: "good morning" triggers the daily brief (also fired on schedule)

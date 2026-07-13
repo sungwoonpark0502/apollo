@@ -319,6 +319,9 @@ function boot(): void {
       if (!orbWindow.isDestroyed()) pushTo(orbWindow.webContents, 'tts.stop', {});
     },
     onFirstChunk: () => voiceController.ttsStarted(),
+    onSentence: (index) => {
+      if (!orbWindow.isDestroyed()) pushTo(orbWindow.webContents, 'tts.spoken', { index });
+    },
     onError: (copy) => new Notification({ title: STRINGS.app.name, body: copy }).show(),
     perf: (name, dur) => repos.perf.record('voice', name, dur),
     log,

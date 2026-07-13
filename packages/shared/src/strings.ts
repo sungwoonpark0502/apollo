@@ -73,6 +73,10 @@ export const STRINGS = {
     nothingToUndo: 'There is nothing to undo in this conversation.',
     whileAway: (n: number) => `While you were away: ${n} ${n === 1 ? 'item' : 'items'}.`,
     briefIntro: 'Here is your brief.',
+    weatherNow: (place: string, temp: number, condition: string) => `It's ${temp} degrees and ${condition.toLowerCase()} in ${place}.`,
+    weatherForecast: (place: string, when: string, hi: number, lo: number, condition: string) =>
+      `${when} in ${place}: ${condition.toLowerCase()}, high ${hi}, low ${lo}.`,
+    weatherNoHome: "I don't have a home location yet. Set one in Settings, under Profile.",
   },
 
   onboarding: {

@@ -12,6 +12,7 @@ export interface TtsPipelineDeps {
   pushAudio: (payload: { seq: number; mime: 'audio/mp3'; data: ArrayBuffer; last: boolean }) => void;
   pushStop: () => void;
   onFirstChunk: () => void;   // → voiceController.ttsStarted()
+  onSentence?: (index: number) => void; // E4 spoken-row sync: sentence index now starting
   onError?: (copy: string) => void;
   perf?: (name: string, durMs: number) => void;
   log?: (msg: string) => void;
@@ -29,6 +30,7 @@ export function createTtsPipeline(deps: TtsPipelineDeps) {
   let ended = false;
   let lastSent = false;
   let generation = 0; // bumped on stop() so an in-flight drain abandons cleanly
+  let spokenIndex = 0; // running sentence index for spoken-row sync (E4)
 
   function maybeFinish(): void {
     if (ended && !synthesizing && queue.length === 0 && firstChunkSent && !lastSent) {
@@ -49,7 +51,9 @@ export function createTtsPipeline(deps: TtsPipelineDeps) {
     try {
       while (queue.length > 0 && gen === generation) {
         const sentence = queue.shift() as string;
+        const sentenceIndex = spokenIndex++;
         abort = new AbortController();
+        let announced = false;
         try {
           for await (const chunk of deps.adapter.synthesize(sentence, abort.signal)) {
             if (abort.signal.aborted || gen !== generation) return;
@@ -57,6 +61,10 @@ export function createTtsPipeline(deps: TtsPipelineDeps) {
               firstChunkSent = true;
               if (turnStartedAt) deps.perf?.('tts_first_audio', Date.now() - turnStartedAt);
               deps.onFirstChunk();
+            }
+            if (!announced) {
+              announced = true;
+              deps.onSentence?.(sentenceIndex); // E4: this sentence is now audible
             }
             const data = chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.byteLength) as ArrayBuffer;
             deps.pushAudio({ seq: seq++, mime: 'audio/mp3', data, last: false });
@@ -87,6 +95,7 @@ export function createTtsPipeline(deps: TtsPipelineDeps) {
       turnStartedAt = Date.now();
       generation += 1; // abandon any drain still winding down from a prior turn
       synthesizing = false;
+      spokenIndex = 0;
       chunker.reset();
       queue = [];
     },
