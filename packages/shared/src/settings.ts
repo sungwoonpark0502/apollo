@@ -48,21 +48,46 @@ export const SettingsSchema = z.object({
     })
     .default({}),
   anthropic: z.object({ model: z.string().default('claude-sonnet-4-6') }).default({}),
-  home: z
+  // E1 user profile; replaces the pre-Part-E top-level home/units fields
+  profile: z
     .object({
-      name: z.string(),
-      lat: z.number(),
-      lon: z.number(),
+      name: z.string().max(60).default(''), // '' allowed; prompt falls back
+      homePlace: z
+        .object({ label: z.string(), lat: z.number(), lon: z.number(), tz: z.string() })
+        .nullable()
+        .default(null),
+      units: z.enum(['imperial', 'metric']).default('imperial'),
+      timeFormat: z.enum(['12h', '24h']).default('12h'),
+      weekStart: z.enum(['monday', 'sunday']).default('sunday'),
     })
-    .nullable()
-    .default(null),
-  units: z.enum(['imperial', 'metric']).default('imperial'),
+    .default({}),
   launchAtLogin: z.boolean().default(false),
+  openWorkspaceOnLaunch: z.boolean().default(false), // E7 General tab
   onboarded: z.boolean().default(false),
 });
 
 export type Settings = z.infer<typeof SettingsSchema>;
+export type Profile = Settings['profile'];
 
 export function defaultSettings(): Settings {
   return SettingsSchema.parse({});
+}
+
+/** Folds pre-Part-E stored settings (top-level home/units) into profile. */
+export function migrateLegacySettings(raw: unknown, localTz = 'local'): unknown {
+  if (typeof raw !== 'object' || raw === null) return raw;
+  const o = raw as Record<string, unknown> & {
+    home?: { name: string; lat: number; lon: number } | null;
+    units?: 'imperial' | 'metric';
+    profile?: Record<string, unknown>;
+  };
+  if (o['profile'] !== undefined || (o['home'] === undefined && o['units'] === undefined)) return raw;
+  const { home, units, ...rest } = o;
+  return {
+    ...rest,
+    profile: {
+      ...(home ? { homePlace: { label: home.name, lat: home.lat, lon: home.lon, tz: localTz } } : {}),
+      ...(units ? { units } : {}),
+    },
+  };
 }

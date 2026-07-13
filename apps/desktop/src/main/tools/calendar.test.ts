@@ -119,19 +119,19 @@ describe('calendar.update', () => {
     const hi = DateTime.fromISO('2026-07-22', { zone: LA }).toMillis();
     const occs = repos.events.expandOccurrences(lo, hi);
     expect(occs).toHaveLength(1); // original Monday 9:30 replaced by detached 14:00
-    expect(DateTime.fromMillis(occs[0]!.startTs, { zone: LA }).hour).toBe(14);
+    expect(DateTime.fromMillis(occs[0]!.occStartTs, { zone: LA }).hour).toBe(14);
 
     // other weeks untouched
     const nextWeek = repos.events.expandOccurrences(
       DateTime.fromISO('2026-07-26', { zone: LA }).toMillis(),
       DateTime.fromISO('2026-07-29', { zone: LA }).toMillis(),
     );
-    expect(DateTime.fromMillis(nextWeek[0]!.startTs, { zone: LA }).hour).toBe(9);
+    expect(DateTime.fromMillis(nextWeek[0]!.occStartTs, { zone: LA }).hour).toBe(9);
 
     await reg.execute('undo.last', {}, makeCtx());
     const restored = repos.events.expandOccurrences(lo, hi);
     expect(restored).toHaveLength(1);
-    expect(DateTime.fromMillis(restored[0]!.startTs, { zone: LA }).hour).toBe(9);
+    expect(DateTime.fromMillis(restored[0]!.occStartTs, { zone: LA }).hour).toBe(9);
   });
 
   it('scope single without occurrenceDateIso errors clearly', async () => {

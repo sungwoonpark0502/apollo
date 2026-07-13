@@ -15,18 +15,33 @@ export interface EmailDetailSanitized {
   ts: number; safeHtml: string; plainText: string; remoteImagesBlocked: number;
 }
 
-/** One concrete occurrence of a (possibly recurring) event, expanded by eventsRepo (C6). */
+/**
+ * One concrete occurrence of a (possibly recurring) event, expanded by
+ * eventsRepo (C6), shaped per E1. dateIso/notes/rrule are Apollo-internal
+ * extras the calendar tools need (exdate key, card text, re-arm).
+ */
 export interface OccurrenceDTO {
-  eventId: string; title: string; startTs: number; endTs: number;
-  tz: string; allDay: boolean; location: string | null; notes: string | null;
+  eventId: string; occStartTs: number; occEndTs: number;
+  title: string; allDay: boolean; tz: string; isRecurring: boolean; location: string | null;
+  notes: string | null;
   dateIso: string;        // local calendar date of this occurrence (exdate key)
   rrule: string | null;   // the parent event's rule, null for one-offs
 }
 
 export const occurrenceDTOSchema: z.ZodType<OccurrenceDTO> = z.object({
-  eventId: z.string(), title: z.string(), startTs: z.number(), endTs: z.number(),
-  tz: z.string(), allDay: z.boolean(), location: z.string().nullable(), notes: z.string().nullable(),
+  eventId: z.string(), occStartTs: z.number(), occEndTs: z.number(),
+  title: z.string(), allDay: z.boolean(), tz: z.string(), isRecurring: z.boolean(),
+  location: z.string().nullable(), notes: z.string().nullable(),
   dateIso: z.string(), rrule: z.string().nullable(),
+});
+
+/** E1: notes list row for the Workspace. */
+export interface NoteListItem {
+  id: string; title: string; snippet: string; updatedAt: number; pinned: boolean;
+}
+
+export const noteListItemSchema: z.ZodType<NoteListItem> = z.object({
+  id: z.string(), title: z.string(), snippet: z.string(), updatedAt: z.number(), pinned: z.boolean(),
 });
 
 export type CardPayload =

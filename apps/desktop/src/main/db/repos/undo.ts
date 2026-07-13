@@ -34,6 +34,13 @@ export function createUndoRepo(db: Db) {
     countFor(convId: string): number {
       return (db.prepare("SELECT COUNT(*) AS c FROM undo_log WHERE json_extract(payload,'$.convId') = ?").get(convId) as { c: number }).c;
     },
+    /** Pops a specific entry by its token (E1 undo.apply for UI undo toasts). */
+    popById(id: string): UndoEntry | null {
+      const r = db.prepare('SELECT * FROM undo_log WHERE id = ?').get(id) as Raw | undefined;
+      if (!r) return null;
+      db.prepare('DELETE FROM undo_log WHERE id=?').run(r.id);
+      return toEntry(r);
+    },
   };
 }
 

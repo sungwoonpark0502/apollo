@@ -19,7 +19,7 @@ export function toDTO(ev: EventRow): EventDTO {
 
 function occToDTO(o: OccurrenceDTO): EventDTO {
   return {
-    id: o.eventId, title: o.title, startTs: o.startTs, endTs: o.endTs, tz: o.tz,
+    id: o.eventId, title: o.title, startTs: o.occStartTs, endTs: o.occEndTs, tz: o.tz,
     allDay: o.allDay, rrule: o.rrule, location: o.location, notes: o.notes,
   };
 }
@@ -142,8 +142,8 @@ export function createCalendarTools(deps: CalendarToolDeps): ToolDef[] {
         const occ = occs[0];
         if (!occ) return { llmText: `ERROR no occurrence of "${cur.title}" on ${a.occurrenceDateIso}` };
         deps.events.addExdate(cur.id, a.occurrenceDateIso);
-        const dur = occ.endTs - occ.startTs;
-        const newStart = a.startIso ? DateTime.fromISO(a.startIso, { zone: tz }) : DateTime.fromMillis(occ.startTs, { zone: tz });
+        const dur = occ.occEndTs - occ.occStartTs;
+        const newStart = a.startIso ? DateTime.fromISO(a.startIso, { zone: tz }) : DateTime.fromMillis(occ.occStartTs, { zone: tz });
         if (!newStart.isValid) return { llmText: 'ERROR invalid start time' };
         const newEnd = a.endIso ? DateTime.fromISO(a.endIso, { zone: tz }) : newStart.plus({ milliseconds: dur });
         const detached = deps.events.create({
@@ -236,7 +236,7 @@ export function createCalendarTools(deps: CalendarToolDeps): ToolDef[] {
       if (!start.isValid || !end.isValid) return { llmText: 'ERROR invalid range' };
       const occs = deps.events.expandOccurrences(start.toMillis(), end.toMillis()).slice(0, 20);
       if (occs.length === 0) return { llmText: `No events between ${start.toFormat('LLL d')} and ${end.toFormat('LLL d')}.` };
-      const lines = occs.map((o, i) => `${i + 1}. ${o.title} ${fmt(o.startTs, o.tz)}${o.location ? ` @ ${o.location}` : ''} (id ${o.eventId})`);
+      const lines = occs.map((o, i) => `${i + 1}. ${o.title} ${fmt(o.occStartTs, o.tz)}${o.location ? ` @ ${o.location}` : ''} (id ${o.eventId})`);
       return {
         llmText: `${occs.length} event${occs.length > 1 ? 's' : ''}:\n${lines.join('\n')}`,
         card: {

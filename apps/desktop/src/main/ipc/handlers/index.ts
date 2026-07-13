@@ -1,6 +1,8 @@
 import { type Handlers } from '../router';
 import { type Orchestrator } from '../../agent/orchestrator';
 import { type Repos } from '../../db/repos/index';
+import { buildWorkspaceHandlers } from './workspace';
+import { type InvokeReq } from '@apollo/shared';
 import { type SettingsService } from '../../settingsService';
 import { type Secrets } from '../../security/secrets';
 import { type KeyProvider } from '@apollo/shared';
@@ -24,11 +26,20 @@ export interface HandlerDeps {
   oauthRevoke?: () => void;
   debugWake?: () => void;
   debugInjectAudio?: (wavPath: string) => Promise<void>;
+  /** E1: opens/focuses the Workspace window at a target view (wired in 5.2). */
+  openWorkspace?: (target: InvokeReq<'workspace.open'>) => void;
+  tz?: () => string;
   log: (msg: string) => void;
 }
 
 export function buildHandlers(deps: HandlerDeps): Handlers {
   return {
+    ...buildWorkspaceHandlers({
+      repos: deps.repos,
+      tz: deps.tz ?? (() => Intl.DateTimeFormat().resolvedOptions().timeZone),
+      openWorkspace: (target) => deps.openWorkspace?.(target),
+      log: deps.log,
+    }),
     'agent.userMessage': (req) => {
       deps.onUserActivity?.();
       const { turnId } = deps.orchestrator().handleUserMessage(req);

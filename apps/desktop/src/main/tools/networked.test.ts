@@ -52,10 +52,10 @@ describe('weather tools', () => {
   it('falls back to home location and errors helpfully without one', async () => {
     const http = stubHttp(() => forecastResponse);
     const reg = createRegistry(createWeatherTools({ http, getHome: () => null, getUnits: () => 'imperial' }));
-    expect((await reg.execute('weather.now', {}, makeCtx())).llmText).toMatch(/^ERROR no place given/);
+    expect((await reg.execute('weather.now', {}, makeCtx())).llmText).toMatch(/^ERROR profile home location not set/);
 
     const reg2 = createRegistry(
-      createWeatherTools({ http, getHome: () => ({ name: 'Home', lat: 1, lon: 2 }), getUnits: () => 'imperial' }),
+      createWeatherTools({ http, getHome: () => ({ label: 'Home', lat: 1, lon: 2, tz: 'America/Los_Angeles' }), getUnits: () => 'imperial' }),
     );
     expect((await reg2.execute('weather.now', {}, makeCtx())).llmText).toContain('Home');
   });

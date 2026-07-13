@@ -160,8 +160,8 @@ function boot(): void {
       ...createReminderTools({ reminders: repos.reminders, undo: repos.undo, onArm: () => scheduler.rearm() }),
       ...createWeatherTools({
         http,
-        getHome: () => settings.get().home,
-        getUnits: () => settings.get().units,
+        getHome: () => settings.get().profile.homePlace,
+        getUnits: () => settings.get().profile.units,
       }),
       createSearchWebTool({ http, getBraveKey: () => secrets.get('brave') }),
       createNewsTool({ http, feeds: repos.feeds, summarize: createLlmSummarizer(llm) }),
@@ -195,6 +195,14 @@ function boot(): void {
       if (!win.isDestroyed()) pushTo(win.webContents, 'agent.events', event);
     }
   }
+
+  // E2 live sync: every repo mutation (agent tools and Workspace IPC alike)
+  // fans out to all open windows within the same event-loop tick.
+  repos.bus.subscribe((change) => {
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (!win.isDestroyed()) pushTo(win.webContents, 'data.changed', change);
+    }
+  });
 
   // Screen context (C8.3): cached + refreshed asynchronously so the CONTEXT
   // block carries activeApp/selectedText without spawning osascript in the hot

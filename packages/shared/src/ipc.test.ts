@@ -38,6 +38,53 @@ const invokeFixtures: Record<InvokeChannelName, { req: unknown; res: unknown }> 
   'tts.drained': { req: {}, res: { ok: true } },
   'debug.wake': { req: {}, res: { ok: true } },
   'debug.injectAudio': { req: { wavPath: '/tmp/fixture.wav' }, res: { ok: true } },
+  // ---- E1 Workspace channels (defaults materialized so parse round-trips equal) ----
+  'workspace.open': { req: { view: 'calendar', dateIso: '2026-07-14' }, res: { ok: true } },
+  'events.list': {
+    req: { startMs: 1_800_000_000_000, endMs: 1_800_086_400_000 },
+    res: [
+      {
+        eventId: 'e1', occStartTs: 1_800_000_000_000, occEndTs: 1_800_003_600_000,
+        title: 'Dentist', allDay: false, tz: 'America/Los_Angeles', isRecurring: false,
+        location: null, notes: null, dateIso: '2027-01-15', rrule: null,
+      },
+    ],
+  },
+  'events.get': {
+    req: { id: 'e1' },
+    res: {
+      id: 'e1', title: 'Dentist', startTs: 1_800_000_000_000, endTs: null, tz: 'America/Los_Angeles',
+      allDay: false, rrule: null, location: null, notes: null,
+    },
+  },
+  'events.create': {
+    req: { title: 'Standup', startIso: '2026-07-14T09:00:00', tz: 'LOCAL' },
+    res: {
+      id: 'e2', title: 'Standup', startTs: 1_800_000_000_000, endTs: 1_800_003_600_000,
+      tz: 'America/Los_Angeles', allDay: false, rrule: null, location: null, notes: null,
+    },
+  },
+  'events.update': {
+    req: { id: 'e1', patch: { title: 'Dentist (moved)' }, scope: 'all' },
+    res: {
+      id: 'e1', title: 'Dentist (moved)', startTs: 1_800_000_000_000, endTs: null,
+      tz: 'America/Los_Angeles', allDay: false, rrule: null, location: null, notes: null,
+    },
+  },
+  'events.delete': { req: { id: 'e1', scope: 'single', occStartTs: 1_800_000_000_000 }, res: { ok: true } },
+  'notes.list': {
+    req: { query: 'groceries', limit: 50 },
+    res: [{ id: 'n1', title: 'Groceries', snippet: 'milk, eggs', updatedAt: 1_800_000_000_000, pinned: false }],
+  },
+  'notes.get': { req: { id: 'n1' }, res: { id: 'n1', content: 'Groceries\nmilk', pinned: false, updatedAt: 1 } },
+  'notes.save': { req: { content: 'Groceries\nmilk, eggs' }, res: { id: 'n1', content: 'Groceries\nmilk, eggs', pinned: false, updatedAt: 1 } },
+  'notes.delete': { req: { id: 'n1' }, res: { undoToken: 'u1' } },
+  'notes.pin': { req: { id: 'n1', pinned: true }, res: { ok: true } },
+  'todos.list': { req: {}, res: [{ id: 't1', content: 'buy milk', dueTs: null, done: false }] },
+  'todos.add': { req: { content: 'buy milk' }, res: { id: 't1' } },
+  'todos.toggle': { req: { id: 't1', done: true }, res: { ok: true } },
+  'todos.delete': { req: { id: 't1' }, res: { ok: true } },
+  'undo.apply': { req: { undoToken: 'u1' }, res: { ok: true } },
 };
 
 const pushFixtures: Record<PushChannelName, unknown> = {
@@ -46,6 +93,8 @@ const pushFixtures: Record<PushChannelName, unknown> = {
   'voice.partial': { transcript: 'set a tim', rms: 0.42 },
   'tts.audio': { seq: 0, mime: 'audio/mp3', data: new ArrayBuffer(8), last: false },
   'tts.stop': {},
+  'data.changed': { entity: 'note', op: 'create', id: 'n1' },
+  'settings.changed': defaultSettings(),
 };
 
 describe('invoke channel round-trips', () => {
@@ -87,5 +136,22 @@ describe('malformed payload rejection', () => {
   it('rejects garbage on push schemas', () => {
     expect(pushChannels['voice.state'].safeParse({ state: 'happy' }).success).toBe(false);
     expect(pushChannels['tts.audio'].safeParse({ seq: 0, mime: 'audio/wav', data: new ArrayBuffer(1), last: false }).success).toBe(false);
+  });
+  it('rejects malformed Workspace payloads (E1)', () => {
+    expect(invokeChannels['workspace.open'].req.safeParse({ view: 'dashboard' }).success).toBe(false);
+    expect(invokeChannels['events.list'].req.safeParse({ startMs: 'monday', endMs: 2 }).success).toBe(false);
+    expect(invokeChannels['events.create'].req.safeParse({ startIso: '2026-07-14T09:00:00' }).success).toBe(false); // no title
+    expect(invokeChannels['events.create'].req.safeParse({ title: '', startIso: 'x' }).success).toBe(false);
+    expect(invokeChannels['events.update'].req.safeParse({ id: 'e1', patch: {}, scope: 'some' }).success).toBe(false);
+    expect(invokeChannels['events.delete'].req.safeParse({ scope: 'all' }).success).toBe(false);
+    expect(invokeChannels['notes.list'].req.safeParse({ limit: 0 }).success).toBe(false);
+    expect(invokeChannels['notes.list'].req.safeParse({ limit: 10_000 }).success).toBe(false);
+    expect(invokeChannels['notes.save'].req.safeParse({ content: 42 }).success).toBe(false);
+    expect(invokeChannels['notes.pin'].req.safeParse({ id: 'n1', pinned: 'yes' }).success).toBe(false);
+    expect(invokeChannels['todos.add'].req.safeParse({ content: '' }).success).toBe(false);
+    expect(invokeChannels['todos.toggle'].req.safeParse({ id: 't1' }).success).toBe(false);
+    expect(invokeChannels['undo.apply'].req.safeParse({}).success).toBe(false);
+    expect(pushChannels['data.changed'].safeParse({ entity: 'spaceship', op: 'create', id: 'x' }).success).toBe(false);
+    expect(pushChannels['data.changed'].safeParse({ entity: 'note', op: 'upsert', id: 'x' }).success).toBe(false);
   });
 });

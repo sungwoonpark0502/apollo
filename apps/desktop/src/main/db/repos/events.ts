@@ -80,8 +80,8 @@ export function createEventsRepo(db: Db) {
       if (!ev.rrule) {
         const dateIso = DateTime.fromMillis(ev.startTs, { zone: ev.tz }).toISODate() ?? '';
         out.push({
-          eventId: ev.id, title: ev.title, startTs: ev.startTs, endTs: ev.startTs + dur, tz: ev.tz,
-          allDay: ev.allDay, location: ev.location, notes: ev.notes, dateIso, rrule: null,
+          eventId: ev.id, occStartTs: ev.startTs, occEndTs: ev.startTs + dur, title: ev.title, tz: ev.tz,
+          allDay: ev.allDay, isRecurring: false, location: ev.location, notes: ev.notes, dateIso, rrule: null,
         });
         continue;
       }
@@ -104,12 +104,12 @@ export function createEventsRepo(db: Db) {
         if (ev.exdates.includes(dateIso)) continue;
         if (startTs >= rangeEndMs || startTs + dur <= rangeStartMs) continue;
         out.push({
-          eventId: ev.id, title: ev.title, startTs, endTs: startTs + dur, tz: ev.tz,
-          allDay: ev.allDay, location: ev.location, notes: ev.notes, dateIso, rrule: ev.rrule,
+          eventId: ev.id, occStartTs: startTs, occEndTs: startTs + dur, title: ev.title, tz: ev.tz,
+          allDay: ev.allDay, isRecurring: true, location: ev.location, notes: ev.notes, dateIso, rrule: ev.rrule,
         });
       }
     }
-    return out.sort((a, b) => a.startTs - b.startTs);
+    return out.sort((a, b) => a.occStartTs - b.occStartTs);
   }
 
   return {

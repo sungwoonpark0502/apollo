@@ -1,4 +1,4 @@
-import { SettingsSchema, defaultSettings, type Settings } from '@apollo/shared';
+import { SettingsSchema, defaultSettings, migrateLegacySettings, type Settings } from '@apollo/shared';
 import { type SettingsRepo } from './db/repos/misc';
 
 const KEY = 'app.settings';
@@ -15,7 +15,8 @@ export function createSettingsService(repo: SettingsRepo, opts: { onChange?: (s:
       return cache;
     }
     try {
-      cache = SettingsSchema.parse(JSON.parse(raw));
+      const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      cache = SettingsSchema.parse(migrateLegacySettings(JSON.parse(raw), localTz));
     } catch {
       cache = defaultSettings(); // corrupt settings never brick the app
     }

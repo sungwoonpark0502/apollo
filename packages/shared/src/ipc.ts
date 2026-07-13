@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { agentEventSchema, messageSourceSchema } from './agent';
 import { voiceStateSchema } from './voice';
 import { SettingsSchema } from './settings';
+import { eventDTOSchema, noteListItemSchema, occurrenceDTOSchema } from './cards';
 
 /**
  * Single source of truth for everything crossing the IPC bridge (C4).
@@ -72,7 +73,93 @@ export const invokeChannels = {
   'tts.drained': { req: z.object({}), res: ackSchema },      // orb player → FSM "queue drained"
   'debug.wake': { req: z.object({}), res: ackSchema },       // dev only: drives FakeWake
   'debug.injectAudio': { req: z.object({ wavPath: z.string() }), res: ackSchema }, // dev only: A2.2a
+
+  // ---- E1 Workspace channels ----
+  'workspace.open': {
+    req: z.object({
+      view: z.enum(['today', 'calendar', 'notes']),
+      dateIso: z.string().optional(),
+      noteId: z.string().optional(),
+    }),
+    res: ackSchema,
+  },
+  'events.list': {
+    req: z.object({ startMs: z.number(), endMs: z.number() }),
+    res: z.array(occurrenceDTOSchema),
+  },
+  'events.get': { req: z.object({ id: z.string() }), res: eventDTOSchema },
+  'events.create': {
+    req: z.object({
+      title: z.string().min(1),
+      startIso: z.string(),
+      endIso: z.string().optional(),
+      tz: z.string().default('LOCAL'),
+      allDay: z.boolean().optional(),
+      rrule: z.string().optional(),
+      location: z.string().optional(),
+      notes: z.string().optional(),
+      reminderMin: z.number().int().min(0).optional(),
+    }),
+    res: eventDTOSchema,
+  },
+  'events.update': {
+    req: z.object({
+      id: z.string(),
+      patch: z
+        .object({
+          title: z.string().min(1),
+          startIso: z.string(),
+          endIso: z.string().nullable(),
+          tz: z.string(),
+          allDay: z.boolean(),
+          rrule: z.string().nullable(),
+          location: z.string().nullable(),
+          notes: z.string().nullable(),
+          reminderMin: z.number().int().min(0).nullable(),
+        })
+        .partial(),
+      scope: z.enum(['single', 'all']).default('all'),
+      occStartTs: z.number().optional(), // required when scope=single on a recurring event
+    }),
+    res: eventDTOSchema,
+  },
+  'events.delete': {
+    req: z.object({ id: z.string(), scope: z.enum(['single', 'all']).default('all'), occStartTs: z.number().optional() }),
+    res: ackSchema,
+  },
+  'notes.list': {
+    req: z.object({ query: z.string().optional(), limit: z.number().int().positive().max(200).default(50) }),
+    res: z.array(noteListItemSchema),
+  },
+  'notes.get': {
+    req: z.object({ id: z.string() }),
+    res: z.object({ id: z.string(), content: z.string(), pinned: z.boolean(), updatedAt: z.number() }),
+  },
+  'notes.save': {
+    req: z.object({ id: z.string().optional(), content: z.string() }), // upsert
+    res: z.object({ id: z.string(), content: z.string(), pinned: z.boolean(), updatedAt: z.number() }),
+  },
+  'notes.delete': { req: z.object({ id: z.string() }), res: z.object({ undoToken: z.string() }) },
+  'notes.pin': { req: z.object({ id: z.string(), pinned: z.boolean() }), res: ackSchema },
+  'todos.list': {
+    req: z.object({}),
+    res: z.array(z.object({ id: z.string(), content: z.string(), dueTs: z.number().nullable(), done: z.boolean() })),
+  },
+  'todos.add': {
+    req: z.object({ content: z.string().min(1), dueTs: z.number().optional() }),
+    res: z.object({ id: z.string() }),
+  },
+  'todos.toggle': { req: z.object({ id: z.string(), done: z.boolean() }), res: ackSchema },
+  'todos.delete': { req: z.object({ id: z.string() }), res: ackSchema },
+  'undo.apply': { req: z.object({ undoToken: z.string() }), res: ackSchema }, // UI undo toasts
 } as const satisfies Record<string, ChannelDef>;
+
+export const dataChangedSchema = z.object({
+  entity: z.enum(['event', 'note', 'todo', 'reminder', 'timer']),
+  op: z.enum(['create', 'update', 'delete']),
+  id: z.string(),
+});
+export type DataChanged = z.infer<typeof dataChangedSchema>;
 
 /** Main → Renderer (webContents.send). */
 export const pushChannels = {
@@ -86,6 +173,8 @@ export const pushChannels = {
     last: z.boolean(),
   }),
   'tts.stop': z.object({}),
+  'data.changed': dataChangedSchema,        // E2 live sync fan-out
+  'settings.changed': SettingsSchema,       // E7 live settings broadcast
 } as const satisfies Record<string, z.ZodType>;
 
 export type InvokeChannelName = keyof typeof invokeChannels;

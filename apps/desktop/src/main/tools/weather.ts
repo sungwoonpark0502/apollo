@@ -4,7 +4,8 @@ import { type HttpClient } from '../net/httpClient';
 
 export interface WeatherToolDeps {
   http: HttpClient;
-  getHome: () => { name: string; lat: number; lon: number } | null;
+  /** E5: profile.homePlace is the default place. */
+  getHome: () => { label: string; lat: number; lon: number; tz: string } | null;
   getUnits: () => 'imperial' | 'metric';
   now?: () => number;
 }
@@ -45,8 +46,8 @@ export function createWeatherTools(deps: WeatherToolDeps): ToolDef[] {
       if (!geo) return `ERROR could not find a place called "${place}"`;
     } else {
       const home = deps.getHome();
-      if (!home) return 'ERROR no place given and no home location is configured (Settings > General).';
-      geo = home;
+      if (!home) return 'ERROR profile home location not set. Ask the user to set it in Settings > Profile.';
+      geo = { name: home.label, lat: home.lat, lon: home.lon };
     }
     const units = deps.getUnits();
     const key = `${geo.lat.toFixed(3)},${geo.lon.toFixed(3)},${units}`;

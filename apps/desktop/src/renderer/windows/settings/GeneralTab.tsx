@@ -48,19 +48,8 @@ export function GeneralTab(): React.JSX.Element {
         </select>
       </Row>
 
-      <Row label={STRINGS.settings.general.homeLocation}>
-        <input
-          value={settings.home?.name ?? ''}
-          onChange={(e) => {
-            const name = e.target.value;
-            patch({ ...settings, home: name ? { name, lat: settings.home?.lat ?? 0, lon: settings.home?.lon ?? 0 } : null });
-          }}
-          placeholder="City name"
-          style={{ ...inputStyle, width: 220 }}
-        />
-      </Row>
       <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-3)', marginTop: 'var(--sp-2)' }}>
-        Ask Apollo "set my home to Portland" to set exact coordinates automatically.
+        Home location, units, and time format live in the Profile tab.
       </div>
     </div>
   );

@@ -1,5 +1,11 @@
 # DECISIONS
 
+- 2026-07-12 (Phase 5): E2's literal FTS trigger SQL (direct UPDATE/DELETE on notes_fts) is invalid for FTS5 external-content tables; implemented with the canonical 'delete'-command INSERT form. Proven by the trigger-integrity test.
+- 2026-07-12 (Phase 5): notes repo no longer writes notes_fts manually — the 0002 triggers own sync (double-write otherwise). Soft-deleted notes keep their FTS row and are filtered by the deleted_at IS NULL join.
+- 2026-07-12 (Phase 5): pre-Part-E top-level settings home/units fold into profile via migrateLegacySettings at load (tz backfilled from the local zone); Part E wins over C3's field list.
+- 2026-07-12 (Phase 5): OccurrenceDTO reshaped to E1 (occStartTs/occEndTs/isRecurring) keeping internal extras dateIso/notes/rrule that C7 scope edits and cards need; E1 does not forbid extra fields.
+- 2026-07-12 (Phase 5): Workspace direct-UI mutations register undo_log entries under a fixed 'workspace-ui' conversation id so undo.apply tokens work without an agent turn.
+
 - 2026-07-12: Node 22.14.0 (current machine LTS) instead of Node 20; engines set to >=20 so both work. Reason: installed toolchain, both are LTS.
 - 2026-07-12: Tray icon generated deterministically by scripts/gen-assets.mjs (pure-Node PNG writer) instead of committing binary blobs. Reason: reviewable, reproducible resources.
 - 2026-07-12: macOS dock hidden (tray-only app). Reason: B2 "quiet" invariant; palette/orb are the only surfaces.

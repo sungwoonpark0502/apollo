@@ -81,3 +81,10 @@ export function createUndoTool(repos: Repos): ToolDef {
 export function registerInverse(tool: string, fn: InverseFn): void {
   INVERSES[tool] = fn;
 }
+
+/** E1 undo.apply: executes the inverse of a specific undo entry (UI undo toasts). */
+export function applyUndoEntry(repos: Repos, entry: { tool: string; data: Record<string, unknown> }): string | null {
+  const inverse = INVERSES[entry.tool];
+  if (!inverse) return null;
+  return inverse(repos, entry.data);
+}

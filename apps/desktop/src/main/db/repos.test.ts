@@ -14,9 +14,9 @@ beforeEach(() => {
 });
 
 describe('migrations', () => {
-  it('applies to version 1 and is idempotent', () => {
-    expect(migrate(db)).toBe(1);
-    expect(migrate(db)).toBe(1);
+  it('applies to version 2 and is idempotent', () => {
+    expect(migrate(db)).toBe(2);
+    expect(migrate(db)).toBe(2);
     const tables = (db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as Array<{ name: string }>).map((t) => t.name);
     for (const t of ['events', 'reminders', 'timers', 'alarms', 'notes', 'todos', 'contacts', 'conversations', 'messages', 'memory_facts', 'oauth_accounts', 'capability_misses', 'feeds', 'perf_spans', 'undo_log', 'settings']) {
       expect(tables).toContain(t);
@@ -38,16 +38,16 @@ describe('events: recurrence expansion', () => {
 
     expect(occ.map((o) => o.dateIso)).toEqual(['2026-10-18', '2026-10-25', '2026-11-01', '2026-11-08']);
     for (const o of occ) {
-      const local = DateTime.fromMillis(o.startTs, { zone: LA });
+      const local = DateTime.fromMillis(o.occStartTs, { zone: LA });
       expect(local.hour).toBe(9); // wall time preserved across the DST boundary
       expect(local.minute).toBe(0);
     }
     // Across the fall-back weekend the epoch gap is 7 days + 1 hour.
-    const gap = occ[2]!.startTs - occ[1]!.startTs;
+    const gap = occ[2]!.occStartTs - occ[1]!.occStartTs;
     expect(gap).toBe((7 * 24 + 1) * 3_600_000);
     // Offsets flip from PDT to PST.
-    expect(DateTime.fromMillis(occ[1]!.startTs, { zone: LA }).offset).toBe(-420);
-    expect(DateTime.fromMillis(occ[2]!.startTs, { zone: LA }).offset).toBe(-480);
+    expect(DateTime.fromMillis(occ[1]!.occStartTs, { zone: LA }).offset).toBe(-420);
+    expect(DateTime.fromMillis(occ[2]!.occStartTs, { zone: LA }).offset).toBe(-480);
   });
 
   it('honors exdates (JSON array of ISO dates)', () => {
@@ -66,7 +66,7 @@ describe('events: recurrence expansion', () => {
     const hi = tokyo.plus({ days: 5 }).toMillis();
     const occ = repos.events.expandOccurrences(lo, hi);
     expect(occ).toHaveLength(3);
-    for (const o of occ) expect(DateTime.fromMillis(o.startTs, { zone: 'Asia/Tokyo' }).hour).toBe(9);
+    for (const o of occ) expect(DateTime.fromMillis(o.occStartTs, { zone: 'Asia/Tokyo' }).hour).toBe(9);
   });
 
   it('findOverlapping catches recurring occurrences and one-offs; soft-deleted events vanish', () => {

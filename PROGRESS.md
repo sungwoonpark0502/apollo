@@ -1,5 +1,24 @@
 # PROGRESS
 
+## Phase 5 (Part E)
+
+### [x] 5.1 Contracts + migration 0002 + DataBus + new IPC handlers — verified: 16-test suite (bus fan-out/unsubscribe/throwing-subscriber, wrapMutations publish-on-success/silent-on-noop across events/todos/reminders/timers/notes, FTS trigger integrity incl. integrity-check pragma + exactly-one-row proof, title/snippet derivation, live-sync same-tick visibility, workspace handler semantics: scope-single detach reusing C7, undo-toast round-trip, todos ordering, pin float); every new channel has round-trip + malformed-rejection fixtures (shared suite 74); full suite 380 green
+Planned files:
+- packages/shared/src/settings.ts (profile object per E1; home/units fold into profile)
+- packages/shared/src/cards.ts (OccurrenceDTO reshaped to E1: occStartTs/occEndTs/isRecurring; NoteListItem)
+- packages/shared/src/ipc.ts (+ workspace.open, events.*, notes.*, todos.*, undo.apply invokes; data.changed + settings.changed pushes)
+- packages/shared/src/ipc.test.ts (fixtures for every new channel + malformed rejection)
+- apps/desktop/src/main/db/migrations/0002_workspace.sql (pinned, idx_notes_updated, FTS triggers — external-content 'delete' form)
+- apps/desktop/src/main/db/migrate.ts (register 0002)
+- apps/desktop/src/main/db/repos/notes.ts (drop manual FTS sync — triggers own it; pinned; list w/ title/snippet derivation)
+- apps/desktop/src/main/db/bus.ts (DataBus + repo wrapping)
+- apps/desktop/src/main/db/repos/index.ts (wrap mutating repos with bus)
+- apps/desktop/src/main/db/{bus.test.ts,repos updates in repos.test.ts}
+- apps/desktop/src/main/ipc/handlers/workspace.ts (+ wire into handlers/index.ts)
+- apps/desktop/src/main/{index.ts wiring: data.changed broadcast}
+- events repo: expandOccurrences DTO rename; calendar tools updated
+Verify: new-channel round-trips + malformed rejection, bus fan-out tests, FTS trigger integrity tests, note title/snippet tests; full suite stays green.
+
 ## Phase 4
 
 ### [x] Phase 4 — screen.context (real osascript-verified: read "Google Chrome"), memory-facts UI + per-row delete, egress list, approved-dirs editor, Wipe-all-data (typed ERASE → deletes DB+secrets+relaunch), General/Voice/Accounts/Privacy/Diagnostics tabs, 4-step onboarding (permissions prompts via systemPreferences), reduced-motion + focus-ring a11y pass, electron-builder packaging (dmg/zip arm64+x64, nsis; hardened runtime + notarize config present), electron-updater wiring, README (setup/keys/permissions/architecture map).

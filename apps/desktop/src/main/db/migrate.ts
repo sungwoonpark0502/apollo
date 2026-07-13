@@ -1,7 +1,11 @@
 import { type Db } from './connection';
 import m0001 from './migrations/0001_init.sql?raw';
+import m0002 from './migrations/0002_workspace.sql?raw';
 
-const MIGRATIONS: ReadonlyArray<{ version: number; sql: string }> = [{ version: 1, sql: m0001 }];
+const MIGRATIONS: ReadonlyArray<{ version: number; sql: string }> = [
+  { version: 1, sql: m0001 },
+  { version: 2, sql: m0002 },
+];
 
 /** Applies pending numbered migrations in one transaction; returns the schema version. */
 export function migrate(db: Db): number {

@@ -1,4 +1,5 @@
 import { type Db } from '../connection';
+import { createDataBus, wrapMutations, type DataBus } from '../bus';
 import { createEventsRepo } from './events';
 import { createRemindersRepo } from './reminders';
 import { createTimersRepo } from './timers';
@@ -11,14 +12,74 @@ import { createMemoryRepo } from './memory';
 import { createUndoRepo } from './undo';
 import { createCapabilityMissesRepo, createFeedsRepo, createPerfRepo, createSettingsRepo, createOAuthRepo } from './misc';
 
-export function createRepos(db: Db) {
+/** All mutating repo methods publish onto the DataBus (E2). */
+export function createRepos(db: Db, bus: DataBus = createDataBus()) {
   return {
-    events: createEventsRepo(db),
-    reminders: createRemindersRepo(db),
-    timers: createTimersRepo(db),
+    bus,
+    events: wrapMutations(
+      createEventsRepo(db),
+      'event',
+      {
+        create: { op: 'create', id: 'ret.id' },
+        update: { op: 'update', id: 'arg0' },
+        softDelete: { op: 'delete', id: 'arg0' },
+        restore: { op: 'update', id: 'arg0' },
+        addExdate: { op: 'update', id: 'arg0' },
+        removeExdate: { op: 'update', id: 'arg0' },
+      },
+      bus,
+    ),
+    reminders: wrapMutations(
+      createRemindersRepo(db),
+      'reminder',
+      {
+        create: { op: 'create', id: 'ret.id' },
+        complete: { op: 'update', id: 'arg0' },
+        uncomplete: { op: 'update', id: 'arg0' },
+        snooze: { op: 'update', id: 'arg0' },
+        markFired: { op: 'update', id: 'arg0' },
+        rearm: { op: 'update', id: 'arg0' },
+        softDelete: { op: 'delete', id: 'arg0' },
+        restore: { op: 'update', id: 'arg0' },
+      },
+      bus,
+    ),
+    timers: wrapMutations(
+      createTimersRepo(db),
+      'timer',
+      {
+        start: { op: 'create', id: 'ret.id' },
+        cancel: { op: 'delete', id: 'arg0' },
+        uncancel: { op: 'create', id: 'arg0' },
+        markFired: { op: 'update', id: 'arg0' },
+      },
+      bus,
+    ),
     alarms: createAlarmsRepo(db),
-    notes: createNotesRepo(db),
-    todos: createTodosRepo(db),
+    notes: wrapMutations(
+      createNotesRepo(db),
+      'note',
+      {
+        save: { op: 'create', id: 'ret.id' },
+        update: { op: 'update', id: 'arg0' },
+        setPinned: { op: 'update', id: 'arg0' },
+        softDelete: { op: 'delete', id: 'arg0' },
+        restore: { op: 'update', id: 'arg0' },
+      },
+      bus,
+    ),
+    todos: wrapMutations(
+      createTodosRepo(db),
+      'todo',
+      {
+        add: { op: 'create', id: 'ret.id' },
+        complete: { op: 'update', id: 'arg0' },
+        uncomplete: { op: 'update', id: 'arg0' },
+        softDelete: { op: 'delete', id: 'arg0' },
+        restore: { op: 'update', id: 'arg0' },
+      },
+      bus,
+    ),
     contacts: createContactsRepo(db),
     conversations: createConversationsRepo(db),
     memory: createMemoryRepo(db),

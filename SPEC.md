@@ -410,3 +410,101 @@ Phase 4: polish and ship
 screen.context, memory facts UI, onboarding, reduced-motion pass, packaging + updater wiring, README (setup, keys, permissions, architecture map). Gate: pnpm build produces installable artifacts; full eval >= 92%; global DoD below.
 
 Global Definition of Done: all gates green; zero any in shared or exported signatures; every C14 item mapped to a passing test or a documented manual check; HUMAN_TODO contains only physical-human items; PROGRESS and DECISIONS current; a new machine can go from clone to running app using only README plus HUMAN_TODO.
+
+PART E: Apollo Workspace and Visual Surface (v3.1 addendum)
+Status: normative extension to SPEC v3.0. Everything in Parts A through D remains in force. Part E adds a third product surface. Where Part E and earlier parts conflict, Part E wins.
+E0. Scope statement
+Apollo currently has two surfaces: voice (orb) and the text palette, both producing ephemeral cards. Part E adds:
+
+A Workspace window: a full app UI where the user directly reads and writes their data with mouse and keyboard: Today dashboard, Calendar (month/week/agenda), Notes editor.
+A Response Stage: an upgraded visual presentation for voice answers (weather, news, briefs) so answers are seen, not only heard.
+Onboarding v2 collecting a user profile (name, home location, units, time format), all editable in Settings.
+A Settings completeness pass and one new tool, app.open.
+
+The one-brain invariant (B2.2) extends: Workspace, palette, and voice all read and write through the identical repos. An event created by voice appears in an open Calendar view within one event-loop tick, and vice versa. There are no separate data paths.
+Direct UI actions are the user acting on their own data: they bypass Tier confirmation gates. Destructive UI actions instead use inline safeguards defined below (scope dialogs, undo toasts).
+E1. Shared contract additions (packages/shared)
+Settings schema additions:
+tsprofile: z.object({
+  name: z.string().max(60).default(''),                    // '' allowed; prompt falls back
+  homePlace: z.object({ label: z.string(), lat: z.number(), lon: z.number(), tz: z.string() }).nullable().default(null),
+  units: z.enum(['imperial','metric']).default('imperial'),
+  timeFormat: z.enum(['12h','24h']).default('12h'),
+  weekStart: z.enum(['monday','sunday']).default('sunday'),
+})
+New DTO:
+tsexport interface OccurrenceDTO { eventId: string; occStartTs: number; occEndTs: number;
+  title: string; allDay: boolean; tz: string; isRecurring: boolean; location: string | null; }
+export interface NoteListItem { id: string; title: string; snippet: string; updatedAt: number; pinned: boolean; }
+New IPC channels (same router, zod, senderFrame rules as C4):
+ChannelDirRequest → Responseworkspace.openR→M{view:'today'|'calendar'|'notes', dateIso?, noteId?} → ack (opens/focuses window, navigates)events.listR→M{startMs, endMs} → OccurrenceDTO[] (recurrences expanded)events.getR→M{id} → full eventevents.createR→Mcreate payload (mirrors calendar.create params) → EventDTOevents.updateR→M{id, patch, scope:'single'|'all', occStartTs?} → EventDTOevents.deleteR→M{id, scope, occStartTs?} → acknotes.listR→M{query?, limit=50} → NoteListItem[] (FTS when query)notes.get / notes.save / notes.delete / notes.pinR→Msave is upsert {id?, content} → saved note; delete registers undotodos.list/add/toggle/deleteR→Mtyped CRUDundo.applyR→M{undoToken} → ack (used by UI undo toasts)data.changedM→R push{entity:'event'|'note'|'todo'|'reminder'|'timer', op:'create'|'update'|'delete', id}
+All new user-facing copy goes into strings.ts (A5 still binding).
+E2. Data layer changes
+Migration 0002_workspace.sql:
+sqlALTER TABLE notes ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0;
+CREATE INDEX idx_notes_updated ON notes(updated_at DESC) WHERE deleted_at IS NULL;
+-- FTS sync triggers (add if 0001 did not create them):
+CREATE TRIGGER notes_ai AFTER INSERT ON notes BEGIN
+  INSERT INTO notes_fts(rowid, content) VALUES (new.rowid, new.content); END;
+CREATE TRIGGER notes_au AFTER UPDATE OF content ON notes BEGIN
+  UPDATE notes_fts SET content = new.content WHERE rowid = new.rowid; END;
+CREATE TRIGGER notes_ad AFTER DELETE ON notes BEGIN
+  DELETE FROM notes_fts WHERE rowid = old.rowid; END;
+Change event bus: wrap every mutating repo method (create/update/softDelete/toggle) to publish onto a main-process DataBus; main broadcasts data.changed to all open windows. Because agent tools and the new IPC handlers already share these repos, live sync across surfaces is automatic and requires no per-feature wiring. Note title and snippet are derived at read time: title = first non-empty line trimmed to 80 chars (fallback "Untitled"), snippet = next 120 chars.
+E3. Workspace window
+Standard window, default 1080x720, min 860x600, bounds persisted, single instance (focus if open). Entry points: tray left-click, orb right-click menu ("Open Apollo"), workspace.open IPC, app.open tool, and card deep links. Left rail 64px: Today, Calendar, Notes, spacer, Settings gear. Keyboard: Cmd/Ctrl+1/2/3 switches views, contextual Cmd/Ctrl+N creates, T jumps to today, Esc closes modals.
+E3.1 Today view
+Header: weekday + date + profile-aware greeting. Sections, each with an empty state and one primary action:
+
+Up next: next 3 occurrences from now (relative labels "in 45 min").
+Today: full day's occurrences, click opens the event editor.
+Reminders due today (snooze/complete inline).
+Todos: inline add input on top, checkbox toggle, overdue tinted --danger.
+Weather strip: home place, current temp + condition + next 6 hours mini-bars.
+Latest brief: the most recent brief card stack, with a Regenerate button (runs brief.daily).
+
+E3.2 Calendar view
+Sub-tabs Month, Week, Agenda; range navigation (prev/today/next), weekStart from profile, all times rendered in the event's own tz converted to local with a badge when they differ.
+Month: 6x7 grid; each cell shows up to 3 event chips plus "+N more"; clicking a day opens a right-side day panel listing that day's occurrences; double-click on empty space opens a quick-create popover (title, start time picker respecting timeFormat, duration presets 30m/1h/2h/all-day). Today cell ringed with --accent.
+Week: 7-column 24h scrollable timeline (6:00 initial scroll), all-day row pinned top, red now-line. Interactions: drag on empty creates (15-minute snap), drag a chip moves it, bottom-edge handle resizes. Overlapping events share the column width using a pure layout function (side-by-side lanes). Every drag interaction writes through events.update and is undoable.
+Agenda: infinite list of the next 60 days grouped by day.
+Recurring edit semantics: any edit, move, or delete touching a recurring occurrence opens a scope dialog: "This event" or "All events". "This" reuses the C7 semantics exactly (write occurrence date to exdates, create a detached event). The dialog is mandatory; no silent default.
+Event editor modal: title, all-day toggle, start/end pickers, timezone selector (default profile tz, searchable IANA list), recurrence presets (None, Daily, Weekly on {weekday}, Weekdays, Monthly on day {n}, Custom RRULE text with live validation), location, notes, reminder minutes. Validation via the shared zod schema; errors inline.
+E3.3 Notes view
+Two panes. Left (280px): search input (FTS as-you-type, 200ms debounce), Pinned section, then list sorted by updated desc, New note button. Right: editor. Plain text, --fs-body, generous line-height; the first line renders in --fs-display weight 600 as the title. Autosave: 800ms debounce plus on blur plus on window close; saved state indicator ("Saved" / "Saving…"); word count in the footer; pin toggle; delete shows a 5s undo toast (wired to undo.apply). Notes created by voice (note.save tool) appear in the list live via data.changed. Cmd/Ctrl+F focuses search.
+E4. Response Stage (the Jarvis layer)
+Voice answers must be visible without breaking the Quiet invariant. The orb's card panel gains a second presentation mode.
+Trigger: a turn whose source is voice and whose emitted card kind is brief, newsList, weather, or eventList renders in Stage mode. All other cards keep the existing compact mode.
+Stage mode spec: panel widens to 480px (max-height 70vh), translucent surface (macOS vibrancy / Windows acrylic underlay, --surface at 92% opacity fallback), 1px --border, radius --radius-card. Entrance: 160ms fade with a 4px rise; list rows stagger 35ms each; the weather temperature counts up over 300ms. Under prefers-reduced-motion, all of this collapses to a plain fade. No gradients, no glow, no neon: the futurism comes from motion, translucency, and typography, consistent with C18.
+Spoken-row sync: while TTS reads a brief or news list, the row corresponding to the sentence currently being spoken gets a 2px --accent left bar. Mapping is best-effort (sentence flush index → row index); if the mapping is ambiguous, show no highlight. This feature must never throw.
+Lifecycle: auto-dismiss 12 seconds after TTS ends (compact cards keep 8s); hover or pin holds; Esc dismisses. Stage header shows a context title ("Morning brief", "Today's weather in {place}") and an "Open in Apollo" affordance deep-linking into the Workspace (brief → Today, eventList → Calendar at that date, news row click → external browser as before).
+E5. Weather completeness
+weather.now and weather.forecast default place to profile.homePlace; if unset, return ERROR profile home location not set. Ask the user to set it in Settings > Profile. Units follow profile.units. WeatherCard gets a minimal inline SVG icon set (sun, partly cloudy, cloud, rain, snow, storm, fog; one 24px outline style) and, in Stage mode, an hourly strip for the next 6 hours.
+Fast path additions (C9 table): ^(what'?s|how'?s|hows) the weather( like)?( today| right now| now)?$ → weather.now; ^(what'?s|how'?s) the weather (tomorrow|this weekend)$ → weather.forecast. Template spoken reply from strings.ts plus the Stage weather card, zero LLM calls.
+E6. Onboarding v2 (replaces the 4-step flow)
+Six steps, back/next, all skippable except none block completion; every value editable later in Settings.
+
+Welcome: one screen, product one-liner.
+Profile: name (optional; when empty the system prompt uses "the user" and greetings omit the name); home location search box with 300ms-debounced Open-Meteo geocoding autocomplete (top 5, arrow-key selectable) storing {label, lat, lon, tz}; units toggle; time format defaulted from OS locale, editable.
+Permissions: mic and accessibility rationale, live status chips (granted/denied/undetermined via getMediaAccessStatus), buttons trigger the prompts.
+Keys: Anthropic and Deepgram marked required, Brave and Picovoice optional; each field write-only with a Test button and green/red result line.
+Wake word: toggle plus sensitivity slider, PTT explanation.
+Try it: shows the hotkey, suggests "set a timer for 5 minutes" and "what's the weather", Finish button opens the Workspace Today view.
+
+E7. Settings completeness pass
+Final tab list: Profile (new: name, home location with the same autocomplete, units, time format, week start), General (launch at login, hotkey recorder, orb edge + reset position, open Workspace on launch toggle), Voice, Accounts, Keys, Privacy, Diagnostics, About (new: version, Check for updates button wired to electron-updater, open-source licenses list, link to logs folder). Any settings write broadcasts immediately to all consumers: no restart required; open views re-render on units/timeFormat/weekStart/profile changes via a settings.changed push (add to C4 table).
+E8. New tool: app.open
+Tier 2, not networked. Params: { view: z.enum(['today','calendar','notes']), dateIso: z.string().optional(), noteId: z.string().optional() }. Opens or focuses the Workspace at the target. llmText: Opened {view}. Use for explicit verbs only ("open my calendar", "show my notes", "pull up today"); informational questions ("what's on my calendar") still answer via calendar.list without opening windows. Add both phrasings to the eval set with forbid_tools guards.
+E9. Testing and gates
+Unit: month-grid generation (both weekStarts, DST months), week-view overlap lane layout (pure function), drag snap math, autosave debounce logic, geocoding autocomplete debounce + cache, recurring scope-edit reuse, DataBus fan-out, FTS trigger integrity, weather fast-path patterns plus near-miss negatives, note title/snippet derivation. IPC: round-trip + malformed rejection for every new channel. Eval additions (minimum 15 rows): 6 app.open phrasings, 2 forbid_tools rows proving "what's on my calendar tomorrow" calls calendar.list and never app.open or calendar.create, 4 weather-with-profile-default rows, 3 dictated-note rows asserting note.save. Live-sync test: a FakeLLM-scripted note.save is visible through notes.list IPC within one tick, and the store reducer applies data.changed correctly. Perf: month layout under 50ms for 500 occurrences (benchmark on the pure function); Stage stagger math pure-tested. Injection suite re-run must stay 100%. HUMAN_TODO gains a visual QA checklist (drag interactions, Stage animations, dark mode, reduced motion).
+Milestones (Phase 5, strict order):
+
+5.1 Contracts + migration 0002 + DataBus + all new IPC handlers. Verify: round-trips, bus tests, FTS trigger tests.
+5.2 Workspace shell + rail + Today view + tray/orb entry + shortcuts + settings.changed.
+5.3 Calendar Month + day panel + quick-create + event editor modal + scope dialog.
+5.4 Week timeline + drag create/move/resize + Agenda.
+5.5 Notes two-pane + FTS search + autosave + pin + delete undo toast.
+5.6 Response Stage + spoken-row highlight + deep links + weather fast path + icon set + Stage weather hourly strip.
+5.7 Onboarding v2 + Settings Profile/About + live settings broadcast + app.open tool + eval rows + README update.
+
+Phase 5 gate: all suites green, eval (now 95+ rows) >= 90%, injection 100%, keyboard-only pass through Calendar and Notes, reduced-motion honored in Stage, pnpm build still produces installable artifacts, Global DoD (Part D) re-verified.

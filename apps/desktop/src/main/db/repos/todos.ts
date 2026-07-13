@@ -33,6 +33,14 @@ export function createTodosRepo(db: Db) {
     listOpen(limit = 50): TodoRow[] {
       return (db.prepare('SELECT * FROM todos WHERE done=0 AND deleted_at IS NULL ORDER BY COALESCE(due_ts, 9e15), created_at LIMIT ?').all(limit) as Raw[]).map(toRow);
     },
+    /** Workspace list: open first (due order), then done (recent first). */
+    listAll(limit = 100): TodoRow[] {
+      return (
+        db
+          .prepare('SELECT * FROM todos WHERE deleted_at IS NULL ORDER BY done ASC, COALESCE(due_ts, 9e15), created_at LIMIT ?')
+          .all(limit) as Raw[]
+      ).map(toRow);
+    },
     complete(id: string): boolean {
       return db.prepare('UPDATE todos SET done=1, updated_at=? WHERE id=? AND deleted_at IS NULL').run(nowMs(), id).changes > 0;
     },
