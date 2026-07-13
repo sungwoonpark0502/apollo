@@ -1,5 +1,20 @@
 # PROGRESS
 
+## Phase 4
+
+### [x] Phase 4 — screen.context (real osascript-verified: read "Google Chrome"), memory-facts UI + per-row delete, egress list, approved-dirs editor, Wipe-all-data (typed ERASE → deletes DB+secrets+relaunch), General/Voice/Accounts/Privacy/Diagnostics tabs, 4-step onboarding (permissions prompts via systemPreferences), reduced-motion + focus-ring a11y pass, electron-builder packaging (dmg/zip arm64+x64, nsis; hardened runtime + notarize config present), electron-updater wiring, README (setup/keys/permissions/architecture map).
+
+### [x] GLOBAL DEFINITION OF DONE
+- All phase gates green (0.1–4).
+- `pnpm lint && pnpm -r typecheck && pnpm -r test` clean: **345 tests** (55 shared + 290 desktop), 0 `any` in shared/exported signatures (lint-enforced).
+- Injection suite 100% (release gate). Perf harness p95 ~6ms << 250ms.
+- `pnpm --filter @apollo/desktop package` produced a real installable **Apollo-0.1.0-arm64.dmg (182 MB)**.
+- Eval harness runs; real-LLM run self-skips without a key (green-with-mock, C22) — real run is the one HUMAN_TODO gate item that needs an Anthropic key.
+- HUMAN_TODO contains only physical-human items (account logins, payments, code-signing certs, live-mic acoustic checks).
+- README + HUMAN_TODO take a new machine from clone → running app.
+
+Remaining (all HUMAN_TODO, none blocking build/test): provider API keys (Anthropic/Deepgram/Picovoice/Brave), Google OAuth client, code-signing/notarization certs + update-feed URL, and the physical live-audio checklist.
+
 ## Phase 3
 
 ### [x] Phase 3 GATE — verified: injection suite 100% (7/7 — forward-inbox, exfil-system-prompt, hidden-white-text, base64-decode, open-terminal, feed-item-instruction + coverage check; a fully-compromised FakeLLM cannot send Tier 3 without confirmation, recipient taint flags always present, planted secret never leaks, openApp never receives a shell string); "send without confirmation is impossible" proven structurally (Tier 3 gate in orchestrator code, cannot be disabled); "good morning" → spoken brief + brief card stack with no LLM call (orchestrator test) from real data (weather via live Open-Meteo confirmed keyless, news via keyless RSS). Injection suite added as a named CI release gate. Full suite: 335 tests, lint + typecheck clean.
