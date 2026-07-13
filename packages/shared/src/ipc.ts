@@ -154,6 +154,11 @@ export const invokeChannels = {
   'todos.delete': { req: z.object({ id: z.string() }), res: ackSchema },
   'undo.apply': { req: z.object({ undoToken: z.string() }), res: ackSchema }, // UI undo toasts
   'settings.open': { req: z.object({}), res: ackSchema }, // rail gear → settings window
+  'geocode.search': {
+    req: z.object({ query: z.string().min(1) }),
+    res: z.array(z.object({ label: z.string(), lat: z.number(), lon: z.number(), tz: z.string() })),
+  },
+  'update.check': { req: z.object({}), res: z.object({ status: z.enum(['checking', 'available', 'none', 'disabled']), version: z.string().optional() }) },
   // Today view data that has no repo: weather strip (profile home, next 6h) + latest brief
   'workspace.today': {
     req: z.object({}),

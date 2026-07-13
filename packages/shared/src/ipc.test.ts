@@ -86,6 +86,8 @@ const invokeFixtures: Record<InvokeChannelName, { req: unknown; res: unknown }> 
   'todos.delete': { req: { id: 't1' }, res: { ok: true } },
   'undo.apply': { req: { undoToken: 'u1' }, res: { ok: true } },
   'settings.open': { req: {}, res: { ok: true } },
+  'geocode.search': { req: { query: 'columbus' }, res: [{ label: 'Columbus, Ohio', lat: 39.96, lon: -83, tz: 'America/New_York' }] },
+  'update.check': { req: {}, res: { status: 'none' } },
   'workspace.today': {
     req: {},
     res: {

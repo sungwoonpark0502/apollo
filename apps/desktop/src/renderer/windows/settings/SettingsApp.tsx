@@ -6,12 +6,14 @@ import { DiagnosticsTab } from './DiagnosticsTab';
 import { AccountsTab } from './AccountsTab';
 import { PrivacyTab } from './PrivacyTab';
 import { GeneralTab } from './GeneralTab';
+import { ProfileTab } from './ProfileTab';
+import { AboutTab } from './AboutTab';
 
 type TabId = keyof typeof STRINGS.settings.tabs;
-const TAB_ORDER: TabId[] = ['general', 'voice', 'accounts', 'keys', 'privacy', 'diagnostics'];
+const TAB_ORDER: TabId[] = ['profile', 'general', 'voice', 'accounts', 'keys', 'privacy', 'diagnostics', 'about'];
 
 export function SettingsApp(): React.JSX.Element {
-  const [tab, setTab] = useState<TabId>('keys');
+  const [tab, setTab] = useState<TabId>('profile');
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: 'var(--bg)' }}>
@@ -40,7 +42,11 @@ export function SettingsApp(): React.JSX.Element {
         ))}
       </nav>
       <main style={{ flex: 1, padding: 'var(--sp-5)', overflowY: 'auto' }}>
-        {tab === 'keys' ? (
+        {tab === 'profile' ? (
+          <ProfileTab />
+        ) : tab === 'about' ? (
+          <AboutTab />
+        ) : tab === 'keys' ? (
           <KeysTab />
         ) : tab === 'voice' ? (
           <VoiceTab />

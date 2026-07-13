@@ -7,6 +7,10 @@
 - 2026-07-12 (Phase 5): Workspace direct-UI mutations register undo_log entries under a fixed 'workspace-ui' conversation id so undo.apply tokens work without an agent turn.
 - 2026-07-13 (Phase 5): Notes editor is a single plain <textarea> (preserving the E3.3 plain-text guarantee). Styling only the first line as an fs-display title inside a textarea is impossible without contenteditable/overlay, which would break plain-text storage; the first-line-as-title semantics are honored via title/snippet derivation shown in the notes rail and Today. Autosave = 800ms debounce + onBlur flush + unmount/beforeunload flush.
 - 2026-07-13 (Phase 5): Renderer autosave/search use the pure `debounce` util (injectable timers) so the debounce logic is unit-tested off the DOM (E9).
+- 2026-07-13 (Phase 5): Geocoding autocomplete runs through a `geocode.search` IPC channel (main → egress-checked httpClient → geocoding-api.open-meteo.com), not the renderer — the renderer CSP forbids external hosts. Renderer caches results with a pure normalized-key cache (unit-tested).
+- 2026-07-13 (Phase 5): Response Stage spoken-row sync driven by a `tts.spoken {index}` push the pipeline emits when each sentence's first audio plays; the orb maps index→row via the tested best-effort `sentenceToRow` (assumes lead-in + one-per-row when total unknown; never throws).
+- 2026-07-13 (Phase 5): Orb infers voice-source (Stage trigger) from the voice.state stream (listening/thinking/speaking during the turn) rather than adding `source` to the card event — keeps the C3 AgentEvent contract unchanged.
+- 2026-07-13 (Phase 5): app.open (E8) is the only new tool; explicit-verb-only guidance lives in the system prompt, enforced in eval by forbid_tools rows proving "what's on my calendar" uses calendar.list.
 
 - 2026-07-12: Node 22.14.0 (current machine LTS) instead of Node 20; engines set to >=20 so both work. Reason: installed toolchain, both are LTS.
 - 2026-07-12: Tray icon generated deterministically by scripts/gen-assets.mjs (pure-Node PNG writer) instead of committing binary blobs. Reason: reviewable, reproducible resources.

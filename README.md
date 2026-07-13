@@ -64,6 +64,28 @@ account are in **HUMAN_TODO.md**.
 - TTS defaults to the keyless `msedge-tts` voice `en-US-JennyNeural`
   (configurable in Settings → Voice).
 
+## Three surfaces, one brain
+
+Apollo has three ways in, all reading and writing the **same** local repos:
+
+- **Orb** (voice) — docked at the screen edge; wake word or push-to-talk. Voice
+  answers for weather, news, briefs, and schedules render on the **Response
+  Stage**: a wider translucent panel with staggered rows, a temperature count-up,
+  and a best-effort accent bar on the line being spoken. "Open in Apollo"
+  deep-links into the Workspace.
+- **Palette** (text) — the global-hotkey command bar for quick typed requests.
+- **Workspace** — a full window (tray click, orb menu, `app.open`, or a card deep
+  link). **Today** (up-next, schedule, reminders, todos, weather, latest brief),
+  **Calendar** (Month / Week with drag create-move-resize / Agenda; recurring
+  edits prompt *this event* vs *all events*), and **Notes** (FTS search,
+  autosave, pin, delete-with-undo).
+
+Because voice tools, the palette, and the Workspace all mutate the same repos,
+changes propagate live: an event created by voice appears in an open Calendar
+within one event-loop tick (a `DataBus` broadcasts `data.changed` to every
+window). Settings edits broadcast the same way — no restart to change units,
+time format, week start, or profile.
+
 ## Scripts
 
 | Command | What it does |
@@ -94,12 +116,15 @@ apollo/
                            + registry; every tool ships tests beside it
       voice/               VoiceController FSM, Deepgram/Fake STT, edge/Fake TTS, chunker
       audio-worker/        utilityProcess: wake adapters + Silero VAD
-      db/                  better-sqlite3 connection, numbered migrations, repos (only SQL)
+      db/                  better-sqlite3 connection, numbered migrations, repos (only SQL),
+                           DataBus (live cross-surface sync)
       net/                 httpClient + egress allowlist + circuit breaker + offline probe
       security/            secrets (safeStorage), email sanitizer, Gmail OAuth + provider
       scheduler/           timer/reminder/alarm scheduler + daily brief
+      workspace/           Today-view data provider (weather strip + latest brief)
     src/preload/           the single typed window.apollo bridge
-    src/renderer/          orb, palette, settings, onboarding, audio windows (React + zustand)
+    src/renderer/          orb, palette, workspace, settings, onboarding, audio windows
+                           (React + zustand); lib/ holds pure calendar/stage/debounce logic
   eval/                    golden.jsonl (agent eval), injection/ (prompt-injection suite)
 ```
 

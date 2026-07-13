@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { STRINGS, type KeyProvider } from '@apollo/shared';
+import { PlaceSearch } from '../../components/PlaceSearch';
+import { type GeoResult } from '../../lib/geocode';
 
 const KEY_PROVIDERS: Array<{ id: KeyProvider; required: boolean }> = [
   { id: 'anthropic', required: true },
@@ -15,7 +17,14 @@ export function OnboardingApp(): React.JSX.Element {
     void window.apollo.call('onboarding.finish', {}).then(() => window.close());
   };
 
-  const steps = [<Welcome key="w" />, <Permissions key="p" />, <Keys key="k" />, <Finish key="f" onDone={finish} />];
+  const steps = [
+    <Welcome key="w" />,
+    <Profile key="pr" />,
+    <Permissions key="p" />,
+    <Keys key="k" />,
+    <WakeWord key="wa" />,
+    <TryIt key="t" onDone={finish} />,
+  ];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', padding: 'var(--sp-6)', background: 'var(--bg)', color: 'var(--text-1)' }}>
@@ -116,12 +125,83 @@ function Keys(): React.JSX.Element {
   );
 }
 
-function Finish({ onDone }: { onDone: () => void }): React.JSX.Element {
+function Profile(): React.JSX.Element {
+  const [name, setName] = useState('');
+  const [home, setHome] = useState<GeoResult | null>(null);
+
+  // Load current profile so re-running onboarding shows existing values.
+  useEffect(() => {
+    void window.apollo.call('settings.get', {}).then((s) => {
+      setName(s.profile.name);
+      setHome(s.profile.homePlace);
+    });
+  }, []);
+
+  const persist = (partial: { name?: string; homePlace?: GeoResult | null }): void => {
+    void window.apollo.call('settings.get', {}).then((s) => {
+      void window.apollo.call('settings.set', { ...s, profile: { ...s.profile, ...partial } });
+    });
+  };
+
   return (
-    <Panel title={STRINGS.onboarding.finishTitle}>
-      <p style={body}>{STRINGS.onboarding.finishBody('Option+Space')}</p>
+    <Panel title={STRINGS.onboarding.profileTitle}>
+      <p style={body}>{STRINGS.onboarding.profileBody}</p>
+      <label style={{ display: 'block', fontSize: 'var(--fs-caption)', color: 'var(--text-2)', margin: 'var(--sp-3) 0 var(--sp-1)' }}>{STRINGS.onboarding.profileName}</label>
+      <input
+        value={name}
+        onChange={(e) => setName(e.target.value.slice(0, 60))}
+        onBlur={() => persist({ name })}
+        placeholder={STRINGS.onboarding.profileNamePlaceholder}
+        style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' }}
+      />
+      <label style={{ display: 'block', fontSize: 'var(--fs-caption)', color: 'var(--text-2)', margin: 'var(--sp-3) 0 var(--sp-1)' }}>{STRINGS.onboarding.profileHome}</label>
+      <PlaceSearch value={home} onSelect={(p) => { setHome(p); persist({ homePlace: p }); }} />
+    </Panel>
+  );
+}
+
+function WakeWord(): React.JSX.Element {
+  const [enabled, setEnabled] = useState(true);
+  const [sensitivity, setSensitivity] = useState(0.5);
+
+  useEffect(() => {
+    void window.apollo.call('settings.get', {}).then((s) => {
+      setEnabled(s.wake.enabled);
+      setSensitivity(s.wake.sensitivity);
+    });
+  }, []);
+
+  const persist = (partial: { enabled?: boolean; sensitivity?: number }): void => {
+    void window.apollo.call('settings.get', {}).then((s) => {
+      void window.apollo.call('settings.set', { ...s, wake: { ...s.wake, ...partial } });
+    });
+  };
+
+  return (
+    <Panel title={STRINGS.onboarding.wakeTitle}>
+      <p style={body}>{STRINGS.onboarding.wakeBody}</p>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', margin: 'var(--sp-3) 0', fontSize: 'var(--fs-body)' }}>
+        <input type="checkbox" checked={enabled} onChange={(e) => { setEnabled(e.target.checked); persist({ enabled: e.target.checked }); }} />
+        {STRINGS.onboarding.wakeToggle}
+      </label>
+      <label style={{ display: 'block', fontSize: 'var(--fs-caption)', color: 'var(--text-2)', marginBottom: 'var(--sp-1)' }}>{STRINGS.onboarding.wakeSensitivity}</label>
+      <input
+        type="range" min={0} max={1} step={0.05} value={sensitivity}
+        onChange={(e) => setSensitivity(parseFloat(e.target.value))}
+        onMouseUp={() => persist({ sensitivity })}
+        disabled={!enabled}
+        style={{ width: 240 }}
+      />
+    </Panel>
+  );
+}
+
+function TryIt({ onDone }: { onDone: () => void }): React.JSX.Element {
+  return (
+    <Panel title={STRINGS.onboarding.tryTitle}>
+      <p style={body}>{STRINGS.onboarding.tryBody('Option+Space')}</p>
       <button onClick={onDone} style={{ ...primaryButton, marginTop: 'var(--sp-4)' }}>
-        {STRINGS.onboarding.done}
+        {STRINGS.onboarding.tryFinish}
       </button>
     </Panel>
   );

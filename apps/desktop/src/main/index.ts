@@ -44,6 +44,7 @@ import { createSearchWebTool } from './tools/searchWeb';
 import { createEmailTools } from './tools/email';
 import { createBriefTool } from './tools/brief';
 import { createScreenTool, readScreenContext } from './tools/screen';
+import { createAppOpenTool } from './tools/appOpen';
 import { initUpdater } from './updater';
 import { createEmailService } from './security/emailService';
 import { createDailyBrief } from './scheduler/dailyBrief';
@@ -178,6 +179,7 @@ function boot(): void {
       ...createEmailTools({ provider: () => emailService.provider(), contacts: repos.contacts }),
       createBriefTool({ getTool: (n) => registry.get(n), emailConnected: () => emailService.isConnected() }),
       createScreenTool({ run: spawnRunner() }),
+      createAppOpenTool({ openWorkspace: (target) => openWorkspace(target) }),
       ...createSystemTools({
         run: spawnRunner(),
         openPath: (p) => shell.openPath(p),
@@ -408,7 +410,7 @@ function boot(): void {
     finishOnboarding: () => {
       settings.patch({ onboarded: true });
       closeOnboardingWindow();
-      togglePalette();
+      openWorkspace({ view: 'today' }); // E6: finish opens the Workspace Today view
     },
     requestPermission: async (kind) => {
       if (process.platform !== 'darwin') return true;
@@ -425,6 +427,23 @@ function boot(): void {
     openWorkspace: (target) => openWorkspace(target),
     openSettings: () => openSettingsWindow(),
     todayData: () => todayProvider.get(),
+    geocode: async (query) => {
+      // E6/E7 geocoding autocomplete through the egress-checked http client.
+      try {
+        const data = (await http.getJson(
+          `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=5&language=en`,
+        )) as { results?: Array<{ name: string; latitude: number; longitude: number; admin1?: string; country?: string; timezone?: string }> };
+        return (data.results ?? []).map((r) => ({
+          label: [r.name, r.admin1, r.country].filter(Boolean).join(', '),
+          lat: r.latitude,
+          lon: r.longitude,
+          tz: r.timezone ?? 'auto',
+        }));
+      } catch {
+        return [];
+      }
+    },
+    checkForUpdates: async () => (app.isPackaged ? { status: 'checking' as const } : { status: 'disabled' as const }),
     tz: () => Intl.DateTimeFormat().resolvedOptions().timeZone,
     debugWake: () => voiceController.onWake(),
     debugInjectAudio: async (wavPath) => {

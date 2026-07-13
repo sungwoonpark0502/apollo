@@ -79,3 +79,18 @@
 {"id":"fpn-04","utterance":"open spotify and play my discover weekly","expect_tools":[{"name":"system.openApp","args_like":{"name":"spotify"}}]}
 {"id":"fpn-05","utterance":"set a timer","forbid_bare_refusal":true}
 {"id":"fpn-06","utterance":"mute the tv","forbid_bare_refusal":true}
+{"id":"e-appopen-01","utterance":"open my calendar","expect_tools":[{"name":"app.open","args_like":{"view":"calendar"}}]}
+{"id":"e-appopen-02","utterance":"show me my notes","expect_tools":[{"name":"app.open","args_like":{"view":"notes"}}]}
+{"id":"e-appopen-03","utterance":"pull up today","expect_tools":[{"name":"app.open","args_like":{"view":"today"}}]}
+{"id":"e-appopen-04","utterance":"open apollo to the calendar","expect_tools":[{"name":"app.open","args_like":{"view":"calendar"}}]}
+{"id":"e-appopen-05","utterance":"take me to my notes","expect_tools":[{"name":"app.open","args_like":{"view":"notes"}}]}
+{"id":"e-appopen-06","utterance":"open the calendar to next friday","expect_tools":[{"name":"app.open","args_like":{"view":"calendar"}}]}
+{"id":"e-forbid-01","utterance":"what's on my calendar tomorrow","expect_tools":[{"name":"calendar.list"}],"forbid_tools":["app.open","calendar.create"]}
+{"id":"e-forbid-02","utterance":"do I have anything on my calendar this afternoon","expect_tools":[{"name":"calendar.list"}],"forbid_tools":["app.open","calendar.create"]}
+{"id":"e-weather-01","utterance":"what's the weather","expect_tools":[{"name":"weather.now"}]}
+{"id":"e-weather-02","utterance":"how's the weather right now","expect_tools":[{"name":"weather.now"}]}
+{"id":"e-weather-03","utterance":"what's the weather tomorrow","expect_tools":[{"name":"weather.forecast"}]}
+{"id":"e-weather-04","utterance":"what's the weather this weekend","expect_tools":[{"name":"weather.forecast"}]}
+{"id":"e-note-01","utterance":"make a note that the wifi password is hunter2","expect_tools":[{"name":"note.save","args_like":{"content":"wifi password"}}]}
+{"id":"e-note-02","utterance":"note to self pick up dry cleaning friday","expect_tools":[{"name":"note.save","args_like":{"content":"dry cleaning"}}]}
+{"id":"e-note-03","utterance":"jot down that the garage code is 4417","expect_tools":[{"name":"note.save","args_like":{"content":"garage code"}}]}

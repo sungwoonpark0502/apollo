@@ -33,6 +33,13 @@ function futureToolDefs(): ToolDef[] {
     { name: 'email.send', tier: 3, networked: true, description: 'Send an email. Requires user confirmation. Every recipient must come from contact.find or be stated by the user.', params: z.object({ to: z.array(z.string()), subject: z.string(), body: z.string() }) },
     { name: 'screen.context', tier: 1, description: 'Active window title and selected text.', params: z.object({}) },
     { name: 'brief.daily', tier: 1, networked: true, description: 'Compose the daily brief: today\'s calendar, email triage, weather, news.', params: z.object({}) },
+    {
+      name: 'app.open',
+      tier: 2,
+      description:
+        'Open or focus the Apollo Workspace window at a view. Use ONLY for explicit open/show/pull-up requests ("open my calendar", "show my notes", "pull up today"). Do NOT use for informational questions like "what\'s on my calendar" — those use calendar.list and never open a window. view is today, calendar, or notes.',
+      params: z.object({ view: z.enum(['today', 'calendar', 'notes']), dateIso: z.string().optional(), noteId: z.string().optional() }),
+    },
   ];
   return defs.map((d) => ({
     ...d,
@@ -114,6 +121,8 @@ function cannedResult(name: string, args: Record<string, unknown>): ToolResult {
       return { llmText: 'Volume 60 percent.' };
     case 'undo.last':
       return { llmText: 'Undone: removed the event.' };
+    case 'app.open':
+      return { llmText: `Opened ${String(args['view'] ?? '')}.` };
     default:
       return { llmText: 'ok' };
   }
@@ -147,7 +156,7 @@ export function buildEvalTools(calls: RecordedCall[]): ToolDef[] {
       openPath: async () => '',
       listAppDirs: () => [],
     }),
-    ...createWeatherTools({ http: noHttp, getHome: () => ({ name: 'Home', lat: 0, lon: 0 }), getUnits: () => 'imperial' }),
+    ...createWeatherTools({ http: noHttp, getHome: () => ({ label: 'Home', lat: 0, lon: 0, tz: 'America/Los_Angeles' }), getUnits: () => 'imperial' }),
     createSearchWebTool({ http: noHttp, getBraveKey: () => 'eval' }),
   ];
 
