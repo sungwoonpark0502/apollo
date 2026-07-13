@@ -2,7 +2,9 @@ import { app, BrowserWindow, ipcMain, Notification, safeStorage, shell, systemPr
 import { join } from 'node:path';
 import { STRINGS, type AgentEvent } from '@apollo/shared';
 import { createTray, getTray } from './tray';
-import { createAudioWindow, createOnboardingWindow, closeOnboardingWindow, createOrbWindow, createPaletteWindow, openSettingsWindow, togglePalette } from './windows';
+import { createAudioWindow, createOnboardingWindow, closeOnboardingWindow, createOrbWindow, createPaletteWindow, openSettingsWindow, openWorkspaceWindow, getWorkspaceWindow, togglePalette } from './windows';
+import { createTodayProvider } from './workspace/today';
+import { type CardPayload, type WorkspaceNavigate } from '@apollo/shared';
 import { createOrbController } from './orbController';
 import { createWorkerHost } from './voice/workerHost';
 import { createVoiceController } from './voice/voiceController';
@@ -93,6 +95,13 @@ function boot(): void {
     onChange: (next, prev) => {
       if (next.hotkey !== prev.hotkey) registerHotkey(next.hotkey, onHotkeyPress, log);
       if (next.wake.sensitivity !== prev.wake.sensitivity) workerHost.send({ t: 'setSensitivity', v: next.wake.sensitivity });
+      // E7: broadcast so open views re-render on units/timeFormat/weekStart/profile changes.
+      // workspaceBounds churns on every drag; exclude it from the broadcast.
+      if (JSON.stringify({ ...next, workspaceBounds: null }) !== JSON.stringify({ ...prev, workspaceBounds: null })) {
+        for (const win of BrowserWindow.getAllWindows()) {
+          if (!win.isDestroyed()) pushTo(win.webContents, 'settings.changed', next);
+        }
+      }
     },
   });
   const secrets = createSecrets({ settings: repos.settings, codec: safeStorageCodec(safeStorage), env: config.env, log });
@@ -181,9 +190,32 @@ function boot(): void {
   const orbWindow = createOrbWindow();
   const orbController = createOrbController(orbWindow);
 
+  let lastBriefCard: CardPayload | null = null;
+  const todayProvider = createTodayProvider({
+    http,
+    getHome: () => settings.get().profile.homePlace,
+    getUnits: () => settings.get().profile.units,
+    getLatestBrief: () => lastBriefCard,
+  });
+
+  // E3 Workspace: single instance, bounds persisted in the settings blob under a
+  // reserved key; opened from tray, orb menu, app.open tool, and card deep links.
+  function openWorkspace(target?: WorkspaceNavigate): void {
+    const win = openWorkspaceWindow({
+      getBounds: () => settings.get().workspaceBounds ?? null,
+      saveBounds: (b) => settings.patch({ workspaceBounds: b }),
+    });
+    const nav = (): void => {
+      if (target) pushTo(win.webContents, 'workspace.navigate', target);
+    };
+    if (win.webContents.isLoading()) win.webContents.once('did-finish-load', nav);
+    else nav();
+  }
+
   function emitToAll(event: AgentEvent): void {
     orbController.onAgentEvent(event);
     if (voiceTurnActive && event.type === 'token') ttsPipeline.feedToken(event.text);
+    if (event.type === 'card' && event.card.kind === 'brief') lastBriefCard = event.card; // E3.1 latest brief
     if (event.type === 'done' || event.type === 'error') {
       if (voiceTurnActive) {
         voiceTurnActive = false;
@@ -387,6 +419,10 @@ function boot(): void {
     },
     oauthConnect: () => emailService.connect(),
     oauthRevoke: () => emailService.revoke(),
+    openWorkspace: (target) => openWorkspace(target),
+    openSettings: () => openSettingsWindow(),
+    todayData: () => todayProvider.get(),
+    tz: () => Intl.DateTimeFormat().resolvedOptions().timeZone,
     debugWake: () => voiceController.onWake(),
     debugInjectAudio: async (wavPath) => {
       // A2.2a: drives wake → listen → EOT with mic-identical frames.
@@ -407,7 +443,7 @@ function boot(): void {
     log,
   });
 
-  createTray({ onOpenSettings: () => openSettingsWindow() });
+  createTray({ onOpenSettings: () => openSettingsWindow(), onOpenWorkspace: () => openWorkspace({ view: 'today' }) });
   const palette = createPaletteWindow();
   // B1: the hotkey activates Apollo — palette for typing, and (PTT) listening when voice is up
   registerHotkey(settings.get().hotkey, onHotkeyPress, log);
@@ -454,7 +490,16 @@ function boot(): void {
         const res = await window.apollo.call('agent.userMessage', { text: 'set a timer for 5 minutes', source: 'text', convId: 'smoke' });
         await new Promise((r) => setTimeout(r, 500));
         const active = events.includes('turnStart') && events.includes('card') && events.includes('done');
-        return res.turnId && active ? 'turn-ok' : 'turn-bad:' + events.join(',');
+        if (!(res.turnId && active)) return 'turn-bad:' + events.join(',');
+        // E-phase one-brain: write via Workspace channel, read it back over IPC + live data.changed.
+        let changed = 0;
+        window.apollo.on('data.changed', (c) => { if (c.entity === 'note') changed++; });
+        const saved = await window.apollo.call('notes.save', { content: 'Smoke test note\\nbody line' });
+        const list = await window.apollo.call('notes.list', { limit: 10 });
+        const seen = list.some((n) => n.id === saved.id && n.title === 'Smoke test note');
+        await window.apollo.call('workspace.open', { view: 'today' });
+        await new Promise((r) => setTimeout(r, 100));
+        return seen && changed > 0 ? 'turn-ok' : 'workspace-bad:seen=' + seen + ',changed=' + changed;
       })()`;
       const idleClickThrough = orbController.isClickThrough(); // sampled before the turn activates the orb
       void palette.webContents
@@ -462,11 +507,12 @@ function boot(): void {
         .then((result: string) => {
           const orbOk = !orbWindow.isDestroyed() && orbWindow.isAlwaysOnTop() && !orbWindow.isFocused();
           const activeInteractive = !orbController.isClickThrough(); // turn just ran: orb must be interactive during linger
+          const wsOk = getWorkspaceWindow() !== null && !getWorkspaceWindow()!.isDestroyed();
           // eslint-disable-next-line no-console
           console.log(
-            `SMOKE_OK tray=${getTray() !== null} palette=${!palette.isDestroyed()} e2e=${result} orb=${orbOk} clickThroughIdle=${idleClickThrough} interactiveActive=${activeInteractive}`,
+            `SMOKE_OK tray=${getTray() !== null} palette=${!palette.isDestroyed()} e2e=${result} orb=${orbOk} clickThroughIdle=${idleClickThrough} interactiveActive=${activeInteractive} workspace=${wsOk}`,
           );
-          app.exit(result === 'turn-ok' && orbOk && idleClickThrough && activeInteractive ? 0 : 1);
+          app.exit(result === 'turn-ok' && orbOk && idleClickThrough && activeInteractive && wsOk ? 0 : 1);
         })
         .catch((e: unknown) => {
           // eslint-disable-next-line no-console

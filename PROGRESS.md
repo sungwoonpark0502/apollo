@@ -2,6 +2,8 @@
 
 ## Phase 5 (Part E)
 
+### [x] 5.2 Workspace shell + rail + Today view + entries + settings.changed — verified: Workspace window (single-instance, bounds persisted in settings blob, min 860x600); rail with Today/Calendar/Notes/Settings + Cmd/Ctrl+1-3 & T shortcuts; Today view (greeting, up-next, today's schedule, live todos w/ inline add + overdue tint, weather strip w/ 6h hourly + SVG glyphs, latest-brief w/ Regenerate) all wired to live data.changed via useDataSync; entries: tray left-click + "Open Apollo" → Workspace, settings.changed broadcast on any non-bounds settings write; calendarLayout pure lib (12 tests: month grid both weekStarts + DST months, overlap lanes, snap15, stagger). Smoke: e2e=turn-ok (note saved via notes.save → listed via notes.list → data.changed observed, all over IPC), workspace=true. Full suite 395 green.
+
 ### [x] 5.1 Contracts + migration 0002 + DataBus + new IPC handlers — verified: 16-test suite (bus fan-out/unsubscribe/throwing-subscriber, wrapMutations publish-on-success/silent-on-noop across events/todos/reminders/timers/notes, FTS trigger integrity incl. integrity-check pragma + exactly-one-row proof, title/snippet derivation, live-sync same-tick visibility, workspace handler semantics: scope-single detach reusing C7, undo-toast round-trip, todos ordering, pin float); every new channel has round-trip + malformed-rejection fixtures (shared suite 74); full suite 380 green
 Planned files:
 - packages/shared/src/settings.ts (profile object per E1; home/units fold into profile)

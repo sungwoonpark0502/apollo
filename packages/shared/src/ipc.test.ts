@@ -85,6 +85,18 @@ const invokeFixtures: Record<InvokeChannelName, { req: unknown; res: unknown }> 
   'todos.toggle': { req: { id: 't1', done: true }, res: { ok: true } },
   'todos.delete': { req: { id: 't1' }, res: { ok: true } },
   'undo.apply': { req: { undoToken: 'u1' }, res: { ok: true } },
+  'settings.open': { req: {}, res: { ok: true } },
+  'workspace.today': {
+    req: {},
+    res: {
+      weather: {
+        place: 'Columbus',
+        now: { tempF: 88, feelsF: 92, condition: 'Sunny', precipPct: 5, windMph: 6 },
+        hours: [{ iso: '2026-07-13T14:00', temp: 89, precipPct: 10, condition: 'Sunny' }],
+      },
+      brief: { kind: 'text', body: 'Good morning' },
+    },
+  },
 };
 
 const pushFixtures: Record<PushChannelName, unknown> = {
@@ -95,6 +107,7 @@ const pushFixtures: Record<PushChannelName, unknown> = {
   'tts.stop': {},
   'data.changed': { entity: 'note', op: 'create', id: 'n1' },
   'settings.changed': defaultSettings(),
+  'workspace.navigate': { view: 'calendar', dateIso: '2026-07-14' },
 };
 
 describe('invoke channel round-trips', () => {

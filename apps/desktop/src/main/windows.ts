@@ -170,6 +170,55 @@ export function closeOnboardingWindow(): void {
   onboardingWin = null;
 }
 
+let workspaceWin: BrowserWindow | null = null;
+
+export function getWorkspaceWindow(): BrowserWindow | null {
+  return workspaceWin;
+}
+
+export interface WorkspaceWindowDeps {
+  getBounds: () => { x?: number; y?: number; width: number; height: number } | null;
+  saveBounds: (b: { x: number; y: number; width: number; height: number }) => void;
+}
+
+/** E3 Workspace window: default 1080x720, min 860x600, bounds persisted, single instance. */
+export function openWorkspaceWindow(deps: WorkspaceWindowDeps): BrowserWindow {
+  if (workspaceWin && !workspaceWin.isDestroyed()) {
+    if (workspaceWin.isMinimized()) workspaceWin.restore();
+    workspaceWin.show();
+    workspaceWin.focus();
+    return workspaceWin;
+  }
+  const saved = deps.getBounds();
+  workspaceWin = new BrowserWindow({
+    width: saved?.width ?? 1080,
+    height: saved?.height ?? 720,
+    ...(saved?.x !== undefined && saved.y !== undefined ? { x: saved.x, y: saved.y } : {}),
+    minWidth: 860,
+    minHeight: 600,
+    show: false,
+    title: 'Apollo',
+    webPreferences: secureWebPreferences(),
+  });
+  hardenWindow(workspaceWin);
+  const persist = (): void => {
+    if (workspaceWin && !workspaceWin.isDestroyed()) deps.saveBounds(workspaceWin.getBounds());
+  };
+  workspaceWin.on('moved', persist);
+  workspaceWin.on('resized', persist);
+  workspaceWin.on('close', persist);
+  workspaceWin.on('closed', () => {
+    workspaceWin = null;
+  });
+  workspaceWin.once('ready-to-show', () => workspaceWin?.show());
+  if (process.env['ELECTRON_RENDERER_URL']) {
+    void workspaceWin.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/windows/workspace/index.html`);
+  } else {
+    void workspaceWin.loadFile(join(__dirname, '../renderer/windows/workspace/index.html'));
+  }
+  return workspaceWin;
+}
+
 let settingsWin: BrowserWindow | null = null;
 
 export function openSettingsWindow(): BrowserWindow {

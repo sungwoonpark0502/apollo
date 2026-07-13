@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { agentEventSchema, messageSourceSchema } from './agent';
 import { voiceStateSchema } from './voice';
 import { SettingsSchema } from './settings';
-import { eventDTOSchema, noteListItemSchema, occurrenceDTOSchema } from './cards';
+import { cardPayloadSchema, eventDTOSchema, noteListItemSchema, occurrenceDTOSchema, weatherNowSchema } from './cards';
 
 /**
  * Single source of truth for everything crossing the IPC bridge (C4).
@@ -18,6 +18,7 @@ export type KeyProvider = z.infer<typeof keyProviderSchema>;
 export const dataMutateSchema = z.discriminatedUnion('op', [
   z.object({ op: z.literal('completeTodo'), id: z.string() }),
   z.object({ op: z.literal('snoozeReminder'), id: z.string(), min: z.number().int().positive() }),
+  z.object({ op: z.literal('completeReminder'), id: z.string() }), // E3.1 inline reminder actions
   z.object({ op: z.literal('cancelTimer'), id: z.string() }),
   z.object({ op: z.literal('deleteEvent'), id: z.string() }),
   z.object({ op: z.literal('pinCard'), cardId: z.string(), pinned: z.boolean() }),
@@ -152,7 +153,29 @@ export const invokeChannels = {
   'todos.toggle': { req: z.object({ id: z.string(), done: z.boolean() }), res: ackSchema },
   'todos.delete': { req: z.object({ id: z.string() }), res: ackSchema },
   'undo.apply': { req: z.object({ undoToken: z.string() }), res: ackSchema }, // UI undo toasts
+  'settings.open': { req: z.object({}), res: ackSchema }, // rail gear → settings window
+  // Today view data that has no repo: weather strip (profile home, next 6h) + latest brief
+  'workspace.today': {
+    req: z.object({}),
+    res: z.object({
+      weather: z
+        .object({
+          place: z.string(),
+          now: weatherNowSchema,
+          hours: z.array(z.object({ iso: z.string(), temp: z.number(), precipPct: z.number(), condition: z.string() })),
+        })
+        .nullable(),
+      brief: cardPayloadSchema.nullable(),
+    }),
+  },
 } as const satisfies Record<string, ChannelDef>;
+
+export const workspaceNavigateSchema = z.object({
+  view: z.enum(['today', 'calendar', 'notes']),
+  dateIso: z.string().optional(),
+  noteId: z.string().optional(),
+});
+export type WorkspaceNavigate = z.infer<typeof workspaceNavigateSchema>;
 
 export const dataChangedSchema = z.object({
   entity: z.enum(['event', 'note', 'todo', 'reminder', 'timer']),
@@ -175,6 +198,7 @@ export const pushChannels = {
   'tts.stop': z.object({}),
   'data.changed': dataChangedSchema,        // E2 live sync fan-out
   'settings.changed': SettingsSchema,       // E7 live settings broadcast
+  'workspace.navigate': workspaceNavigateSchema, // main → workspace window routing
 } as const satisfies Record<string, z.ZodType>;
 
 export type InvokeChannelName = keyof typeof invokeChannels;

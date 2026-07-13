@@ -63,6 +63,10 @@ export const SettingsSchema = z.object({
     .default({}),
   launchAtLogin: z.boolean().default(false),
   openWorkspaceOnLaunch: z.boolean().default(false), // E7 General tab
+  workspaceBounds: z
+    .object({ x: z.number(), y: z.number(), width: z.number(), height: z.number() })
+    .nullable()
+    .default(null),
   onboarded: z.boolean().default(false),
 });
 

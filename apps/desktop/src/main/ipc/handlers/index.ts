@@ -2,7 +2,7 @@ import { type Handlers } from '../router';
 import { type Orchestrator } from '../../agent/orchestrator';
 import { type Repos } from '../../db/repos/index';
 import { buildWorkspaceHandlers } from './workspace';
-import { type InvokeReq } from '@apollo/shared';
+import { type InvokeReq, type InvokeRes } from '@apollo/shared';
 import { type SettingsService } from '../../settingsService';
 import { type Secrets } from '../../security/secrets';
 import { type KeyProvider } from '@apollo/shared';
@@ -28,6 +28,8 @@ export interface HandlerDeps {
   debugInjectAudio?: (wavPath: string) => Promise<void>;
   /** E1: opens/focuses the Workspace window at a target view (wired in 5.2). */
   openWorkspace?: (target: InvokeReq<'workspace.open'>) => void;
+  openSettings?: () => void;
+  todayData?: () => Promise<InvokeRes<'workspace.today'>>;
   tz?: () => string;
   log: (msg: string) => void;
 }
@@ -40,6 +42,11 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
       openWorkspace: (target) => deps.openWorkspace?.(target),
       log: deps.log,
     }),
+    'settings.open': () => {
+      deps.openSettings?.();
+      return { ok: true as const };
+    },
+    'workspace.today': async () => (deps.todayData ? deps.todayData() : { weather: null, brief: null }),
     'agent.userMessage': (req) => {
       deps.onUserActivity?.();
       const { turnId } = deps.orchestrator().handleUserMessage(req);
@@ -90,6 +97,9 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
           break;
         case 'snoozeReminder':
           deps.repos.reminders.snooze(req.id, req.min);
+          break;
+        case 'completeReminder':
+          deps.repos.reminders.complete(req.id);
           break;
         case 'cancelTimer':
           deps.repos.timers.cancel(req.id);
