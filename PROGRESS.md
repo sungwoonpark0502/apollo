@@ -2,6 +2,8 @@
 
 ## Phase 3
 
+### [x] 3.2 draft/send + ConfirmCard + 5s cancel + taint UI — verified: email.draft/send tools (3.1); ConfirmCard renders args table with taintFlags in --danger (0.6); orchestrator emits cancelWindow(5000ms) on email.send approval and aborts on agent.cancel during the grace window (orchestrator suite: suspend-without-execute, approve-executes, cancel-during-window-aborts, supersede, expire); new CancelWindowBar (shrinking bar + Cancel) wired into palette (store cancelWindow state) and orb (local state), Cancel → agent.cancel(turnId); DraftCard Send routes through the confirm flow. 318 tests green.
+
 ### [x] 3.1 OAuth + provider + list/read/search + sanitizer + Email cards — verified: sanitizer suite (7 tests: strips script/style/iframe/form/handlers, blocks+counts remote images, neutralizes javascript:/data: hrefs, plaintext extraction, hidden white-text inert); email tools suite (9 tests: untrusted <data> wrapping, sanitized read, KEY_MISSING on disconnect, draft-no-send, send, recipient rule w/ contact+utterance clearing); OAuth PKCE suite (4 tests: S256 challenge, loopback code exchange, state-mismatch CSRF guard, refresh); Gmail provider (googleapis, readonly+send scopes, MIME body extraction); EmailList/Detail(sandboxed iframe, Load-images)/Draft cards; Accounts tab; C13 recipient taint rule enforced in orchestrator gate even when untainted (contact-email resolution clears it). Real Gmail needs a Google OAuth client (HUMAN_TODO). 318 tests green.
 
 ## Phase 2

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { newId, STRINGS, type AgentEvent, type CardPayload, type VoiceState } from '@apollo/shared';
 import { CardShell, CardView } from '../../components/cards/CardView';
+import { CancelWindowBar } from '../../components/ConfirmBar';
 import { enqueueTtsChunk, playEarcon, stopPlayback } from '../../lib/audioPlayer';
 
 type OrbState = Extract<VoiceState, 'idle' | 'thinking' | 'speaking' | 'listening' | 'muted' | 'error'>;
@@ -34,6 +35,8 @@ export function OrbApp(): React.JSX.Element {
   const [hovering, setHovering] = useState(false);
   const [caption, setCaption] = useState('');
   const [rms, setRms] = useState(0);
+  const [turnId, setTurnId] = useState<string | null>(null);
+  const [cancelWindow, setCancelWindow] = useState<{ endsAt: number } | null>(null);
   const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hoveringRef = useRef(false);
 
@@ -57,13 +60,18 @@ export function OrbApp(): React.JSX.Element {
       switch (e.type) {
         case 'turnStart':
           setState('thinking');
+          setTurnId(e.turnId);
           break;
         case 'card':
           setCards((cs) => [...cs, { id: newId(), card: e.card, pinned: false }].slice(-6));
           break;
+        case 'cancelWindow':
+          setCancelWindow({ endsAt: Date.now() + e.ms });
+          break;
         case 'done':
         case 'error':
           setState('idle');
+          setCancelWindow(null);
           armDismiss();
           break;
         default:
@@ -149,7 +157,7 @@ export function OrbApp(): React.JSX.Element {
       `}</style>
 
       {/* card panel opens toward screen center (left of the orb) */}
-      {cards.length > 0 ? (
+      {cards.length > 0 || cancelWindow ? (
         <div
           style={{
             width: 380,
@@ -161,6 +169,15 @@ export function OrbApp(): React.JSX.Element {
             marginRight: 'var(--sp-3)',
           }}
         >
+          {cancelWindow ? (
+            <CancelWindowBar
+              endsAt={cancelWindow.endsAt}
+              onCancel={() => {
+                if (turnId) void window.apollo.call('agent.cancel', { turnId });
+                setCancelWindow(null);
+              }}
+            />
+          ) : null}
           {cards.map((c) => (
             <div key={c.id} style={{ position: 'relative' }}>
               <CardShell>

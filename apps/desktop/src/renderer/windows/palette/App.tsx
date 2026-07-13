@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { STRINGS } from '@apollo/shared';
 import { useStore } from '../../state/store';
 import { CardShell, CardView } from '../../components/cards/CardView';
+import { ConfirmBar } from '../../components/ConfirmBar';
 
 export function App(): React.JSX.Element {
   const [input, setInput] = useState('');
@@ -78,6 +79,8 @@ export function App(): React.JSX.Element {
           {s.streaming ? <span style={{ color: 'var(--text-3)' }}> ▌</span> : null}
         </div>
       ) : null}
+
+      <ConfirmBar />
 
       {s.errorCopy ? (
         <div style={{ padding: '0 var(--sp-2)', fontSize: 'var(--fs-body)', color: 'var(--danger)' }}>{s.errorCopy}</div>

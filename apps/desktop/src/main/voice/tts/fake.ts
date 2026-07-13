@@ -9,7 +9,6 @@ export class FakeTts implements TtsAdapter {
 
   constructor(private readonly bytesPerChar = 64) {}
 
-  // eslint-disable-next-line @typescript-eslint/require-await
   async *synthesize(text: string): AsyncIterable<Buffer> {
     this.spoken.push(text);
     const total = Math.max(256, text.length * this.bytesPerChar);

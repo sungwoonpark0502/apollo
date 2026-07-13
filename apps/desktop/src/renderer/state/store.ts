@@ -7,6 +7,12 @@ export interface ShownCard {
   pinned: boolean;
 }
 
+export interface CancelWindow {
+  confirmationId: string;
+  turnId: string | null;
+  endsAt: number;
+}
+
 export interface ConversationState {
   convId: string;
   turnId: string | null;
@@ -14,6 +20,7 @@ export interface ConversationState {
   reply: string;
   cards: ShownCard[];
   errorCopy: string | null;
+  cancelWindow: CancelWindow | null;
   inputHistory: string[];
 }
 
@@ -26,8 +33,8 @@ interface Actions {
   reset(): void;
 }
 
-function freshConv(): Pick<ConversationState, 'convId' | 'turnId' | 'streaming' | 'reply' | 'cards' | 'errorCopy'> {
-  return { convId: newId(), turnId: null, streaming: false, reply: '', cards: [], errorCopy: null };
+function freshConv(): Pick<ConversationState, 'convId' | 'turnId' | 'streaming' | 'reply' | 'cards' | 'errorCopy' | 'cancelWindow'> {
+  return { convId: newId(), turnId: null, streaming: false, reply: '', cards: [], errorCopy: null, cancelWindow: null };
 }
 
 export const useStore = create<ConversationState & Actions>((set) => ({
@@ -47,8 +54,10 @@ export const useStore = create<ConversationState & Actions>((set) => ({
           return { cards: [...s.cards, { id: newId(), card: e.card, pinned: false }] };
         case 'confirmRequest':
           return {}; // the confirm card arrives as its own card event
+        case 'cancelWindow':
+          return { cancelWindow: { confirmationId: e.confirmationId, turnId: s.turnId, endsAt: Date.now() + e.ms } };
         case 'done':
-          return { streaming: false };
+          return { streaming: false, cancelWindow: null };
         case 'error':
           return { streaming: false, errorCopy: e.userMessage || null };
         default:

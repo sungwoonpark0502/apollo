@@ -92,7 +92,6 @@ describe('C21.4 perf harness', () => {
     }
 
     const p = p95(overheads);
-    // eslint-disable-next-line no-console
     console.log(`perf: overhead p95=${p.toFixed(1)}ms over ${overheads.length} turns`);
     expect(p).toBeLessThan(250);
   });
