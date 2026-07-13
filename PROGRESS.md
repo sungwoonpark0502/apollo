@@ -2,6 +2,15 @@
 
 ## Phase 5 (Part E)
 
+### [x] PHASE 5 GATE — one-brain acceptance met and nothing from Phases 0–4 regressed.
+- **One-brain (acceptance bar)**: voice/palette/Workspace share the same repos; live sync proven by the DataBus fan-out + same-tick `notes.save`→`notes.list` tests and the boot smoke (`e2e=turn-ok` writes via a Workspace channel and reads it back over IPC with `data.changed` observed).
+- **Full suite**: `pnpm lint` PASS, `pnpm -r typecheck` 0 errors, **438 tests** (80 shared + 358 desktop) green.
+- **Injection suite**: 100% (14 tests) — release gate intact after Part E.
+- **Grep-gate** (no `child_process`/bare `exec(`): PASS.
+- **Eval**: harness loads all **96 rows** (81 base + 15 Part E) and self-skips without a key (C22); real ≥92% run remains the one keyed HUMAN_TODO item.
+- **Build**: `pnpm build` compiles all renderer entries incl. the new `workspace` window; `wsRendered=true` in smoke.
+- **HUMAN_TODO**: gained the Part E visual-QA checklist (drag, Stage animations, dark mode, reduced motion); everything else self-verified.
+
 ### [x] 5.7 Onboarding v2 + Settings Profile/About + live settings broadcast + app.open + eval rows + README — verified: app.open tool (Tier 2, 4 tests: opens view/reports, omits optional fields, tier/networked, zod rejects unknown view) registered + system-prompt guidance (explicit-verb only vs calendar.list); geocode cache lib (3 tests: normalized-key caching hits once, empty skips network, distinct keys); 15 Part E eval rows added (6 app.open, 2 forbid_tools calendar.list-not-app.open, 4 weather-profile-default, 3 dictated-note) — harness loads all 96 rows + self-skips w/o key; Settings gains Profile tab (name, home PlaceSearch autocomplete via geocode.search IPC, units/timeFormat/weekStart segmented, all live-broadcast) + About tab (version, check-updates, licenses, logs); Onboarding v2 = 6 steps (Welcome, Profile w/ geocode autocomplete, Permissions, Keys, Wake word, Try it) → finish opens Workspace Today; README documents the three surfaces + one-brain live sync. Live settings broadcast (settings.changed) already wired in 5.2. Full suite 438 green; smoke green.
 
 ### [x] 5.6 Response Stage + spoken-row sync + deep links + weather fast path + icons — verified: weather fast path (fastPath suite 19 tests incl. E5 now/forecast variants + place-given/horizon near-miss negatives; orchestrator executes weather.now/forecast with template spoken reply + Stage card, zero LLM); pure stage lib (8 tests: isStageCard voice-only trigger, rowCount, best-effort sentenceToRow never-throws, stageTitle, stageDeepLink); StageCard (480px translucent surface, 160ms fade+rise, 35ms row stagger, 300ms temp count-up, best-effort accent bar on spoken row via tts.spoken push, "Open in Apollo" deep link, hourly/4-day weather w/ SVG glyph set, reduced-motion collapses to plain fade); orb widens + 12s Stage dismiss; voice-turn detection via voice.state. Smoke green (orb+workspace render). Full suite 429.
