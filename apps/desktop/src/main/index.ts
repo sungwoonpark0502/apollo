@@ -507,12 +507,18 @@ function boot(): void {
         .then((result: string) => {
           const orbOk = !orbWindow.isDestroyed() && orbWindow.isAlwaysOnTop() && !orbWindow.isFocused();
           const activeInteractive = !orbController.isClickThrough(); // turn just ran: orb must be interactive during linger
-          const wsOk = getWorkspaceWindow() !== null && !getWorkspaceWindow()!.isDestroyed();
-          // eslint-disable-next-line no-console
-          console.log(
-            `SMOKE_OK tray=${getTray() !== null} palette=${!palette.isDestroyed()} e2e=${result} orb=${orbOk} clickThroughIdle=${idleClickThrough} interactiveActive=${activeInteractive} workspace=${wsOk}`,
-          );
-          app.exit(result === 'turn-ok' && orbOk && idleClickThrough && activeInteractive && wsOk ? 0 : 1);
+          const ws = getWorkspaceWindow();
+          const wsOk = ws !== null && !ws.isDestroyed();
+          // Confirm the Workspace React tree actually rendered (catches a renderer
+          // module-eval throw, e.g. a CJS dep like rrule failing to import).
+          void (wsOk ? ws.webContents.executeJavaScript('document.getElementById("root")?.childElementCount > 0') : Promise.resolve(false))
+            .then((rendered: boolean) => {
+              // eslint-disable-next-line no-console
+              console.log(
+                `SMOKE_OK tray=${getTray() !== null} palette=${!palette.isDestroyed()} e2e=${result} orb=${orbOk} clickThroughIdle=${idleClickThrough} interactiveActive=${activeInteractive} workspace=${wsOk} wsRendered=${rendered}`,
+              );
+              app.exit(result === 'turn-ok' && orbOk && idleClickThrough && activeInteractive && wsOk && rendered ? 0 : 1);
+            });
         })
         .catch((e: unknown) => {
           // eslint-disable-next-line no-console
