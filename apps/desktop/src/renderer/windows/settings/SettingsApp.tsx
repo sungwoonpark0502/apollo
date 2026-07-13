@@ -3,6 +3,7 @@ import { STRINGS, type KeyProvider } from '@apollo/shared';
 import { KeysTab } from './KeysTab';
 import { VoiceTab } from './VoiceTab';
 import { DiagnosticsTab } from './DiagnosticsTab';
+import { AccountsTab } from './AccountsTab';
 
 type TabId = keyof typeof STRINGS.settings.tabs;
 const TAB_ORDER: TabId[] = ['general', 'voice', 'accounts', 'keys', 'privacy', 'diagnostics'];
@@ -43,6 +44,8 @@ export function SettingsApp(): React.JSX.Element {
           <VoiceTab />
         ) : tab === 'diagnostics' ? (
           <DiagnosticsTab />
+        ) : tab === 'accounts' ? (
+          <AccountsTab />
         ) : (
           <Placeholder tab={STRINGS.settings.tabs[tab]} />
         )}

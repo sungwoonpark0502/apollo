@@ -274,9 +274,38 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     return { toolName: tu.name, summary, args, taintFlags };
   }
 
+  /** Contact emails matching any recipient value, so contact-resolved recipients clear the taint flag (C13). */
+  function recipientKnownValues(args: Record<string, unknown>): string[] {
+    const recipients: string[] = [];
+    for (const key of ['to', 'cc', 'bcc']) {
+      const v = args[key];
+      if (typeof v === 'string') recipients.push(v);
+      else if (Array.isArray(v)) for (const x of v) if (typeof x === 'string') recipients.push(x);
+    }
+    const known: string[] = [];
+    for (const r of recipients) {
+      for (const c of deps.repos.contacts.findByEmail(r)) {
+        if (c.email) known.push(c.email);
+      }
+    }
+    return known;
+  }
+
   function suspendForConfirmation(state: TurnState, tu: LlmToolUse, batchResults: LoopSnapshot['batchResults']): void {
     const taint = conversationTaint.get(state.convId) ?? false;
-    const flags = taint ? computeTaintFlags((tu.input ?? {}) as Record<string, unknown>, userUtterances(state.convId)) : [];
+    const args = (tu.input ?? {}) as Record<string, unknown>;
+    // C13: email.send recipients are checked even when taint is false; a saved
+    // contact whose email matches clears the flag.
+    const isEmailSend = tu.name === 'email.send';
+    const knownValues = isEmailSend ? recipientKnownValues(args) : [];
+    const flags =
+      taint || isEmailSend
+        ? computeTaintFlags(args, userUtterances(state.convId), {
+            taint,
+            knownValues,
+            alwaysCheckKeys: isEmailSend ? new Set(['to', 'cc', 'bcc']) : undefined,
+          })
+        : [];
     const action = summarizeAction(tu, flags);
     const pending = confirmations.create(action, {
       turnId: state.turnId,

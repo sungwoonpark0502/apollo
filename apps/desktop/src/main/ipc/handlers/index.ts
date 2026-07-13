@@ -15,6 +15,8 @@ export interface HandlerDeps {
   ttsDrained?: () => void;
   adapterStates: () => { stt: string; tts: string; wake: string; llm: string };
   logTail: (lines: number) => string[];
+  oauthConnect?: () => Promise<{ ok: boolean; address?: string }>;
+  oauthRevoke?: () => void;
   debugWake?: () => void;
   debugInjectAudio?: (wavPath: string) => Promise<void>;
   log: (msg: string) => void;
@@ -84,8 +86,11 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
       return { ok };
     },
     'keys.test': (req) => deps.testKey(req.provider),
-    'oauth.google.start': () => ({ ok: false }), // Phase 3
-    'oauth.google.revoke': () => ({ ok: false }), // Phase 3
+    'oauth.google.start': async () => (deps.oauthConnect ? await deps.oauthConnect() : { ok: false }),
+    'oauth.google.revoke': () => {
+      deps.oauthRevoke?.();
+      return { ok: true };
+    },
     'debug.wake': () => {
       deps.debugWake?.();
       return { ok: true as const };

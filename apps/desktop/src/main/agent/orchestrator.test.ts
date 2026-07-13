@@ -180,11 +180,18 @@ describe('taint (C8.7)', () => {
     expect(confirm!.action.taintFlags).toEqual([]);
   });
 
-  it('untainted conversations never compute flags', async () => {
+  it('untainted conversations do not flag a recipient the user stated', async () => {
     const { orch } = setup([{ toolUses: [{ name: 'email.send', input: { to: ['someone@else.com'], subject: 's', body: 'b' } }] }]);
-    await say(orch, 'send that email');
+    await say(orch, 'send that email to someone@else.com');
     const confirm = events.find((e): e is Extract<AgentEvent, { type: 'confirmRequest' }> => e.type === 'confirmRequest');
     expect(confirm!.action.taintFlags).toEqual([]);
+  });
+
+  it('C13: email.send flags an unstated recipient even when the conversation is untainted', async () => {
+    const { orch } = setup([{ toolUses: [{ name: 'email.send', input: { to: ['stranger@evil.com'], subject: 's', body: 'b' } }] }]);
+    await say(orch, 'send that email'); // recipient never stated, no matching contact
+    const confirm = events.find((e): e is Extract<AgentEvent, { type: 'confirmRequest' }> => e.type === 'confirmRequest');
+    expect(confirm!.action.taintFlags.some((f) => f.startsWith('value_not_user_stated:to'))).toBe(true);
   });
 });
 

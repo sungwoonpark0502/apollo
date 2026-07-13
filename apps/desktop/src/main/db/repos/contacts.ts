@@ -60,6 +60,12 @@ export function createContactsRepo(db: Db) {
         .sort((a, b) => b.score - a.score);
       return scored.map((s) => s.c);
     },
+    /** Exact (case-insensitive) email lookup — used to clear the email.send recipient taint (C13). */
+    findByEmail(email: string): ContactRow[] {
+      const q = email.trim().toLowerCase();
+      if (!q) return [];
+      return (db.prepare('SELECT * FROM contacts WHERE deleted_at IS NULL AND lower(email) = ?').all(q) as Raw[]).map(toRow);
+    },
     softDelete(id: string): boolean {
       return db.prepare('UPDATE contacts SET deleted_at=?, updated_at=? WHERE id=? AND deleted_at IS NULL').run(nowMs(), nowMs(), id).changes > 0;
     },

@@ -15,14 +15,30 @@ function stringValuesOf(value: unknown): string[] {
   return [];
 }
 
-export function computeTaintFlags(args: Record<string, unknown>, userUtterances: string[]): string[] {
+export interface TaintOptions {
+  /** Values the user is deemed to have authorized indirectly (e.g. saved contact emails). */
+  knownValues?: string[];
+  /** Keys checked even when conversation taint is false (e.g. email.send recipients, C13). */
+  alwaysCheckKeys?: Set<string>;
+  /** When false, only alwaysCheckKeys are evaluated (used for the untainted email.send path). */
+  taint?: boolean;
+}
+
+export function computeTaintFlags(args: Record<string, unknown>, userUtterances: string[], opts: TaintOptions = {}): string[] {
+  const taint = opts.taint ?? true;
   const flags: string[] = [];
   const utterances = userUtterances.map((u) => u.toLowerCase());
+  const known = (opts.knownValues ?? []).map((k) => k.toLowerCase());
   for (const [key, value] of Object.entries(args)) {
-    if (!SENSITIVE_KEYS.has(key.toLowerCase())) continue;
+    const lowerKey = key.toLowerCase();
+    if (!SENSITIVE_KEYS.has(lowerKey)) continue;
+    const alwaysCheck = opts.alwaysCheckKeys?.has(lowerKey) ?? false;
+    if (!taint && !alwaysCheck) continue;
     for (const v of stringValuesOf(value)) {
       const needle = v.toLowerCase();
-      if (!utterances.some((u) => u.includes(needle))) {
+      const stated = utterances.some((u) => u.includes(needle));
+      const resolved = known.includes(needle);
+      if (!stated && !resolved) {
         flags.push(`value_not_user_stated:${key}`);
         break;
       }

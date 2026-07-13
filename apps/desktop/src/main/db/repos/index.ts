@@ -9,7 +9,7 @@ import { createContactsRepo } from './contacts';
 import { createConversationsRepo } from './conversations';
 import { createMemoryRepo } from './memory';
 import { createUndoRepo } from './undo';
-import { createCapabilityMissesRepo, createFeedsRepo, createPerfRepo, createSettingsRepo } from './misc';
+import { createCapabilityMissesRepo, createFeedsRepo, createPerfRepo, createSettingsRepo, createOAuthRepo } from './misc';
 
 export function createRepos(db: Db) {
   return {
@@ -27,6 +27,7 @@ export function createRepos(db: Db) {
     feeds: createFeedsRepo(db),
     perf: createPerfRepo(db),
     settings: createSettingsRepo(db),
+    oauth: createOAuthRepo(db),
   };
 }
 

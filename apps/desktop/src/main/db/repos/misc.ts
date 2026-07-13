@@ -85,7 +85,37 @@ export function createSettingsRepo(db: Db) {
   };
 }
 
+export interface OAuthAccount {
+  id: string;
+  provider: string;
+  address: string | null;
+  tokenRef: string;
+}
+
+export function createOAuthRepo(db: Db) {
+  return {
+    get(provider: string): OAuthAccount | null {
+      const r = db.prepare('SELECT * FROM oauth_accounts WHERE provider=?').get(provider) as
+        | { id: string; provider: string; address: string | null; token_ref: string }
+        | undefined;
+      return r ? { id: r.id, provider: r.provider, address: r.address, tokenRef: r.token_ref } : null;
+    },
+    upsert(input: { provider: string; address: string | null; tokenRef: string }): void {
+      const existing = this.get(input.provider);
+      if (existing) {
+        db.prepare('UPDATE oauth_accounts SET address=?, token_ref=? WHERE provider=?').run(input.address, input.tokenRef, input.provider);
+      } else {
+        db.prepare('INSERT INTO oauth_accounts(id,provider,address,token_ref) VALUES (?,?,?,?)').run(newId(), input.provider, input.address, input.tokenRef);
+      }
+    },
+    remove(provider: string): void {
+      db.prepare('DELETE FROM oauth_accounts WHERE provider=?').run(provider);
+    },
+  };
+}
+
 export type CapabilityMissesRepo = ReturnType<typeof createCapabilityMissesRepo>;
 export type FeedsRepo = ReturnType<typeof createFeedsRepo>;
 export type PerfRepo = ReturnType<typeof createPerfRepo>;
 export type SettingsRepo = ReturnType<typeof createSettingsRepo>;
+export type OAuthRepo = ReturnType<typeof createOAuthRepo>;

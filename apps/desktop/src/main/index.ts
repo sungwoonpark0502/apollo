@@ -39,6 +39,8 @@ import { createFilesTool } from './tools/files';
 import { createSystemTools, spawnRunner } from './tools/system';
 import { createWeatherTools } from './tools/weather';
 import { createSearchWebTool } from './tools/searchWeb';
+import { createEmailTools } from './tools/email';
+import { createEmailService } from './security/emailService';
 import { createOrchestrator, type Orchestrator } from './agent/orchestrator';
 import { buildSystemPrompt } from './agent/systemPrompt';
 import { createAnthropicLlm } from './agent/llmAnthropic';
@@ -90,6 +92,15 @@ function boot(): void {
   });
   const secrets = createSecrets({ settings: repos.settings, codec: safeStorageCodec(safeStorage), env: config.env, log });
   const testKey = createKeyTester({ secrets, model: settings.get().anthropic.model });
+
+  const emailService = createEmailService({
+    repos,
+    codec: safeStorageCodec(safeStorage),
+    clientId: () => config.env['GOOGLE_CLIENT_ID'] ?? null,
+    clientSecret: () => config.env['GOOGLE_CLIENT_SECRET'] ?? null,
+    openExternal: (url) => void shell.openExternal(url),
+    log,
+  });
 
   const egress = createEgressPolicy(() => repos.feeds.list().map((f) => new URL(f.url).hostname));
   const http = createHttpClient({ egress, breaker: createBreaker(), log });
@@ -150,6 +161,7 @@ function boot(): void {
       createSearchWebTool({ http, getBraveKey: () => secrets.get('brave') }),
       createNewsTool({ http, feeds: repos.feeds, summarize: createLlmSummarizer(llm) }),
       createFilesTool({ getApprovedDirs: () => settings.get().approvedDirs }),
+      ...createEmailTools({ provider: () => emailService.provider(), contacts: repos.contacts }),
       ...createSystemTools({
         run: spawnRunner(),
         openPath: (p) => shell.openPath(p),
@@ -297,6 +309,8 @@ function boot(): void {
       llm: secrets.get('anthropic') ? 'anthropic' : 'no-key',
     }),
     logTail: (lines) => readLogTail(join(userData, 'logs', 'apollo.log'), lines),
+    oauthConnect: () => emailService.connect(),
+    oauthRevoke: () => emailService.revoke(),
     debugWake: () => voiceController.onWake(),
     debugInjectAudio: async (wavPath) => {
       // A2.2a: drives wake → listen → EOT with mic-identical frames.
