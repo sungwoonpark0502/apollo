@@ -23,6 +23,13 @@ physically require a microphone in a room and human ears, so they remain human:
 - [ ] Mute verification: toggle mute (tray/orb); confirm capture fully stops (no partials appear) and unmute restores listening.
 - [ ] PTT: press the hotkey and confirm it enters listening without a wake word.
 
+## Packaging & updates (code-signing / distribution — real accounts required)
+The build itself is verified: `pnpm --filter @apollo/desktop package` produced `release/Apollo-0.1.0-arm64.dmg` (182 MB, unsigned). To ship signed/auto-updating builds:
+- [ ] Apple Developer account + Developer ID Application certificate; set `CSC_LINK`/`CSC_KEY_PASSWORD`, flip `notarize: true` in electron-builder.yml, and provide `APPLE_ID`/`APPLE_APP_SPECIFIC_PASSWORD`/`APPLE_TEAM_ID` for notarization.
+- [ ] Windows code-signing certificate for the nsis target (set `CSC_LINK`/`CSC_KEY_PASSWORD` on a Windows/CI runner).
+- [ ] Update feed: replace `publish.url` in electron-builder.yml with your real HTTPS bucket and publish `latest*.yml` + artifacts there so electron-updater can find them.
+- [ ] App icons: add `resources/icon.icns` (mac) and `resources/icon.ico` (win); currently the default Electron icon is used.
+
 ## API keys (app runs with Fake adapters until provided)
 - [ ] Anthropic API key: create at https://console.anthropic.com/settings/keys, then either set `ANTHROPIC_API_KEY` in `apollo/.env` or paste into Settings > Keys and press Test.
   - [ ] After adding the key, run `pnpm eval` from the repo root — the 0.7 gate requires >= 90% pass rate (50 rows). The harness machinery is already self-verified; only the real-model run needs the key.

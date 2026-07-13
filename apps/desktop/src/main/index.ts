@@ -42,6 +42,7 @@ import { createSearchWebTool } from './tools/searchWeb';
 import { createEmailTools } from './tools/email';
 import { createBriefTool } from './tools/brief';
 import { createScreenTool, readScreenContext } from './tools/screen';
+import { initUpdater } from './updater';
 import { createEmailService } from './security/emailService';
 import { createDailyBrief } from './scheduler/dailyBrief';
 import { createOrchestrator, type Orchestrator } from './agent/orchestrator';
@@ -407,6 +408,13 @@ function boot(): void {
   if (!settings.get().onboarded && process.env['APOLLO_SMOKE'] !== '1') {
     createOnboardingWindow();
   }
+
+  // C14.8 auto-updates (packaged builds only).
+  void initUpdater({
+    isPackaged: app.isPackaged,
+    notify: (title, body) => new Notification({ title, body }).show(),
+    log,
+  });
 
   const missed = scheduler.start();
   const missedCount = missed.timers.length + missed.reminders.length + missed.alarms.length;

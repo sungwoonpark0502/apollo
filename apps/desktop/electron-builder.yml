@@ -1,0 +1,43 @@
+appId: com.apollo.assistant
+productName: Apollo
+electronVersion: 43.1.0
+directories:
+  output: release
+  buildResources: resources
+files:
+  - out/**/*
+  - resources/**/*
+  - package.json
+asarUnpack:
+  - '**/*.node'
+  - resources/silero_vad.onnx
+
+# macOS: hardened runtime + notarization config present (certificates are HUMAN_TODO).
+mac:
+  category: public.app-category.productivity
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+    - target: zip
+      arch: [arm64, x64]
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  notarize: false # set to true and provide credentials once an Apple Developer account exists (HUMAN_TODO)
+
+# Windows: nsis x64, signing wired but certificate is HUMAN_TODO.
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+
+# electron-updater generic HTTPS feed; the publish URL itself is HUMAN_TODO.
+publish:
+  provider: generic
+  url: https://updates.example.com/apollo/
