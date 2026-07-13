@@ -26,5 +26,9 @@
 - 2026-07-12: PTT = hotkey press starts listening (wake-free path). Electron globalShortcut has no key-up event, so hold-400ms is not implementable without a native keyboard hook; press-to-talk single-tap chosen instead.
 - 2026-07-12: debug.wake short-circuits in main into the VoiceController rather than round-tripping the worker; FakeWake is inert (MainToWorker contract unchanged).
 - 2026-07-12: Porcupine gated (+0.15 threshold) mode = second engine at sensitivity−0.15 (sensitivity is bake-in-at-construction in porcupine-node).
+- 2026-07-12: Deepgram SDK pinned to ^3 (v5 renamed exports/removed createClient+LiveTranscriptionEvents). googleapis auth via google.auth.OAuth2 (not google-auth-library directly) to avoid the dual-package type hazard.
+- 2026-07-12: C13 email.send recipient rule enforced in the orchestrator Tier 3 gate ALWAYS (not only when taint=true), since the spec states it unconditionally for sends; contact-email resolution (contacts.findByEmail) clears the flag.
+- 2026-07-12: Injection suite is FakeLLM-scripted as a "fully compromised model" and asserts the structural defenses (Tier 3 confirmation gate, taint flags, secret isolation) — this is stronger than testing a real model's compliance and needs no key.
+- 2026-07-12: "good morning" is a fast-path intent that runs brief.daily locally (no LLM), so the brief works LLM-down; the brief tool's llmText is a complete ≤4-sentence spoken paragraph usable directly.
 - 2026-07-12: @deepgram/sdk pinned to ^3 — v5 is a generated rewrite with a different live API; v3 matches C12.4's listen.live parameter model exactly.
 - 2026-07-12: The global hotkey both toggles the palette and (when PTT enabled and voice healthy) starts wake-free listening — B1 treats the hotkey as "activate Apollo".

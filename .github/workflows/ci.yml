@@ -18,6 +18,9 @@ jobs:
       - run: pnpm lint
       - run: pnpm -r typecheck
       - run: pnpm -r test
+      # Injection suite (C21.3) is a release gate at 100%; runs on FakeLLM so no key needed.
+      - name: injection suite (release gate, 100%)
+        run: pnpm --filter @apollo/desktop exec vitest run src/main/agent/injection.test.ts src/main/security/sanitizeEmail.test.ts
       # Security grep gates (C14.4): no child_process.exec anywhere in app sources.
       - name: grep-gate no exec()
         run: |
