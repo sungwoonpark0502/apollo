@@ -10,7 +10,8 @@ export type FastPathIntent =
   | { kind: 'volume'; op: 'up' | 'down' | 'set'; value?: number }
   | { kind: 'mute'; on: boolean }
   | { kind: 'stopTalking' }
-  | { kind: 'media'; op: 'playpause' | 'next' | 'prev' };
+  | { kind: 'media'; op: 'playpause' | 'next' | 'prev' }
+  | { kind: 'brief' };
 
 export function normalizeUtterance(text: string): string {
   return text
@@ -42,6 +43,9 @@ export function matchFastPath(text: string): FastPathIntent | null {
       if (n > 0 && mult) return { kind: 'timer', seconds: n * mult };
     }
   }
+
+  // C19: "good morning" triggers the daily brief (also fired on schedule)
+  if (/^good morning(?:,? apollo)?$/.test(t)) return { kind: 'brief' };
 
   if (/^what time is it(?: now)?$/.test(t) || /^what'?s the time$/.test(t)) return { kind: 'timeNow' };
 

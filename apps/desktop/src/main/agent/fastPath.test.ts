@@ -29,6 +29,12 @@ describe('fast path full matches', () => {
     expect(matchFastPath('pause the music')).toEqual({ kind: 'media', op: 'playpause' });
     expect(matchFastPath('next track')).toEqual({ kind: 'media', op: 'next' });
   });
+
+  it('good morning triggers the daily brief', () => {
+    expect(matchFastPath('good morning')).toEqual({ kind: 'brief' });
+    expect(matchFastPath('Good morning, Apollo!')).toEqual({ kind: 'brief' });
+    expect(matchFastPath('hey apollo, good morning')).toEqual({ kind: 'brief' });
+  });
 });
 
 describe('fast path residue routes to LLM (returns null)', () => {

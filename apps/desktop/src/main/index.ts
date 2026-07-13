@@ -40,7 +40,9 @@ import { createSystemTools, spawnRunner } from './tools/system';
 import { createWeatherTools } from './tools/weather';
 import { createSearchWebTool } from './tools/searchWeb';
 import { createEmailTools } from './tools/email';
+import { createBriefTool } from './tools/brief';
 import { createEmailService } from './security/emailService';
+import { createDailyBrief } from './scheduler/dailyBrief';
 import { createOrchestrator, type Orchestrator } from './agent/orchestrator';
 import { buildSystemPrompt } from './agent/systemPrompt';
 import { createAnthropicLlm } from './agent/llmAnthropic';
@@ -69,6 +71,7 @@ function boot(): void {
   if (process.platform === 'darwin') app.dock?.hide();
 
   const dev = !app.isPackaged;
+  let lastActivityMs = Date.now(); // C19: drives brief deferral (input in last 10 min)
   const userData = app.getPath('userData');
   const logger = createLogger({ logDir: join(userData, 'logs'), dev });
   const log = (msg: string): void => logger.info(msg);
@@ -162,6 +165,7 @@ function boot(): void {
       createNewsTool({ http, feeds: repos.feeds, summarize: createLlmSummarizer(llm) }),
       createFilesTool({ getApprovedDirs: () => settings.get().approvedDirs }),
       ...createEmailTools({ provider: () => emailService.provider(), contacts: repos.contacts }),
+      createBriefTool({ getTool: (n) => registry.get(n), emailConnected: () => emailService.isConnected() }),
       ...createSystemTools({
         run: spawnRunner(),
         openPath: (p) => shell.openPath(p),
@@ -301,6 +305,10 @@ function boot(): void {
     secrets,
     testKey,
     setMuted: (on) => voiceController.setMuted(on),
+    onUserActivity: () => {
+      lastActivityMs = Date.now();
+      dailyBrief.noteActivity();
+    },
     ttsDrained: () => voiceController.ttsFinished(),
     adapterStates: () => ({
       stt: useRealStt ? 'deepgram' : 'fake',
@@ -341,6 +349,19 @@ function boot(): void {
   if (missedCount > 0) {
     new Notification({ title: STRINGS.notifications.whileAwayTitle, body: STRINGS.spoken.whileAway(missedCount) }).show();
   }
+
+  // C19 daily brief: fires at the configured time if the user is active, else
+  // defers to their next interaction; "good morning" also triggers it (fast path).
+  const dailyBrief = createDailyBrief({
+    getBriefTimeHHMM: () => settings.get().brief.timeHHMM,
+    tz: () => Intl.DateTimeFormat().resolvedOptions().timeZone,
+    isUserActive: () => Date.now() - lastActivityMs < 10 * 60_000,
+    runBrief: () => {
+      orchestrator.handleUserMessage({ text: 'good morning', source: 'voice', convId: voiceConvId });
+    },
+    log,
+  });
+  dailyBrief.start();
 
   if (process.env['APOLLO_SMOKE'] === '1') {
     palette.webContents.once('did-finish-load', () => {

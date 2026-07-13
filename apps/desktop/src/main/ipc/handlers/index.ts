@@ -12,6 +12,7 @@ export interface HandlerDeps {
   secrets: Secrets;
   testKey: (provider: KeyProvider) => Promise<{ ok: boolean; message: string }>;
   setMuted: (on: boolean) => void;
+  onUserActivity?: () => void;
   ttsDrained?: () => void;
   adapterStates: () => { stt: string; tts: string; wake: string; llm: string };
   logTail: (lines: number) => string[];
@@ -25,6 +26,7 @@ export interface HandlerDeps {
 export function buildHandlers(deps: HandlerDeps): Handlers {
   return {
     'agent.userMessage': (req) => {
+      deps.onUserActivity?.();
       const { turnId } = deps.orchestrator().handleUserMessage(req);
       return { turnId };
     },

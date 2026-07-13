@@ -8,6 +8,7 @@ import { createRegistry } from '../tools/registry';
 import { createTimerTools } from '../tools/timer';
 import { createNoteTools } from '../tools/note';
 import { createTodoTools } from '../tools/todo';
+import { createBriefTool } from '../tools/brief';
 import { createOrchestrator, type Orchestrator } from './orchestrator';
 import { FakeLlm, type FakeStep } from './llmFake';
 import { buildSystemPrompt } from './systemPrompt';
@@ -63,6 +64,7 @@ function setup(script: FakeStep[], opts: { confirmTtlMs?: number; cancelWindowMs
     fakeSend,
     fakeUntrustedFetch,
     fakeSearch,
+    createBriefTool({ getTool: (n) => registry.get(n), emailConnected: () => false }),
   ]);
   const llm = new FakeLlm(script);
   const orch = createOrchestrator({
@@ -327,6 +329,16 @@ describe('fast path inside the orchestrator', () => {
     const { orch, llm } = setup([{ text: 'Setting that up.' }]);
     await say(orch, 'set a timer for 5 minutes and then order pizza');
     expect(llm.requests).toHaveLength(1);
+  });
+
+  it('"good morning" produces a brief card + spoken text with no LLM call (C19)', async () => {
+    const { orch, llm } = setup([{ text: 'SHOULD NEVER BE CALLED' }]);
+    await say(orch, 'good morning');
+    expect(llm.requests).toHaveLength(0);
+    const cardEvent = events.find((e): e is Extract<AgentEvent, { type: 'card' }> => e.type === 'card');
+    expect(cardEvent?.card.kind).toBe('brief');
+    expect(tokensText().length).toBeGreaterThan(0); // spoken paragraph
+    expect(types()).toContain('done');
   });
 
   it('records perf spans for fast path and llm turns', async () => {

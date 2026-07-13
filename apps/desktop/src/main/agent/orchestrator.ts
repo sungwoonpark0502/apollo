@@ -436,6 +436,14 @@ export function createOrchestrator(deps: OrchestratorDeps) {
         finish('');
         return true;
       }
+      case 'brief': {
+        // "good morning" → daily brief, composed locally so it works LLM-down (C19).
+        if (!deps.registry.get('brief.daily')) return false;
+        const res = await deps.registry.execute('brief.daily', {}, ctx);
+        if (res.card) emit({ type: 'card', card: res.card });
+        finish(res.llmText);
+        return true;
+      }
     }
   }
 
