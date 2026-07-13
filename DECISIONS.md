@@ -5,6 +5,8 @@
 - 2026-07-12 (Phase 5): pre-Part-E top-level settings home/units fold into profile via migrateLegacySettings at load (tz backfilled from the local zone); Part E wins over C3's field list.
 - 2026-07-12 (Phase 5): OccurrenceDTO reshaped to E1 (occStartTs/occEndTs/isRecurring) keeping internal extras dateIso/notes/rrule that C7 scope edits and cards need; E1 does not forbid extra fields.
 - 2026-07-12 (Phase 5): Workspace direct-UI mutations register undo_log entries under a fixed 'workspace-ui' conversation id so undo.apply tokens work without an agent turn.
+- 2026-07-13 (Phase 5): Notes editor is a single plain <textarea> (preserving the E3.3 plain-text guarantee). Styling only the first line as an fs-display title inside a textarea is impossible without contenteditable/overlay, which would break plain-text storage; the first-line-as-title semantics are honored via title/snippet derivation shown in the notes rail and Today. Autosave = 800ms debounce + onBlur flush + unmount/beforeunload flush.
+- 2026-07-13 (Phase 5): Renderer autosave/search use the pure `debounce` util (injectable timers) so the debounce logic is unit-tested off the DOM (E9).
 
 - 2026-07-12: Node 22.14.0 (current machine LTS) instead of Node 20; engines set to >=20 so both work. Reason: installed toolchain, both are LTS.
 - 2026-07-12: Tray icon generated deterministically by scripts/gen-assets.mjs (pure-Node PNG writer) instead of committing binary blobs. Reason: reviewable, reproducible resources.
