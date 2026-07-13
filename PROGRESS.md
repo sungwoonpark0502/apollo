@@ -2,6 +2,8 @@
 
 ## Phase 2
 
+### [x] Phase 2 GATE — verified: FSM suite green on fakes (14 tests); perf harness green (C21.4: 20 end-to-end FakeSTT-driven turns, pipeline overhead p95 ~6ms << 250ms; chunker first-flush p95 << 50ms); live-audio checklist (wake, barge-in under music, no self-trigger, mute, PTT) written to HUMAN_TODO as the only remaining physical-mic items. Full suite: 298 tests, lint + typecheck clean.
+
 ### [x] 2.4 Porcupine adapter + sensitivity + Diagnostics dashboard — verified: porcupine adapter suite (5 tests: dual normal/gated engines at sensitivity−0.15, gated-frame routing, setSensitivity rebuild+release, stop, 512-frame contract) with native module mocked so no Picovoice key needed in CI; sensitivity slider in Voice tab → settings.set → workerHost.send({t:setSensitivity}); Diagnostics tab renders perf p50/p95 table, adapter states, 200-line log tail with Copy button via new diagnostics.get channel; smoke green. Constructing the real engine needs a Picovoice account key (HUMAN_TODO).
 
 ### [x] 2.3 Chunker + edge TTS + FakeTTS + orb playback + barge-in + gating + earcons + waveform + captions — verified: chunker suite (8 tests incl. C21 abbreviation/decimal paragraph, 220-char force-flush, <50ms first flush); pipeline suite (13 tests: sequenced audio w/ last marker, barge-in synchronous flush via generation guard, one-time TTS_DOWN degrade, text-only guard, TTS→STT overlap>=90% round-trip per A2.2b on fakes); edge-tts adapter produces real mp3 (probed: 25 chunks / 17KB, keyless); earcons generated deterministically (wake=two rising notes 120ms, done, error); orb renders 24-bar rms waveform + live caption strip + gated playback; smoke green
