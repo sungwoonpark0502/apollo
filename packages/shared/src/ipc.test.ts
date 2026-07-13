@@ -19,6 +19,14 @@ const invokeFixtures: Record<InvokeChannelName, { req: unknown; res: unknown }> 
   'keys.test': { req: { provider: 'deepgram' }, res: { ok: false, message: 'no key stored' } },
   'oauth.google.start': { req: {}, res: { ok: true, address: 'user@gmail.com' } },
   'oauth.google.revoke': { req: {}, res: { ok: true } },
+  'onboarding.finish': { req: {}, res: { ok: true } },
+  'permissions.request': { req: { kind: 'mic' }, res: { granted: true } },
+  'privacy.get': {
+    req: {},
+    res: { egressHosts: ['api.anthropic.com'], memoryFacts: [{ id: 'm1', category: 'person', fact: 'x' }] },
+  },
+  'privacy.deleteMemory': { req: { id: 'm1' }, res: { ok: true } },
+  'privacy.wipe': { req: { confirm: 'ERASE' }, res: { ok: true } },
   'diagnostics.get': {
     req: {},
     res: {

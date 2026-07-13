@@ -1,8 +1,8 @@
-import { app, BrowserWindow, ipcMain, Notification, safeStorage, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, Notification, safeStorage, shell, systemPreferences } from 'electron';
 import { join } from 'node:path';
 import { STRINGS, type AgentEvent } from '@apollo/shared';
 import { createTray, getTray } from './tray';
-import { createAudioWindow, createOrbWindow, createPaletteWindow, openSettingsWindow, togglePalette } from './windows';
+import { createAudioWindow, createOnboardingWindow, closeOnboardingWindow, createOrbWindow, createPaletteWindow, openSettingsWindow, togglePalette } from './windows';
 import { createOrbController } from './orbController';
 import { createWorkerHost } from './voice/workerHost';
 import { createVoiceController } from './voice/voiceController';
@@ -12,7 +12,7 @@ import { FakeTts } from './voice/tts/fake';
 import { createDeepgramStt } from './voice/sttDeepgram';
 import { FakeStt, type FakeSttFixture } from './voice/sttFake';
 import { wavToFrames } from './voice/wav';
-import { readFileSync } from 'node:fs';
+import { readFileSync, rmSync } from 'node:fs';
 import { AUDIO_PORT_CHANNEL, newId, type VoiceState } from '@apollo/shared';
 import { createLogger, readLogTail } from './logger';
 import { loadConfig } from './config';
@@ -41,6 +41,7 @@ import { createWeatherTools } from './tools/weather';
 import { createSearchWebTool } from './tools/searchWeb';
 import { createEmailTools } from './tools/email';
 import { createBriefTool } from './tools/brief';
+import { createScreenTool, readScreenContext } from './tools/screen';
 import { createEmailService } from './security/emailService';
 import { createDailyBrief } from './scheduler/dailyBrief';
 import { createOrchestrator, type Orchestrator } from './agent/orchestrator';
@@ -166,6 +167,7 @@ function boot(): void {
       createFilesTool({ getApprovedDirs: () => settings.get().approvedDirs }),
       ...createEmailTools({ provider: () => emailService.provider(), contacts: repos.contacts }),
       createBriefTool({ getTool: (n) => registry.get(n), emailConnected: () => emailService.isConnected() }),
+      createScreenTool({ run: spawnRunner() }),
       ...createSystemTools({
         run: spawnRunner(),
         openPath: (p) => shell.openPath(p),
@@ -193,6 +195,18 @@ function boot(): void {
     }
   }
 
+  // Screen context (C8.3): cached + refreshed asynchronously so the CONTEXT
+  // block carries activeApp/selectedText without spawning osascript in the hot
+  // path (speed invariant B2.1). The screen.context tool reads it on demand.
+  let lastScreen: { app: string; title: string; selectedText: string } | null = null;
+  const refreshScreen = (): void => {
+    void readScreenContext({ run: spawnRunner() })
+      .then((s) => {
+        if (!s.permissionMissing) lastScreen = { app: s.app, title: s.title, selectedText: s.selectedText };
+      })
+      .catch(() => undefined);
+  };
+
   const orchestrator: Orchestrator = createOrchestrator({
     registry,
     repos,
@@ -201,6 +215,12 @@ function boot(): void {
     emit: emitToAll,
     tz: () => Intl.DateTimeFormat().resolvedOptions().timeZone,
     historyEnabled: () => settings.get().history.enabled,
+    buildContext: () => {
+      const c: Record<string, string> = {};
+      if (lastScreen?.app) c.activeApp = lastScreen.app + (lastScreen.title ? ` — ${lastScreen.title}` : '');
+      if (lastScreen?.selectedText) c.selectedText = lastScreen.selectedText.slice(0, 500);
+      return c;
+    },
     log,
   });
 
@@ -298,6 +318,27 @@ function boot(): void {
   });
   createAudioWindow();
 
+  // C14.10 "Wipe all data": delete the DB + safeStorage secrets and relaunch.
+  function wipeAllData(): void {
+    try {
+      secrets.wipeAll();
+      emailService.revoke();
+      db.close();
+      const dbPath = join(userData, 'apollo.db');
+      for (const suffix of ['', '-wal', '-shm']) {
+        try {
+          rmSync(dbPath + suffix, { force: true });
+        } catch {
+          /* best effort */
+        }
+      }
+    } catch (e) {
+      log(`wipe failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+    app.relaunch();
+    app.exit(0);
+  }
+
   const handlers = buildHandlers({
     orchestrator: () => orchestrator,
     repos,
@@ -308,6 +349,7 @@ function boot(): void {
     onUserActivity: () => {
       lastActivityMs = Date.now();
       dailyBrief.noteActivity();
+      refreshScreen(); // refresh for the NEXT turn's CONTEXT; non-blocking
     },
     ttsDrained: () => voiceController.ttsFinished(),
     adapterStates: () => ({
@@ -317,6 +359,23 @@ function boot(): void {
       llm: secrets.get('anthropic') ? 'anthropic' : 'no-key',
     }),
     logTail: (lines) => readLogTail(join(userData, 'logs', 'apollo.log'), lines),
+    egressHosts: () => egress.allowedHosts(),
+    wipeAllData: () => wipeAllData(),
+    finishOnboarding: () => {
+      settings.patch({ onboarded: true });
+      closeOnboardingWindow();
+      togglePalette();
+    },
+    requestPermission: async (kind) => {
+      if (process.platform !== 'darwin') return true;
+      if (kind === 'mic') {
+        const status = systemPreferences.getMediaAccessStatus('microphone');
+        if (status === 'granted') return true;
+        return systemPreferences.askForMediaAccess('microphone');
+      }
+      // Accessibility: prompts once; returns current trust state.
+      return systemPreferences.isTrustedAccessibilityClient(true);
+    },
     oauthConnect: () => emailService.connect(),
     oauthRevoke: () => emailService.revoke(),
     debugWake: () => voiceController.onWake(),
@@ -343,6 +402,11 @@ function boot(): void {
   const palette = createPaletteWindow();
   // B1: the hotkey activates Apollo — palette for typing, and (PTT) listening when voice is up
   registerHotkey(settings.get().hotkey, onHotkeyPress, log);
+
+  // First run (C18): show the 4-step onboarding until completed.
+  if (!settings.get().onboarded && process.env['APOLLO_SMOKE'] !== '1') {
+    createOnboardingWindow();
+  }
 
   const missed = scheduler.start();
   const missedCount = missed.timers.length + missed.reminders.length + missed.alarms.length;

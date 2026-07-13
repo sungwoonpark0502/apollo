@@ -47,6 +47,20 @@ export const invokeChannels = {
   'keys.test': { req: z.object({ provider: keyProviderSchema }), res: z.object({ ok: z.boolean(), message: z.string() }) },
   'oauth.google.start': { req: z.object({}), res: z.object({ ok: z.boolean(), address: z.string().optional() }) },
   'oauth.google.revoke': { req: z.object({}), res: z.object({ ok: z.boolean() }) },
+  'onboarding.finish': { req: z.object({}), res: ackSchema },
+  'permissions.request': {
+    req: z.object({ kind: z.enum(['mic', 'accessibility']) }),
+    res: z.object({ granted: z.boolean() }),
+  },
+  'privacy.get': {
+    req: z.object({}),
+    res: z.object({
+      egressHosts: z.array(z.string()),
+      memoryFacts: z.array(z.object({ id: z.string(), category: z.string(), fact: z.string() })),
+    }),
+  },
+  'privacy.deleteMemory': { req: z.object({ id: z.string() }), res: ackSchema },
+  'privacy.wipe': { req: z.object({ confirm: z.literal('ERASE') }), res: ackSchema },
   'diagnostics.get': {
     req: z.object({}),
     res: z.object({

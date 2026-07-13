@@ -16,6 +16,10 @@ export interface HandlerDeps {
   ttsDrained?: () => void;
   adapterStates: () => { stt: string; tts: string; wake: string; llm: string };
   logTail: (lines: number) => string[];
+  egressHosts: () => string[];
+  wipeAllData: () => void;
+  finishOnboarding?: () => void;
+  requestPermission?: (kind: 'mic' | 'accessibility') => Promise<boolean>;
   oauthConnect?: () => Promise<{ ok: boolean; address?: string }>;
   oauthRevoke?: () => void;
   debugWake?: () => void;
@@ -51,6 +55,23 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
       adapters: deps.adapterStates(),
       logTail: deps.logTail(200),
     }),
+    'privacy.get': () => ({
+      egressHosts: deps.egressHosts(),
+      memoryFacts: deps.repos.memory.list().map((f) => ({ id: f.id, category: f.category, fact: f.fact })),
+    }),
+    'privacy.deleteMemory': (req) => {
+      deps.repos.memory.delete(req.id);
+      return { ok: true as const };
+    },
+    'privacy.wipe': () => {
+      deps.wipeAllData(); // deletes DB + safeStorage entries and relaunches (C14.10)
+      return { ok: true as const };
+    },
+    'onboarding.finish': () => {
+      deps.finishOnboarding?.();
+      return { ok: true as const };
+    },
+    'permissions.request': async (req) => ({ granted: (await deps.requestPermission?.(req.kind)) ?? false }),
     'data.mutate': (req) => {
       switch (req.op) {
         case 'completeTodo':

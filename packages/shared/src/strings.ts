@@ -123,6 +123,12 @@ export const STRINGS = {
   fastPath: {
     unsupportedAlternative: (nearest: string) => `I can't do that yet, but I can ${nearest}.`,
   },
+
+  permissions: {
+    accessibilityHint:
+      'I need Accessibility permission to see the active window. Grant it in System Settings > Privacy & Security > Accessibility, then enable Apollo.',
+    micHint: 'I need microphone permission to hear you. Grant it in System Settings > Privacy & Security > Microphone.',
+  },
 } as const;
 
 export type Strings = typeof STRINGS;

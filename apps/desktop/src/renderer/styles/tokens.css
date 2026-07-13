@@ -18,6 +18,18 @@
 
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
+
+/* Accessibility (C18): reduced motion disables animation + scale/height transitions app-wide. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Focus rings (C18): 2px accent on keyboard focus. */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 body {
   font-family: var(--font-sans);
   font-size: var(--fs-body);

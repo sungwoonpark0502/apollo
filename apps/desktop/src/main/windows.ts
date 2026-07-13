@@ -138,6 +138,38 @@ export function createAudioWindow(): BrowserWindow {
   return audioWin;
 }
 
+let onboardingWin: BrowserWindow | null = null;
+
+export function createOnboardingWindow(): BrowserWindow {
+  if (onboardingWin && !onboardingWin.isDestroyed()) {
+    onboardingWin.show();
+    return onboardingWin;
+  }
+  onboardingWin = new BrowserWindow({
+    width: 520,
+    height: 560,
+    resizable: false,
+    fullscreenable: false,
+    title: 'Welcome to Apollo',
+    webPreferences: secureWebPreferences(),
+  });
+  hardenWindow(onboardingWin);
+  onboardingWin.on('closed', () => {
+    onboardingWin = null;
+  });
+  if (process.env['ELECTRON_RENDERER_URL']) {
+    void onboardingWin.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/windows/onboarding/index.html`);
+  } else {
+    void onboardingWin.loadFile(join(__dirname, '../renderer/windows/onboarding/index.html'));
+  }
+  return onboardingWin;
+}
+
+export function closeOnboardingWindow(): void {
+  onboardingWin?.close();
+  onboardingWin = null;
+}
+
 let settingsWin: BrowserWindow | null = null;
 
 export function openSettingsWindow(): BrowserWindow {

@@ -4,6 +4,8 @@ import { KeysTab } from './KeysTab';
 import { VoiceTab } from './VoiceTab';
 import { DiagnosticsTab } from './DiagnosticsTab';
 import { AccountsTab } from './AccountsTab';
+import { PrivacyTab } from './PrivacyTab';
+import { GeneralTab } from './GeneralTab';
 
 type TabId = keyof typeof STRINGS.settings.tabs;
 const TAB_ORDER: TabId[] = ['general', 'voice', 'accounts', 'keys', 'privacy', 'diagnostics'];
@@ -46,6 +48,10 @@ export function SettingsApp(): React.JSX.Element {
           <DiagnosticsTab />
         ) : tab === 'accounts' ? (
           <AccountsTab />
+        ) : tab === 'privacy' ? (
+          <PrivacyTab />
+        ) : tab === 'general' ? (
+          <GeneralTab />
         ) : (
           <Placeholder tab={STRINGS.settings.tabs[tab]} />
         )}

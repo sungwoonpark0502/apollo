@@ -48,6 +48,7 @@ export default defineConfig({
           settings: resolve(__dirname, 'src/renderer/windows/settings/index.html'),
           orb: resolve(__dirname, 'src/renderer/windows/orb/index.html'),
           audio: resolve(__dirname, 'src/renderer/windows/audio/index.html'),
+          onboarding: resolve(__dirname, 'src/renderer/windows/onboarding/index.html'),
         },
       },
     },
