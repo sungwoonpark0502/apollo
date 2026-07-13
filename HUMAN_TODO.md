@@ -23,6 +23,15 @@ physically require a microphone in a room and human ears, so they remain human:
 - [ ] Mute verification: toggle mute (tray/orb); confirm capture fully stops (no partials appear) and unmute restores listening.
 - [ ] PTT: press the hotkey and confirm it enters listening without a wake word.
 
+## Workspace visual QA (Phase 5 / Part E — human eyes; logic is unit-tested)
+The Workspace data flow, calendar math, and one-brain live sync are all covered by
+automated tests + the boot smoke (wsRendered=true). What needs a human looking at pixels:
+- [ ] Calendar Week view: drag on empty space creates an event snapped to 15 min; drag a chip to move it; drag its bottom edge to resize. Confirm each persists and survives a reload.
+- [ ] Overlapping events in Week view tile side-by-side without gaps (lane layout).
+- [ ] Response Stage animations: brief/news/weather voice answers fade+rise in, rows stagger, weather temp counts up; the spoken-row accent bar tracks the sentence being read.
+- [ ] Dark mode: toggle OS appearance and confirm every Workspace surface (Today, Month/Week/Agenda, Notes, modals) reads correctly.
+- [ ] Reduced motion: enable "Reduce motion" and confirm Stage collapses to a plain fade and the waveform/scale transitions are disabled.
+
 ## Packaging & updates (code-signing / distribution — real accounts required)
 The build itself is verified: `pnpm --filter @apollo/desktop package` produced `release/Apollo-0.1.0-arm64.dmg` (182 MB, unsigned). To ship signed/auto-updating builds:
 - [ ] Apple Developer account + Developer ID Application certificate; set `CSC_LINK`/`CSC_KEY_PASSWORD`, flip `notarize: true` in electron-builder.yml, and provide `APPLE_ID`/`APPLE_APP_SPECIFIC_PASSWORD`/`APPLE_TEAM_ID` for notarization.
