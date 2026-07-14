@@ -4,6 +4,7 @@ import { useNavigate, useSettings } from '../../lib/useLive';
 import { TodayView } from './TodayView';
 import { CalendarView } from './CalendarView';
 import { NotesView } from './NotesView';
+import { OmniSearch } from './OmniSearch';
 
 type View = 'today' | 'calendar' | 'notes';
 
@@ -13,6 +14,7 @@ export function WorkspaceApp(): React.JSX.Element {
   const [view, setView] = useState<View>('today');
   const [navDateIso, setNavDateIso] = useState<string | undefined>(undefined);
   const [navNoteId, setNavNoteId] = useState<string | undefined>(undefined);
+  const [omniOpen, setOmniOpen] = useState(false);
   const settings = useSettings();
 
   useNavigate((v, dateIso, noteId) => {
@@ -30,7 +32,8 @@ export function WorkspaceApp(): React.JSX.Element {
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       const mod = e.metaKey || e.ctrlKey;
-      if (mod && e.key === '1') { go('today'); e.preventDefault(); }
+      if (mod && e.key.toLowerCase() === 'k') { setOmniOpen((v) => !v); e.preventDefault(); }
+      else if (mod && e.key === '1') { go('today'); e.preventDefault(); }
       else if (mod && e.key === '2') { go('calendar'); e.preventDefault(); }
       else if (mod && e.key === '3') { go('notes'); e.preventDefault(); }
       else if (!mod && e.key.toLowerCase() === 't' && !isTyping(e)) { go('today'); }
@@ -73,6 +76,15 @@ export function WorkspaceApp(): React.JSX.Element {
           <NotesView initialNoteId={navNoteId} />
         )}
       </main>
+      {omniOpen ? (
+        <OmniSearch
+          onClose={() => setOmniOpen(false)}
+          onNavigate={(t) => {
+            if (t.view === 'notes') { setView('notes'); setNavNoteId(t.noteId); setNavDateIso(undefined); }
+            else { setView('calendar'); setNavDateIso(t.dateIso); setNavNoteId(undefined); }
+          }}
+        />
+      ) : null}
     </div>
   );
 }

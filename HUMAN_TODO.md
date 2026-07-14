@@ -56,6 +56,9 @@ model **once at build time** (it is never downloaded at runtime):
   If the machine is offline, download those four files manually from that repo into that exact folder.
 - [ ] Semantic-quality eyeball (real model): seed ~10 notes, run the 10 scripted recall queries in
   eval/recall_queries.txt, and confirm the top-1 result is sensible. (Machine ranking tests already pass on FakeEmbedder.)
+- [ ] Omnisearch keyboard nav (Cmd/Ctrl+K in the Workspace): type a query, confirm Notes/Events/Facts groups
+  populate, arrow keys move the highlight across groups, Enter opens the selected item (note → Notes view,
+  event → Calendar at its date, fact → Settings > Privacy), and Esc closes. (IPC round-trips are unit-tested.)
 
 ## API keys (app runs with Fake adapters until provided)
 - [ ] Anthropic API key: create at https://console.anthropic.com/settings/keys, then either set `ANTHROPIC_API_KEY` in `apollo/.env` or paste into Settings > Keys and press Test.

@@ -89,6 +89,9 @@ export function buildWorkspaceHandlers(deps: WorkspaceHandlerDeps) {
       return evToDTO(ev);
     },
 
+    'events.search': (req: InvokeReq<'events.search'>): InvokeRes<'events.search'> =>
+      repos.events.search(req.query).slice(0, 8).map(evToDTO),
+
     'events.create': (req: InvokeReq<'events.create'>): InvokeRes<'events.create'> => {
       const tz = req.tz === 'LOCAL' ? deps.tz() : req.tz;
       const start = DateTime.fromISO(req.startIso, { zone: tz });

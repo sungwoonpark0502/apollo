@@ -58,6 +58,10 @@ const invokeFixtures: Record<InvokeChannelName, { req: unknown; res: unknown }> 
       allDay: false, rrule: null, location: null, notes: null,
     },
   },
+  'events.search': {
+    req: { query: 'dentist' },
+    res: [{ id: 'e1', title: 'Dentist', startTs: 1_800_000_000_000, endTs: null, tz: 'America/Los_Angeles', allDay: false, rrule: null, location: null, notes: null }],
+  },
   'events.create': {
     req: { title: 'Standup', startIso: '2026-07-14T09:00:00', tz: 'LOCAL' },
     res: {

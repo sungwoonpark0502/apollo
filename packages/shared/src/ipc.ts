@@ -90,6 +90,7 @@ export const invokeChannels = {
     res: z.array(occurrenceDTOSchema),
   },
   'events.get': { req: z.object({ id: z.string() }), res: eventDTOSchema },
+  'events.search': { req: z.object({ query: z.string().min(1) }), res: z.array(eventDTOSchema) }, // omnisearch Events group
   'events.create': {
     req: z.object({
       title: z.string().min(1),

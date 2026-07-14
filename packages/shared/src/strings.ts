@@ -344,6 +344,13 @@ export const STRINGS = {
       emptyEditor: 'Select a note or create a new one.',
       placeholder: 'Start writing…',
     },
+    omni: {
+      placeholder: 'Search notes, events, and memory…',
+      notes: 'Notes',
+      events: 'Events',
+      facts: 'Facts',
+      empty: 'No matches.',
+    },
     stage: {
       morningBrief: 'Morning brief',
       weatherIn: (place: string) => `Today's weather in ${place}`,
