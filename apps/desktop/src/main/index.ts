@@ -1,8 +1,9 @@
-import { app, BrowserWindow, dialog, globalShortcut, ipcMain, Notification, powerMonitor, safeStorage, shell, systemPreferences } from 'electron';
+import { app, BrowserWindow, dialog, globalShortcut, ipcMain, Notification, powerMonitor, safeStorage, session, shell, systemPreferences } from 'electron';
+import { lockDownSession, defaultSessionAllows, audioSessionAllows } from './security/permissions';
 import { join } from 'node:path';
 import { STRINGS, type AgentEvent } from '@apollo/shared';
 import { createTray, getTray } from './tray';
-import { createAudioWindow, createOnboardingWindow, closeOnboardingWindow, createOrbWindow, createPaletteWindow, openCaptureWindow, openSettingsWindow, openWorkspaceWindow, getWorkspaceWindow, togglePalette } from './windows';
+import { AUDIO_SESSION_PARTITION, createAudioWindow, createOnboardingWindow, closeOnboardingWindow, createOrbWindow, createPaletteWindow, openCaptureWindow, openSettingsWindow, openWorkspaceWindow, getWorkspaceWindow, togglePalette } from './windows';
 import { createTodayProvider } from './workspace/today';
 import { type CardPayload, type WorkspaceNavigate } from '@apollo/shared';
 import { createOrbController } from './orbController';
@@ -63,6 +64,7 @@ import { buildSystemPrompt } from './agent/systemPrompt';
 import { createAnthropicLlm } from './agent/llmAnthropic';
 import { createScheduler } from './scheduler/scheduler';
 import { registerRouter, makeTrustedUrlCheck, pushTo } from './ipc/router';
+import { createThrottle } from './ipc/throttle';
 import { buildHandlers } from './ipc/handlers/index';
 import { registerHotkey, unregisterAll } from './shortcuts';
 import { userInfo } from 'node:os';
@@ -89,6 +91,11 @@ function boot(): void {
   let lastActivityMs = Date.now(); // C19: drives brief deferral (input in last 10 min)
   const userData = app.getPath('userData');
   const logger = createLogger({ logDir: join(userData, 'logs'), dev });
+
+  // H3 permission lockdown: default session denies everything; audio window gets
+  // a dedicated session allowing only media (audio).
+  lockDownSession(session.defaultSession, defaultSessionAllows, (m) => logger.warn(m));
+  lockDownSession(session.fromPartition(AUDIO_SESSION_PARTITION), audioSessionAllows, (m) => logger.warn(m));
   const log = (msg: string): void => logger.info(msg);
   logger.info({ dev }, 'apollo booting');
 
@@ -237,7 +244,7 @@ function boot(): void {
         onFactSaved: (f) => indexer.onFactSaved(f),
         onFactForgotten: (id) => indexer.onFactForgotten(id),
       }),
-      createUndoTool(repos),
+      createUndoTool(repos, { onUndone: (what, convId) => repos.actionLog.record({ tool: 'undo.last', summary: what, outcome: 'undone', convId }) }),
       ...createCalendarTools({ events: repos.events, undo: repos.undo }),
       ...createReminderTools({ reminders: repos.reminders, undo: repos.undo, onArm: () => scheduler.rearm() }),
       ...createWeatherTools({
@@ -249,7 +256,7 @@ function boot(): void {
       createRecallTool({ recall, tz: () => Intl.DateTimeFormat().resolvedOptions().timeZone }),
       createNewsTool({ http, feeds: repos.feeds, summarize: createLlmSummarizer(llm) }),
       createFilesTool({ getApprovedDirs: () => settings.get().approvedDirs }),
-      ...createEmailTools({ provider: () => emailService.provider(), contacts: repos.contacts }),
+      ...createEmailTools({ provider: () => emailService.provider(), contacts: repos.contacts, needsReauth: () => emailService.needsReauth() }),
       createBriefTool({ getTool: (n) => registry.get(n), emailConnected: () => emailService.isConnected() }),
       createScreenTool({ run: spawnRunner() }),
       createAppOpenTool({ openWorkspace: (target) => openWorkspace(target) }),
@@ -341,6 +348,11 @@ function boot(): void {
     tz: () => Intl.DateTimeFormat().resolvedOptions().timeZone,
     historyEnabled: () => settings.get().history.enabled,
     onMessagePersisted: (m) => indexer.onMessagePersisted(m),
+    onAction: (e) => repos.actionLog.record(e), // H3 audit trail
+    onUsage: (e) => {
+      repos.usageLog.add('anthropic', 'inputTokens', e.inputTokens);
+      repos.usageLog.add('anthropic', 'outputTokens', e.outputTokens);
+    },
     buildContext: () => {
       const c: Record<string, string> = {};
       if (lastScreen?.app) c.activeApp = lastScreen.app + (lastScreen.title ? ` — ${lastScreen.title}` : '');
@@ -579,6 +591,7 @@ function boot(): void {
     },
     oauthConnect: () => emailService.connect(),
     oauthRevoke: () => emailService.revoke(),
+    oauthStatus: () => ({ connected: emailService.isConnected(), address: emailService.address(), needsReauth: emailService.needsReauth() }),
     openWorkspace: (target) => openWorkspace(target),
     openSettings: () => openSettingsWindow(),
     todayData: () => todayProvider.get(),
@@ -624,6 +637,7 @@ function boot(): void {
   registerRouter(ipcMain, handlers, {
     isTrustedUrl: makeTrustedUrlCheck(process.env['ELECTRON_RENDERER_URL']),
     isDev: dev,
+    throttle: createThrottle(), // H3 per-channel per-sender token buckets
     log,
   });
 

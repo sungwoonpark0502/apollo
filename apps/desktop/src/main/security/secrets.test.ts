@@ -55,6 +55,24 @@ describe('secrets (C5/C14.2)', () => {
     expect(secrets.get('anthropic')).toBeNull();
     expect(secrets.get('brave')).toBeNull();
   });
+
+  it('H3 key metadata: info() exposes last4 + setAt but never the key; remove clears both', () => {
+    const secrets = createSecrets({ settings, codec: xorCodec, env: {} });
+    secrets.set('anthropic', 'sk-ant-abcd1234');
+    const info = secrets.info();
+    const a = info.find((i) => i.provider === 'anthropic')!;
+    expect(a.configured).toBe(true);
+    expect(a.last4).toBe('1234');
+    expect(typeof a.setAt).toBe('number');
+    // the metadata blob must not contain the full key
+    expect(settings.get('keymeta.anthropic')).not.toContain('sk-ant-abcd1234');
+    // untouched providers report not-configured
+    expect(info.find((i) => i.provider === 'brave')!.configured).toBe(false);
+
+    secrets.delete('anthropic');
+    expect(secrets.info().find((i) => i.provider === 'anthropic')!.configured).toBe(false);
+    expect(secrets.info().find((i) => i.provider === 'anthropic')!.last4).toBeNull();
+  });
 });
 
 describe('log redaction (C14.2): keys never appear in logs', () => {

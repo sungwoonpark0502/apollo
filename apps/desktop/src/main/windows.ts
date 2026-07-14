@@ -116,6 +116,10 @@ export function createOrbWindow(): BrowserWindow {
 
 let audioWin: BrowserWindow | null = null;
 
+/** Dedicated session partition for the audio capture window (H3): only this
+ *  session is granted media permission. */
+export const AUDIO_SESSION_PARTITION = 'apollo-audio';
+
 /** Hidden capture renderer (C12.1). Never shown; exists only to run getUserMedia + AudioWorklet. */
 export function createAudioWindow(): BrowserWindow {
   if (audioWin && !audioWin.isDestroyed()) return audioWin;
@@ -124,7 +128,7 @@ export function createAudioWindow(): BrowserWindow {
     width: 1,
     height: 1,
     skipTaskbar: true,
-    webPreferences: secureWebPreferences(),
+    webPreferences: { ...secureWebPreferences(), partition: AUDIO_SESSION_PARTITION },
   });
   hardenWindow(audioWin);
   audioWin.on('closed', () => {

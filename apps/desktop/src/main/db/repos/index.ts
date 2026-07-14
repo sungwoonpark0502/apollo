@@ -13,6 +13,8 @@ import { createUndoRepo } from './undo';
 import { createCapabilityMissesRepo, createFeedsRepo, createPerfRepo, createSettingsRepo, createOAuthRepo } from './misc';
 import { createSuggestionsRepo } from './suggestions';
 import { createChunksRepo } from './chunks';
+import { createActionLogRepo } from './actionLog';
+import { createUsageLogRepo } from './usageLog';
 
 /** All mutating repo methods publish onto the DataBus (E2). */
 export function createRepos(db: Db, bus: DataBus = createDataBus()) {
@@ -93,6 +95,8 @@ export function createRepos(db: Db, bus: DataBus = createDataBus()) {
     oauth: createOAuthRepo(db),
     suggestions: createSuggestionsRepo(db, { tz: () => Intl.DateTimeFormat().resolvedOptions().timeZone }),
     chunks: createChunksRepo(db),
+    actionLog: createActionLogRepo(db),
+    usageLog: createUsageLogRepo(db),
   };
 }
 
@@ -111,3 +115,5 @@ export * from './undo';
 export * from './misc';
 export * from './suggestions';
 export * from './chunks';
+export * from './actionLog';
+export * from './usageLog';

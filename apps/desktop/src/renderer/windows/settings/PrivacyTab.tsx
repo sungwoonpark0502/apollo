@@ -45,6 +45,7 @@ export function PrivacyTab(): React.JSX.Element {
       <h2 style={{ fontSize: 'var(--fs-display)', margin: '0 0 var(--sp-4)' }}>{STRINGS.settings.tabs.privacy}</h2>
 
       <DataSection settings={s} patch={patch} />
+      <ActionLogSection />
 
 
       <Row label={STRINGS.settings.privacy.history}>
@@ -215,6 +216,34 @@ function DataSection({ settings, patch }: { settings: Settings; patch: (s: Setti
           ))
         )}
       </div>
+    </section>
+  );
+}
+
+interface ActionRow { id: string; ts: number; tool: string; summary: string; outcome: string }
+
+function ActionLogSection(): React.JSX.Element {
+  const [rows, setRows] = useState<ActionRow[]>([]);
+  useEffect(() => {
+    void window.apollo.call('actionLog.list', {}).then(setRows);
+  }, []);
+  const color: Record<string, string> = { executed: 'var(--success)', denied: 'var(--danger)', canceled: 'var(--text-3)', expired: 'var(--text-3)', undone: 'var(--accent)' };
+  return (
+    <section style={{ margin: 'var(--sp-4) 0' }}>
+      <h3 style={sectionTitle}>{STRINGS.settings.privacy.actionLog}</h3>
+      {rows.length === 0 ? (
+        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-3)' }}>{STRINGS.settings.privacy.actionLogEmpty}</div>
+      ) : (
+        rows.map((r) => (
+          <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--sp-3)', padding: 'var(--sp-1) 0', fontSize: 'var(--fs-caption)' }}>
+            <span style={{ color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span style={{ color: 'var(--text-3)' }}>{new Date(r.ts).toLocaleString()} · </span>
+              {r.summary}
+            </span>
+            <span style={{ color: color[r.outcome] ?? 'var(--text-3)', flexShrink: 0 }}>{r.outcome}</span>
+          </div>
+        ))
+      )}
     </section>
   );
 }

@@ -49,6 +49,7 @@ export const invokeChannels = {
   'keys.test': { req: z.object({ provider: keyProviderSchema }), res: z.object({ ok: z.boolean(), message: z.string() }) },
   'oauth.google.start': { req: z.object({}), res: z.object({ ok: z.boolean(), address: z.string().optional() }) },
   'oauth.google.revoke': { req: z.object({}), res: z.object({ ok: z.boolean() }) },
+  'oauth.google.status': { req: z.object({}), res: z.object({ connected: z.boolean(), address: z.string().nullable(), needsReauth: z.boolean() }) },
   'onboarding.finish': { req: z.object({}), res: ackSchema },
   'permissions.request': {
     req: z.object({ kind: z.enum(['mic', 'accessibility']) }),
@@ -210,6 +211,16 @@ export const invokeChannels = {
     req: z.object({}),
     res: z.object({ counts: z.object({ notes: z.number(), events: z.number(), todos: z.number(), reminders: z.number(), facts: z.number() }).nullable() }),
   },
+  'actionLog.list': {
+    req: z.object({}),
+    res: z.array(z.object({ id: z.string(), ts: z.number(), tool: z.string(), summary: z.string(), outcome: z.enum(['executed', 'canceled', 'denied', 'expired', 'undone']), convId: z.string().nullable() })),
+  },
+  // H3 key metadata (write-only keys; this returns non-secret metadata only)
+  'keys.info': {
+    req: z.object({}),
+    res: z.array(z.object({ provider: keyProviderSchema, configured: z.boolean(), last4: z.string().nullable(), setAt: z.number().nullable() })),
+  },
+  'keys.remove': { req: z.object({ provider: keyProviderSchema }), res: ackSchema },
   'settings.open': { req: z.object({}), res: ackSchema }, // rail gear → settings window
   'geocode.search': {
     req: z.object({ query: z.string().min(1) }),

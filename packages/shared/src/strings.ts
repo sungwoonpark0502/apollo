@@ -153,13 +153,16 @@ export const STRINGS = {
       openLogs: 'Open logs folder',
     },
     voice: { wake: 'Wake word', sensitivity: 'Sensitivity', ptt: 'Push to talk', voice: 'Voice', preview: 'Preview', dnd: 'Do not disturb' },
-    accounts: { gmail: 'Gmail', connect: 'Connect', disconnect: 'Disconnect', connectedAs: (a: string) => `Connected as ${a}` },
+    accounts: { gmail: 'Gmail', connect: 'Connect', disconnect: 'Disconnect', reconnect: 'Reconnect', reauthBadge: 'Reconnect needed', connectedAs: (a: string) => `Connected as ${a}` },
     keys: {
       title: 'API keys',
       test: 'Test',
       ok: 'Key works.',
       bad: (msg: string) => `Key failed: ${msg}`,
       providers: { anthropic: 'Anthropic', deepgram: 'Deepgram', brave: 'Brave Search', picovoice: 'Picovoice' },
+      configured: (last4: string, date: string) => `Configured (…${last4}) since ${date}`,
+      remove: 'Remove',
+      replace: 'Replace',
     },
     privacy: {
       history: 'Keep conversation history',

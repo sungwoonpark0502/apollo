@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { IpcRejectedError, makeChannelHandler, makeTrustedUrlCheck, type RouterOpts } from './router';
+import { createThrottle } from './throttle';
 
 function opts(over: Partial<RouterOpts> = {}): RouterOpts {
   return {
@@ -64,5 +65,17 @@ describe('ipc router pipeline', () => {
     expect(trusted('http://localhost:5173/windows/orb/index.html')).toBe(true);
     expect(trusted('https://apollo.example.com/index.html')).toBe(false);
     expect(trusted('http://localhost:9999/index.html')).toBe(false);
+  });
+
+  it('throttles a channel after its per-minute limit and surfaces THROTTLED (H3)', async () => {
+    const handler = vi.fn().mockResolvedValue({ ok: true, message: 'ok' });
+    const o = opts({ throttle: createThrottle(() => 0) });
+    const pipeline = makeChannelHandler('keys.test', handler as never, o);
+    // keys.test = 10/min
+    for (let i = 0; i < 10; i++) await pipeline('file:///app/x', { provider: 'anthropic' }, undefined, 's1');
+    await expect(pipeline('file:///app/x', { provider: 'anthropic' }, undefined, 's1')).rejects.toMatchObject({ reason: 'throttled' });
+    expect(o.log).toHaveBeenCalledWith(expect.stringContaining('throttled'));
+    // a different sender is unaffected
+    await expect(pipeline('file:///app/x', { provider: 'anthropic' }, undefined, 's2')).resolves.toBeDefined();
   });
 });

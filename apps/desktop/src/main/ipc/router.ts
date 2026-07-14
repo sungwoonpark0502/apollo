@@ -10,6 +10,7 @@ import {
 } from '@apollo/shared';
 // Electron types only; runtime objects are injected so this module stays unit-testable.
 import type { IpcMain, IpcMainInvokeEvent, WebContents } from 'electron';
+import { type Throttle } from './throttle';
 
 export type Handlers = {
   [K in InvokeChannelName]: (req: InvokeReq<K>, sender: WebContents | undefined) => Promise<InvokeRes<K>> | InvokeRes<K>;
@@ -18,27 +19,32 @@ export type Handlers = {
 export interface RouterOpts {
   isTrustedUrl: (url: string) => boolean;
   isDev: boolean;
+  throttle?: Throttle;
   log: (msg: string) => void;
 }
 
 export class IpcRejectedError extends Error {
-  constructor(public readonly reason: 'untrusted_sender' | 'invalid_payload', detail?: string) {
+  constructor(public readonly reason: 'untrusted_sender' | 'invalid_payload' | 'throttled', detail?: string) {
     super(`ipc rejected: ${reason}${detail ? ` ${detail}` : ''}`);
     this.name = 'IpcRejectedError';
   }
 }
 
-/** Pure per-channel pipeline: frame check → zod req parse → handler → zod res parse. */
+/** Pure per-channel pipeline: frame check → throttle → zod req parse → handler → zod res parse. */
 export function makeChannelHandler<K extends InvokeChannelName>(
   name: K,
   handler: Handlers[K],
   opts: RouterOpts,
-): (frameUrl: string | undefined, payload: unknown, sender?: WebContents) => Promise<InvokeRes<K>> {
+): (frameUrl: string | undefined, payload: unknown, sender?: WebContents, senderKey?: string) => Promise<InvokeRes<K>> {
   const def = invokeChannels[name];
-  return async (frameUrl, payload, sender) => {
+  return async (frameUrl, payload, sender, senderKey) => {
     if (!frameUrl || !opts.isTrustedUrl(frameUrl)) {
       opts.log(`ipc dropped (untrusted sender) channel=${name}`);
       throw new IpcRejectedError('untrusted_sender');
+    }
+    if (opts.throttle && !opts.throttle.allow(name, senderKey ?? 'default')) {
+      opts.log(`ipc throttled channel=${name}`);
+      throw new IpcRejectedError('throttled');
     }
     const parsed = def.req.safeParse(payload);
     if (!parsed.success) {
@@ -56,7 +62,7 @@ export function registerRouter(ipcMain: IpcMain, handlers: Handlers, opts: Route
     if (!opts.isDev && DEV_ONLY_CHANNELS.includes(name)) continue;
     const pipeline = makeChannelHandler(name, handlers[name], opts);
     ipcMain.handle(name, (event: IpcMainInvokeEvent, payload: unknown) =>
-      pipeline(event.senderFrame?.url, payload, event.sender),
+      pipeline(event.senderFrame?.url, payload, event.sender, String(event.sender.id)),
     );
   }
 }

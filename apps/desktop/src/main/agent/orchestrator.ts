@@ -29,6 +29,10 @@ export interface OrchestratorDeps {
   tz: () => string;
   historyEnabled: () => boolean;
   onMessagePersisted?: (msg: { id: string; convId: string; content: string; ts: number }) => void;
+  /** H3 action audit log for Tier 3 lifecycle outcomes. */
+  onAction?: (e: { tool: string; summary: string; outcome: 'executed' | 'canceled' | 'denied' | 'expired'; convId: string }) => void;
+  /** H4 usage metering: Anthropic input/output tokens per turn. */
+  onUsage?: (e: { inputTokens: number; outputTokens: number }) => void;
   buildContext?: () => Record<string, string | number>;
   now?: () => number;
   confirmTtlMs?: number;
@@ -66,6 +70,10 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     ttlMs: deps.confirmTtlMs ?? 120_000,
     now,
     onAutoResolve: (pending, reason) => {
+      deps.onAction?.({
+        tool: pending.action.toolName, summary: pending.action.summary,
+        outcome: reason === 'superseded' ? 'denied' : 'expired', convId: pending.snapshot.convId,
+      });
       void resumeWithResult(pending, reason === 'superseded' ? 'superseded' : 'user declined');
     },
   });
@@ -362,6 +370,7 @@ export function createOrchestrator(deps: OrchestratorDeps) {
       });
       cancelWindowAborts.delete(s.turnId);
       if (canceled) {
+        deps.onAction?.({ tool: pending.action.toolName, summary: pending.action.summary, outcome: 'canceled', convId: s.convId });
         state.messages.push({ role: 'user', content: [{ type: 'tool_result', tool_use_id: s.pendingToolUse.id, content: 'user canceled during grace period' }] });
         for (const r of s.batchResults) {
           state.messages.push({ role: 'user', content: [{ type: 'tool_result', tool_use_id: r.toolUseId, content: r.content, is_error: r.isError || undefined }] });
@@ -373,6 +382,7 @@ export function createOrchestrator(deps: OrchestratorDeps) {
 
     const r = await executeToolUse(s.pendingToolUse, state);
     state.toolsRan += 1;
+    deps.onAction?.({ tool: pending.action.toolName, summary: pending.action.summary, outcome: r.isError ? 'denied' : 'executed', convId: s.convId });
     for (const br of s.batchResults) {
       state.messages.push({ role: 'user', content: [{ type: 'tool_result', tool_use_id: br.toolUseId, content: br.content, is_error: br.isError || undefined }] });
     }
@@ -532,7 +542,10 @@ export function createOrchestrator(deps: OrchestratorDeps) {
       const pending = confirmations.take(confirmationId);
       if (!pending) return; // stale or unknown: silently ignored
       if (approved) await resumeApproved(pending);
-      else await resumeWithResult(pending, 'user declined');
+      else {
+        deps.onAction?.({ tool: pending.action.toolName, summary: pending.action.summary, outcome: 'denied', convId: pending.snapshot.convId });
+        await resumeWithResult(pending, 'user declined');
+      }
     },
 
     /** C4 agent.cancel: aborts the stream/grace window; CANCELED is silent. */

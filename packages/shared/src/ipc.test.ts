@@ -19,6 +19,7 @@ const invokeFixtures: Record<InvokeChannelName, { req: unknown; res: unknown }> 
   'keys.test': { req: { provider: 'deepgram' }, res: { ok: false, message: 'no key stored' } },
   'oauth.google.start': { req: {}, res: { ok: true, address: 'user@gmail.com' } },
   'oauth.google.revoke': { req: {}, res: { ok: true } },
+  'oauth.google.status': { req: {}, res: { connected: true, address: 'user@gmail.com', needsReauth: false } },
   'onboarding.finish': { req: {}, res: { ok: true } },
   'permissions.request': { req: { kind: 'mic' }, res: { granted: true } },
   'privacy.get': {
@@ -110,6 +111,9 @@ const invokeFixtures: Record<InvokeChannelName, { req: unknown; res: unknown }> 
   'backup.restore': { req: { filename: 'apollo-2026-manual.db' }, res: { ok: true } },
   'export.run': { req: { includeConversations: false }, res: { path: '/tmp/apollo-export.zip' } },
   'import.run': { req: {}, res: { counts: { notes: 2, events: 1, todos: 0, reminders: 0, facts: 3 } } },
+  'actionLog.list': { req: {}, res: [{ id: 'a1', ts: 1, tool: 'email.send', summary: 'Send email to jane@x.com', outcome: 'executed', convId: 'c1' }] },
+  'keys.info': { req: {}, res: [{ provider: 'anthropic', configured: true, last4: 'x123', setAt: 1 }] },
+  'keys.remove': { req: { provider: 'anthropic' }, res: { ok: true } },
   'settings.open': { req: {}, res: { ok: true } },
   'geocode.search': { req: { query: 'columbus' }, res: [{ label: 'Columbus, Ohio', lat: 39.96, lon: -83, tz: 'America/New_York' }] },
   'update.check': { req: {}, res: { status: 'none' } },

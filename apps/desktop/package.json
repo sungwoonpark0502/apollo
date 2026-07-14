@@ -20,6 +20,7 @@
     "fetch-models": "vite-node scripts/fetch-models.ts"
   },
   "devDependencies": {
+    "@electron/fuses": "^2.1.3",
     "@types/adm-zip": "^0.5.8",
     "@types/better-sqlite3": "^7.6.13",
     "@types/jsdom": "^28.0.3",

@@ -1,6 +1,8 @@
 appId: com.apollo.assistant
 productName: Apollo
 electronVersion: 43.1.0
+# H3: flip + verify Electron fuses after packaging (fails the build on any mismatch).
+afterPack: scripts/fuses.mjs
 directories:
   output: release
   buildResources: resources

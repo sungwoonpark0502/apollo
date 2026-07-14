@@ -56,6 +56,12 @@ export function createEmailService(deps: EmailServiceDeps) {
   });
 
   const fake = new FakeEmailProvider(undefined, { connected: false });
+  let reauthNeeded = false; // H3: set on invalid_grant/401 during refresh
+
+  /** True when a token refresh failed with an auth error (needs the PKCE flow again). */
+  function isReauthError(msg: string): boolean {
+    return /invalid_grant/i.test(msg) || /\b401\b/.test(msg) || /unauthorized/i.test(msg);
+  }
 
   return {
     provider(): EmailProvider {
@@ -64,6 +70,11 @@ export function createEmailService(deps: EmailServiceDeps) {
 
     isConnected(): boolean {
       return loadTokens() !== null;
+    },
+
+    /** H3: connected but the stored grant is dead — email tools must ERROR with REAUTH_NEEDED. */
+    needsReauth(): boolean {
+      return reauthNeeded && loadTokens() !== null;
     },
 
     address(): string | null {
@@ -81,6 +92,7 @@ export function createEmailService(deps: EmailServiceDeps) {
         // fetch the address via a fresh access token (userinfo not in scope; use gmail profile)
         const address = await fetchGmailAddress(tokens.accessToken, deps.fetchFn ?? fetch).catch(() => '');
         saveTokens(tokens, address);
+        reauthNeeded = false; // reconnected in place clears the flag
         return { ok: true, address };
       } catch (e) {
         deps.log?.(`oauth failed: ${e instanceof Error ? e.message : String(e)}`);
@@ -97,14 +109,18 @@ export function createEmailService(deps: EmailServiceDeps) {
       try {
         const fresh = await refreshAccessToken(deps.fetchFn ?? fetch, { clientId, clientSecret }, t.refreshToken);
         saveTokens({ ...t, accessToken: fresh.accessToken, expiresAt: fresh.expiresAt }, t.address);
+        reauthNeeded = false;
       } catch (e) {
-        deps.log?.(`token refresh failed: ${e instanceof Error ? e.message : String(e)}`);
+        const msg = e instanceof Error ? e.message : String(e);
+        deps.log?.(`token refresh failed: ${msg}`);
+        if (isReauthError(msg)) reauthNeeded = true;
       }
     },
 
     revoke(): void {
       deps.repos.settings.delete(TOKEN_KEY);
       deps.repos.oauth.remove('google');
+      reauthNeeded = false;
     },
   };
 }

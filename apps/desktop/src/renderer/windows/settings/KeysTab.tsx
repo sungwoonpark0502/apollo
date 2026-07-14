@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { STRINGS, type KeyProvider } from '@apollo/shared';
 
 const PROVIDERS: KeyProvider[] = ['anthropic', 'deepgram', 'brave', 'picovoice'];
@@ -8,11 +8,22 @@ interface RowState {
   status: { ok: boolean; message: string } | null;
   busy: boolean;
 }
+interface KeyInfo { provider: KeyProvider; configured: boolean; last4: string | null; setAt: number | null }
 
 export function KeysTab(): React.JSX.Element {
   const [rows, setRows] = useState<Record<KeyProvider, RowState>>(
     () => Object.fromEntries(PROVIDERS.map((p) => [p, { value: '', status: null, busy: false }])) as Record<KeyProvider, RowState>,
   );
+  const [info, setInfo] = useState<Record<KeyProvider, KeyInfo>>({} as Record<KeyProvider, KeyInfo>);
+
+  const refreshInfo = (): void => {
+    void window.apollo.call('keys.info', {}).then((list) => setInfo(Object.fromEntries(list.map((i) => [i.provider, i])) as Record<KeyProvider, KeyInfo>));
+  };
+  useEffect(refreshInfo, []);
+
+  const remove = (p: KeyProvider): void => {
+    void window.apollo.call('keys.remove', { provider: p }).then(refreshInfo);
+  };
 
   const update = (p: KeyProvider, patch: Partial<RowState>): void =>
     setRows((r) => ({ ...r, [p]: { ...r[p], ...patch } }));
@@ -30,6 +41,7 @@ export function KeysTab(): React.JSX.Element {
       }
       const res = await window.apollo.call('keys.test', { provider: p });
       update(p, { busy: false, status: res });
+      refreshInfo();
     } catch {
       update(p, { busy: false, status: { ok: false, message: 'Something went wrong.' } });
     }
@@ -78,6 +90,16 @@ export function KeysTab(): React.JSX.Element {
               {rows[p].busy ? '…' : STRINGS.settings.keys.test}
             </button>
           </div>
+          {info[p]?.configured ? (
+            <div style={{ marginTop: 'var(--sp-1)', fontSize: 'var(--fs-caption)', color: 'var(--text-2)', display: 'flex', gap: 'var(--sp-2)', alignItems: 'center' }}>
+              <span>
+                {STRINGS.settings.keys.configured(info[p]!.last4 ?? '····', info[p]!.setAt ? new Date(info[p]!.setAt!).toLocaleDateString() : '—')}
+              </span>
+              <button onClick={() => remove(p)} style={{ fontSize: 'var(--fs-caption)', color: 'var(--danger)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>
+                {STRINGS.settings.keys.remove}
+              </button>
+            </div>
+          ) : null}
           {rows[p].status ? (
             <div
               style={{

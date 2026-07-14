@@ -65,7 +65,7 @@ const INVERSES: Record<string, InverseFn> = {
   },
 };
 
-export function createUndoTool(repos: Repos): ToolDef {
+export function createUndoTool(repos: Repos, opts: { onUndone?: (what: string, convId: string) => void } = {}): ToolDef {
   const undoLast: ToolDef<z.ZodType<Record<string, never>>> = {
     name: 'undo.last',
     tier: 2,
@@ -77,6 +77,7 @@ export function createUndoTool(repos: Repos): ToolDef {
       const inverse = INVERSES[entry.tool];
       if (!inverse) return { llmText: `WARNING I don't know how to undo ${entry.tool}.` };
       const what = inverse(repos, entry.data);
+      opts.onUndone?.(what, ctx.convId); // H3 audit trail
       return { llmText: STRINGS.spoken.undone(what) };
     },
   };

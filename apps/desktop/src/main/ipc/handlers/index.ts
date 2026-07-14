@@ -25,6 +25,7 @@ export interface HandlerDeps {
   requestPermission?: (kind: 'mic' | 'accessibility') => Promise<boolean>;
   oauthConnect?: () => Promise<{ ok: boolean; address?: string }>;
   oauthRevoke?: () => void;
+  oauthStatus?: () => InvokeRes<'oauth.google.status'>;
   debugWake?: () => void;
   debugInjectAudio?: (wavPath: string) => Promise<void>;
   /** E1: opens/focuses the Workspace window at a target view (wired in 5.2). */
@@ -184,11 +185,21 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
       return { ok };
     },
     'keys.test': (req) => deps.testKey(req.provider),
+    'keys.info': () => deps.secrets.info(),
+    'keys.remove': (req) => {
+      if (req.provider === 'anthropic' || req.provider === 'deepgram' || req.provider === 'brave' || req.provider === 'picovoice') {
+        deps.secrets.delete(req.provider);
+      }
+      deps.log(`keys.remove provider=${req.provider}`);
+      return { ok: true as const };
+    },
+    'actionLog.list': () => deps.repos.actionLog.recent(100),
     'oauth.google.start': async () => (deps.oauthConnect ? await deps.oauthConnect() : { ok: false }),
     'oauth.google.revoke': () => {
       deps.oauthRevoke?.();
       return { ok: true };
     },
+    'oauth.google.status': () => deps.oauthStatus?.() ?? { connected: false, address: null, needsReauth: false },
     'debug.wake': () => {
       deps.debugWake?.();
       return { ok: true as const };

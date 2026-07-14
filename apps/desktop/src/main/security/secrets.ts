@@ -27,6 +27,7 @@ const ENV_NAMES: Record<KeyProvider, string> = {
 };
 
 const STORE_PREFIX = 'secret.';
+const META_PREFIX = 'keymeta.'; // non-secret {last4, setAt}, safe to read from renderer
 
 export function createSecrets(deps: SecretsDeps) {
   return {
@@ -49,16 +50,40 @@ export function createSecrets(deps: SecretsDeps) {
         return false;
       }
       deps.settings.set(STORE_PREFIX + provider, deps.codec.encrypt(value));
+      // H3 non-secret metadata for the Keys tab (last4 + setAt); never the key itself.
+      deps.settings.set(META_PREFIX + provider, JSON.stringify({ last4: value.slice(-4), setAt: Date.now() }));
       return true;
     },
     has(provider: KeyProvider): boolean {
       return this.get(provider) !== null;
     },
+    /** Non-secret metadata for every provider (configured?, last4, setAt). */
+    info(): Array<{ provider: KeyProvider; configured: boolean; last4: string | null; setAt: number | null }> {
+      return (Object.keys(ENV_NAMES) as KeyProvider[]).map((provider) => {
+        const raw = deps.settings.get(META_PREFIX + provider);
+        let last4: string | null = null;
+        let setAt: number | null = null;
+        if (raw) {
+          try {
+            const m = JSON.parse(raw) as { last4?: string; setAt?: number };
+            last4 = m.last4 ?? null;
+            setAt = m.setAt ?? null;
+          } catch {
+            /* ignore corrupt metadata */
+          }
+        }
+        return { provider, configured: this.get(provider) !== null, last4, setAt };
+      });
+    },
     delete(provider: KeyProvider): void {
       deps.settings.delete(STORE_PREFIX + provider);
+      deps.settings.delete(META_PREFIX + provider);
     },
     wipeAll(): void {
-      for (const p of Object.keys(ENV_NAMES) as KeyProvider[]) deps.settings.delete(STORE_PREFIX + p);
+      for (const p of Object.keys(ENV_NAMES) as KeyProvider[]) {
+        deps.settings.delete(STORE_PREFIX + p);
+        deps.settings.delete(META_PREFIX + p);
+      }
     },
   };
 }
