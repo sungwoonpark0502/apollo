@@ -168,6 +168,66 @@ export const STRINGS = {
     unsupportedAlternative: (nearest: string) => `I can't do that yet, but I can ${nearest}.`,
   },
 
+  nudges: {
+    dismiss: 'Dismiss',
+    snooze5: 'Snooze 5 min',
+    openCalendar: 'Open calendar',
+    openToday: 'Open today',
+    openInbox: 'Open inbox',
+    // rule copy (title/body builders)
+    meetingLeadTitle: (title: string, mins: number) => `${title} in ${mins} min`,
+    meetingLeadBody: (time: string, location: string | null) => (location ? `${time} · ${location}` : time),
+    tomorrowPreviewTitle: (n: number) => `${n} events tomorrow`,
+    tomorrowPreviewBody: 'Here is how tomorrow looks.',
+    overdueTodosTitle: (n: number) => `${n} overdue ${n === 1 ? 'to-do' : 'to-dos'}`,
+    overdueTodosBody: (items: string[]) => items.join('; '),
+    needsReplyTitle: (n: number) => `${n} ${n === 1 ? 'thread needs' : 'threads need'} a reply`,
+    needsReplyBody: (items: string[]) => items.join('; '),
+    weatherHeadsUpTitle: 'Rain likely',
+    weatherHeadsUpBody: (event: string) => `Rain likely before your ${event} — grab an umbrella?`,
+    // rule names/descriptions for Settings + auto-tune
+    ruleNames: {
+      meeting_lead: 'meeting reminders',
+      tomorrow_preview: "tomorrow's preview",
+      overdue_todos: 'overdue to-do nudges',
+      needs_reply: 'reply reminders',
+      weather_heads_up: 'weather heads-ups',
+    } as Record<string, string>,
+    ruleDescriptions: {
+      meeting_lead: 'A quiet heads-up a few minutes before a meeting starts.',
+      tomorrow_preview: "An evening summary when tomorrow is busy or starts early.",
+      overdue_todos: 'A once-a-day nudge when to-dos are more than a day overdue.',
+      needs_reply: 'A daily digest of inbound email threads waiting on your reply.',
+      weather_heads_up: 'A morning heads-up when rain is likely before an event with a location.',
+    } as Record<string, string>,
+    autoTuneQuestion: (ruleName: string) => `Want me to stop ${ruleName}?`,
+    autoTuneYes: 'Yes, stop',
+    autoTuneKeep: 'Keep',
+    stopped: (ruleName: string) => `Okay, I'll stop ${ruleName}.`,
+    // voice tool replies
+    ruleDisabled: (ruleName: string) => `I've turned off ${ruleName}.`,
+    ruleEnabled: (ruleName: string) => `I've turned on ${ruleName}.`,
+    allDisabled: "I've turned off all proactive nudges.",
+    allEnabled: "I've turned all proactive nudges back on.",
+    status: (rules: string[], remaining: number) =>
+      rules.length === 0
+        ? `Proactive nudges are off. Budget: ${remaining} left today.`
+        : `Active nudges: ${rules.join(', ')}. Budget: ${remaining} left today.`,
+    quietExplanation:
+      'Apollo stays quiet during your Do Not Disturb hours and fullscreen apps, caps nudges per day, and spaces them at least 20 minutes apart.',
+    recentNudges: 'Recent nudges',
+  },
+
+  quickCapture: {
+    placeholder: 'Capture a thought…',
+    chipNote: 'Note',
+    chipTodo: 'To-do',
+    chipReminder: (when: string) => `Reminder · ${when}`,
+    savedNote: 'note',
+    savedTodo: 'to-do',
+    savedReminder: 'reminder',
+  },
+
   permissions: {
     accessibilityHint:
       'I need Accessibility permission to see the active window. Grant it in System Settings > Privacy & Security > Accessibility, then enable Apollo.',
