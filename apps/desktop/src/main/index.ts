@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Notification, safeStorage, shell, systemPreferences } from 'electron';
+import { app, BrowserWindow, ipcMain, Notification, powerMonitor, safeStorage, shell, systemPreferences } from 'electron';
 import { join } from 'node:path';
 import { STRINGS, type AgentEvent } from '@apollo/shared';
 import { createTray, getTray } from './tray';
@@ -45,6 +45,7 @@ import { createEmailTools } from './tools/email';
 import { createBriefTool } from './tools/brief';
 import { createScreenTool, readScreenContext } from './tools/screen';
 import { createAppOpenTool } from './tools/appOpen';
+import { createProactiveController, isDNDNow, type ProactiveController } from './proactive/controller';
 import { initUpdater } from './updater';
 import { createEmailService } from './security/emailService';
 import { createDailyBrief } from './scheduler/dailyBrief';
@@ -88,6 +89,9 @@ function boot(): void {
   logger.info({ schemaVersion }, 'db ready');
 
   const repos = createRepos(db);
+  // Forward reference: the proactive controller is created later but settings.onChange
+  // (which can fire during boot) must not touch it before it exists.
+  let proactiveRef: ProactiveController | null = null;
   const onHotkeyPress = (): void => {
     togglePalette();
     if (settings.get().ptt.enabled && !voiceController.isVoiceDisabled()) voiceController.onHotkey();
@@ -96,6 +100,7 @@ function boot(): void {
     onChange: (next, prev) => {
       if (next.hotkey !== prev.hotkey) registerHotkey(next.hotkey, onHotkeyPress, log);
       if (next.wake.sensitivity !== prev.wake.sensitivity) workerHost.send({ t: 'setSensitivity', v: next.wake.sensitivity });
+      if (JSON.stringify(next.proactive) !== JSON.stringify(prev.proactive)) proactiveRef?.reconfigure();
       // E7: broadcast so open views re-render on units/timeFormat/weekStart/profile changes.
       // workspaceBounds churns on every drag; exclude it from the broadcast.
       if (JSON.stringify({ ...next, workspaceBounds: null }) !== JSON.stringify({ ...prev, workspaceBounds: null })) {
@@ -444,6 +449,7 @@ function boot(): void {
       }
     },
     checkForUpdates: async () => (app.isPackaged ? { status: 'checking' as const } : { status: 'disabled' as const }),
+    suggestionAction: (suggestionId, actionId) => proactiveRef?.handleAction(suggestionId, actionId),
     tz: () => Intl.DateTimeFormat().resolvedOptions().timeZone,
     debugWake: () => voiceController.onWake(),
     debugInjectAudio: async (wavPath) => {
@@ -500,6 +506,36 @@ function boot(): void {
     log,
   });
   dailyBrief.start();
+
+  // F3 proactive engine: deterministic, local-only nudges gated by the governor.
+  const proactive = createProactiveController({
+    repos,
+    settings: () => settings.get(),
+    saveSettings: (next) => settings.set(next),
+    tz: () => Intl.DateTimeFormat().resolvedOptions().timeZone,
+    gmailConnected: () => emailService.isConnected(),
+    voiceBusy: () => ['listening', 'thinking', 'speaking'].includes(voiceController.state()),
+    // Cross-app fullscreen detection isn't exposed by Electron; conservatively false
+    // (never suppress a nudge for a fullscreen we can't observe). See HUMAN_TODO.
+    isFullscreen: () => false,
+    push: (payload) => {
+      if (!orbWindow.isDestroyed()) pushTo(orbWindow.webContents, 'suggestion.show', { ...payload, silent: payload.silent ?? false });
+    },
+    notify: (title, body) => new Notification({ title, body }).show(),
+    speak: (line) => {
+      if (!voiceController.isVoiceDisabled() && voiceController.state() === 'idle') {
+        ttsPipeline.beginTurn();
+        ttsPipeline.feedToken(line);
+        ttsPipeline.endTurn();
+      }
+    },
+    navigate: (target) => openWorkspace(target),
+    isDND: () => isDNDNow(settings.get(), Intl.DateTimeFormat().resolvedOptions().timeZone, Date.now()),
+    log,
+  });
+  proactive.start();
+  proactiveRef = proactive;
+  powerMonitor.on('resume', () => proactive.onResume());
 
   if (process.env['APOLLO_SMOKE'] === '1') {
     palette.webContents.once('did-finish-load', () => {

@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { newId, STRINGS, type AgentEvent, type CardPayload, type VoiceState } from '@apollo/shared';
+import { newId, STRINGS, type AgentEvent, type CardPayload, type SuggestionDTO, type VoiceState } from '@apollo/shared';
 import { CardShell, CardView } from '../../components/cards/CardView';
 import { StageCard } from '../../components/StageCard';
+import { NudgeCard, NudgeGroupCard } from '../../components/NudgeCard';
 import { isStageCard } from '../../lib/stage';
 import { CancelWindowBar } from '../../components/ConfirmBar';
 import { enqueueTtsChunk, playEarcon, stopPlayback } from '../../lib/audioPlayer';
@@ -13,6 +14,11 @@ interface PanelCard {
   card: CardPayload;
   pinned: boolean;
   stage: boolean;
+}
+
+interface NudgePanel {
+  id: string;               // panel key
+  suggestions: SuggestionDTO[]; // 1 = single nudge; >1 = grouped digest
 }
 
 const AUTO_DISMISS_MS = 8_000;       // compact cards
@@ -42,6 +48,8 @@ export function OrbApp(): React.JSX.Element {
   const [turnId, setTurnId] = useState<string | null>(null);
   const [cancelWindow, setCancelWindow] = useState<{ endsAt: number } | null>(null);
   const [spokenIndex, setSpokenIndex] = useState(-1);
+  const [nudges, setNudges] = useState<NudgePanel[]>([]);
+  const [nudgeDot, setNudgeDot] = useState(false); // F3: small accent dot on the idle orb
   const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hoveringRef = useRef(false);
   const voiceTurnRef = useRef(false); // E4: is the current turn voice-sourced?
@@ -105,6 +113,17 @@ export function OrbApp(): React.JSX.Element {
     const offAudio = window.apollo.on('tts.audio', ({ data, last }) => enqueueTtsChunk(data, last));
     const offStop = window.apollo.on('tts.stop', () => stopPlayback());
     const offSpoken = window.apollo.on('tts.spoken', ({ index }) => setSpokenIndex(index));
+    const offNudge = window.apollo.on('suggestion.show', ({ suggestion, group, silent }) => {
+      const list = group ?? (suggestion ? [suggestion] : []);
+      if (list.length === 0) return;
+      if (!silent) void playEarcon('nudge'); // silent DND delivery skips the chime
+      setNudges((ns) => [...ns, { id: newId(), suggestions: list }].slice(-4));
+      setNudgeDot(true);
+      // auto-dismiss the nudge panel after 20s unless hovered (main records 'expired')
+      setTimeout(() => {
+        if (!hoveringRef.current) setNudges((ns) => ns.slice(1));
+      }, 20_000);
+    });
     return () => {
       offAgent();
       offVoice();
@@ -112,11 +131,24 @@ export function OrbApp(): React.JSX.Element {
       offAudio();
       offStop();
       offSpoken();
+      offNudge();
       if (dismissTimer.current) clearTimeout(dismissTimer.current);
     };
   }, []);
 
-  const active = state !== 'idle' || cards.length > 0;
+  const nudgeAction = (suggestionId: string, actionId: string): void => {
+    void window.apollo.call('suggestion.action', { suggestionId, actionId });
+    // drop any panel that only contained this suggestion; clear the dot when none remain
+    setNudges((ns) => {
+      const next = ns
+        .map((p) => ({ ...p, suggestions: p.suggestions.filter((s) => s.id !== suggestionId) }))
+        .filter((p) => p.suggestions.length > 0);
+      if (next.length === 0) setNudgeDot(false);
+      return next;
+    });
+  };
+
+  const active = state !== 'idle' || cards.length > 0 || nudges.length > 0;
   const orbSize = active ? 64 : 14;
 
   return (
@@ -130,21 +162,35 @@ export function OrbApp(): React.JSX.Element {
         {state === 'listening' ? (
           <Waveform rms={rms} />
         ) : (
-          <div
-            aria-label={`Apollo is ${state}`}
-            style={{
-              width: orbSize,
-              height: orbSize,
-              borderRadius: '50%',
-              background: state === 'error' ? 'var(--danger)' : 'var(--accent)',
-              opacity: active ? 1 : hovering ? 0.9 : 0.55,
-              transition: 'all var(--dur) var(--ease)',
-              marginTop: 4,
-              animation: state === 'thinking' ? 'apollo-pulse 1.2s ease-in-out infinite' : state === 'speaking' ? 'apollo-spin 2.4s linear infinite' : 'none',
-              border: state === 'speaking' ? '3px solid var(--accent-soft)' : 'none',
-              borderTopColor: state === 'speaking' ? 'var(--surface)' : undefined,
-            }}
-          />
+          <div style={{ position: 'relative', marginTop: 4 }}>
+            <div
+              aria-label={`Apollo is ${state}`}
+              style={{
+                width: orbSize,
+                height: orbSize,
+                borderRadius: '50%',
+                background: state === 'error' ? 'var(--danger)' : 'var(--accent)',
+                opacity: active ? 1 : hovering ? 0.9 : 0.55,
+                transition: 'all var(--dur) var(--ease)',
+                animation:
+                  state === 'thinking'
+                    ? 'apollo-pulse 1.2s ease-in-out infinite'
+                    : state === 'speaking'
+                      ? 'apollo-spin 2.4s linear infinite'
+                      : nudgeDot && state === 'idle' && nudges.length === 0
+                        ? 'apollo-pulse 1.6s ease-in-out infinite'
+                        : 'none',
+                border: state === 'speaking' ? '3px solid var(--accent-soft)' : 'none',
+                borderTopColor: state === 'speaking' ? 'var(--surface)' : undefined,
+              }}
+            />
+            {nudgeDot ? (
+              <span
+                aria-label="You have a nudge"
+                style={{ position: 'absolute', top: -1, right: -1, width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)', boxShadow: '0 0 0 2px var(--bg)' }}
+              />
+            ) : null}
+          </div>
         )}
         {state === 'listening' && caption ? (
           <div
@@ -178,6 +224,21 @@ export function OrbApp(): React.JSX.Element {
           * { animation: none !important; transition: none !important; }
         }
       `}</style>
+
+      {/* proactive nudge panels (F3): quiet, dismissible, above the reply cards */}
+      {nudges.length > 0 ? (
+        <div style={{ width: 380, display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)', marginRight: 'var(--sp-3)' }}>
+          {nudges.map((p) => (
+            <CardShell key={p.id}>
+              {p.suggestions.length === 1 ? (
+                <NudgeCard suggestion={p.suggestions[0]!} onAction={nudgeAction} />
+              ) : (
+                <NudgeGroupCard suggestions={p.suggestions} onAction={nudgeAction} />
+              )}
+            </CardShell>
+          ))}
+        </div>
+      ) : null}
 
       {/* card panel opens toward screen center (left of the orb); widens in Stage mode */}
       {cards.length > 0 || cancelWindow ? (

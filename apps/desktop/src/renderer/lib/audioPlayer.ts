@@ -77,7 +77,7 @@ export function stopPlayback(): void {
 
 const earconCache = new Map<string, AudioBuffer>();
 
-export async function playEarcon(name: 'wake' | 'done' | 'error'): Promise<void> {
+export async function playEarcon(name: 'wake' | 'done' | 'error' | 'nudge'): Promise<void> {
   const ac = audioCtx();
   let buf = earconCache.get(name);
   if (!buf) {

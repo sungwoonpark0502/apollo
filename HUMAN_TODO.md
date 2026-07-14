@@ -23,6 +23,14 @@ physically require a microphone in a room and human ears, so they remain human:
 - [ ] Mute verification: toggle mute (tray/orb); confirm capture fully stops (no partials appear) and unmute restores listening.
 - [ ] PTT: press the hotkey and confirm it enters listening without a wake word.
 
+## Proactive nudges — visual/behavioral QA (Phase 6 / Part F — logic is unit-tested)
+The governor's Quiet pipeline (budget, DND, dedupe, spacing, fullscreen deferral, batching, auto-tune)
+is fully covered by the fake-clock governor suite. What benefits from a human looking:
+- [ ] A meeting nudge appears ~10 min before an event with the nudge chime (quieter than wake), an accent dot on the idle orb, and an OS notification; Snooze/Dismiss work.
+- [ ] Grouped digest: several nudges arriving together render as one card with per-item actions.
+- [ ] Auto-tune: after dismissing a rule's nudges 5 times, the next one becomes "Want me to stop … ?" with Yes/Keep.
+- [ ] **Cross-app fullscreen detection is a stub** (`isFullscreen: () => false`): Electron exposes no reliable way to detect that *another* app is fullscreen, so non-time-sensitive nudges are NOT currently deferred during someone else's fullscreen presentation. To honor F3.2 step 6 fully, wire a native check (macOS: `CGDisplayIsActive`/private Spaces API or a helper; Windows: `SHQueryUserNotificationState`) into that callback. The governor already defers correctly once the callback returns true (proven by the governor suite).
+
 ## Workspace visual QA (Phase 5 / Part E — human eyes; logic is unit-tested)
 The Workspace data flow, calendar math, and one-brain live sync are all covered by
 automated tests + the boot smoke (wsRendered=true). What needs a human looking at pixels:
