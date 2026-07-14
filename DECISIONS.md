@@ -1,5 +1,14 @@
 # DECISIONS
 
+- 2026-07-13 (Phase 7): embedding model Xenova/all-MiniLM-L6-v2 (quantized, 384 dims) fetched at build time by scripts/fetch-models.ts into apps/desktop/resources/models/minilm/. SHA-256 (verify after fetch):
+  - config.json: 7135149f7cffa1a573466c6e4d8423ed73b62fd2332c575bf738a0d033f70df7
+  - tokenizer.json: da0e79933b9ed51798a3ae27893d3c5fa4a201126cef75586296df9b4d2c62a0
+  - tokenizer_config.json: 9261e7d79b44c8195c1cada2b453e55b00aeb81e907a6664974b4d7776172ab3
+  - onnx/model_quantized.onnx: afdb6f1a0e45b715d0bb9b11772f032c399babd23bfc31fed1c170afc848bdb1
+- 2026-07-13 (Phase 7): real embedder uses transformers.js `dtype: 'q8'` to select model_quantized.onnx; env.allowRemoteModels forced false so a missing model raises (never a runtime download, G1). Verified on-device: dim 384, cos("dentist appointment","dental visit")=0.74 vs 0.20 unrelated.
+- 2026-07-13 (Phase 7): model files are gitignored build artifacts (23MB); CI/tests never need them (FakeEmbedder). adapters.embedder 'auto' = real when resources/models/minilm exists, else fake.
+- 2026-07-13 (Phase 7): recall results are wrapped in <data source="recall"> AND set untrusted:true (G4) — notes may contain hostile pasted text; the only cost is extra Tier 3 confirmation friction in the same turn, which is acceptable.
+
 - 2026-07-13 (Phase 6): suggestionDTOSchema lives in cards.ts with its sub-schemas (urgency/action) inlined rather than imported from agent.ts — importing runtime schemas from agent.ts into cards.ts creates a module-init cycle that leaves cardPayloadSchema/agentEventSchema undefined. Types stay in agent.ts.
 - 2026-07-13 (Phase 6): the governor is a pure, clock-injectable pipeline that delivers survivors and returns deferrals; the engine owns timers/DataBus subscription and re-submits deferred candidates. This makes every Quiet-invariant rule (budget/DND/spacing/fullscreen/batching/auto-tune) unit-testable with a fake clock, no Electron.
 - 2026-07-13 (Phase 6): cross-app fullscreen detection is stubbed `false` (Electron exposes no reliable API for another app's fullscreen state). The governor's fullscreen branch is proven by the injected-flag test; real detection is a documented HUMAN_TODO needing a native helper.

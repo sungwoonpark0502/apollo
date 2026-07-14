@@ -47,6 +47,16 @@ The build itself is verified: `pnpm --filter @apollo/desktop package` produced `
 - [ ] Update feed: replace `publish.url` in electron-builder.yml with your real HTTPS bucket and publish `latest*.yml` + artifacts there so electron-updater can find them.
 - [ ] App icons: add `resources/icon.icns` (mac) and `resources/icon.ico` (win); currently the default Electron icon is used.
 
+## Semantic memory model (Phase 7 / Part G — on-device embeddings)
+Recall works on a Fake embedder out of the box; for real semantic search, fetch the
+model **once at build time** (it is never downloaded at runtime):
+- [ ] Run `pnpm --filter @apollo/desktop fetch-models` (needs network). It saves
+  `apps/desktop/resources/models/minilm/{config.json, tokenizer.json, tokenizer_config.json, onnx/model_quantized.onnx}`
+  from https://huggingface.co/Xenova/all-MiniLM-L6-v2 and prints SHA-256 hashes (recorded in DECISIONS.md).
+  If the machine is offline, download those four files manually from that repo into that exact folder.
+- [ ] Semantic-quality eyeball (real model): seed ~10 notes, run the 10 scripted recall queries in
+  eval/recall_queries.txt, and confirm the top-1 result is sensible. (Machine ranking tests already pass on FakeEmbedder.)
+
 ## API keys (app runs with Fake adapters until provided)
 - [ ] Anthropic API key: create at https://console.anthropic.com/settings/keys, then either set `ANTHROPIC_API_KEY` in `apollo/.env` or paste into Settings > Keys and press Test.
   - [ ] After adding the key, run `pnpm eval` from the repo root — the 0.7 gate requires >= 90% pass rate (50 rows). The harness machinery is already self-verified; only the real-model run needs the key.

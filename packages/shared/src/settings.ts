@@ -45,6 +45,7 @@ export const SettingsSchema = z.object({
       tts: adapterModeSchema.default('auto'),
       wake: adapterModeSchema.default('auto'),
       llm: adapterModeSchema.default('auto'),
+      embedder: adapterModeSchema.default('auto'), // G1: real when model files exist, else fake
     })
     .default({}),
   anthropic: z.object({ model: z.string().default('claude-sonnet-4-6') }).default({}),

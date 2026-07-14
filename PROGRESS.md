@@ -1,5 +1,9 @@
 # PROGRESS
 
+## Phase 7 (Part G — Semantic Memory + Recall)
+
+### [x] 7.1 Embedder adapter (real + Fake) + fetch-models.ts + config + Diagnostics state — verified: Embedder contract with FakeEmbedder (deterministic FNV-seeded 384-dim L2-normalized vectors, 5 tests incl. determinism/dim/norm/empty/cosine-bounds) and a real MiniLM adapter (transformers.js, dtype q8 → quantized ONNX, batch 8, mean-pool, L2-norm, env.allowRemoteModels forced false = never downloads); scripts/fetch-models.ts fetched the model at build time (23MB quantized ONNX + tokenizer, SHA-256 recorded in DECISIONS); real-model smoke confirmed on-device semantics (cos dentist↔dental 0.74 vs 0.20 unrelated), gated behind file presence so CI passes on Fake with zero model files; adapters.embedder setting ('auto'=real when files exist); embedderFactory selects real/fake; model files gitignored; A2 offline instructions in HUMAN_TODO. Full suite still green.
+
 ## Phase 6 (Part F — Proactive Engine + Quick Capture)
 
 ### [x] PHASE 6 GATE — Quiet invariant made testable; nothing from Phases 0–5 regressed.

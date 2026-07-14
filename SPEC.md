@@ -622,3 +622,76 @@ Milestones (Phase 6, strict order):
 6.6 Settings Proactive tab + proactive.configure/proactive.status tools + eval rows + README/docs update. Verify: settings broadcast test, eval >= 90%.
 
 Phase 6 gate: all suites green; full Phase 0 through 5 test, eval, and injection suites re-run clean (injection 100%); zero nudges delivered during a simulated DND window except silent time-sensitive; pnpm build still produces installable artifacts; Global DoD re-verified.
+
+PART G: Semantic Memory and Recall (v3.2 addendum, Phase 7)
+Status: normative extension. Prerequisite: Phase 6 gate passed. Where Part G conflicts with earlier parts, Part G wins.
+G0. Scope statement
+Apollo can currently search notes by keyword (FTS) and injects a small structured-facts digest each turn. Part G adds meaning-based memory: "what was that idea I noted about the startup last week", "did I ever mention when the dentist appointment was", answered by semantically searching the user's notes, past conversations, and memory facts, entirely on-device. Components: a local embedding adapter, a vector index inside the existing SQLite file (sqlite-vec), a background indexer, a recall.search tool with hybrid ranking, memory-fact dedupe, and a Workspace omnisearch. Hard constraints: zero runtime network egress for embedding or retrieval; the runtime egress allowlist (C14.9) does not change in this phase.
+G1. Dependencies and model
+PackagePurposesqlite-vecSQLite vector extension, loaded into the existing better-sqlite3 connection@huggingface/transformerson-device embedding inference (CPU/WASM), pinned exact version
+Embedding model: Xenova/all-MiniLM-L6-v2 (quantized, 384 dims, English). Model files are fetched at build/postinstall time by scripts/fetch-models.ts into apps/desktop/resources/models/minilm/ and their SHA-256 hashes are recorded in DECISIONS.md; the app loads models from disk only and never downloads at runtime. If the script cannot run (offline dev machine), follow A2: write the exact download instructions to HUMAN_TODO.md and continue on FakeEmbedder.
+Embedder adapter contract:
+tsexport interface Embedder { readonly dim: number; embed(texts: string[]): Promise<Float32Array[]>; }
+Real adapter: MiniLM via transformers.js, batch size 8, mean pooling, L2-normalized. FakeEmbedder (CI/dev): deterministic seeded-hash vectors, same dim, so all pipeline/ranking tests run with zero model files. Config adapters.embedder: 'real'|'fake', defaulting real when model files exist.
+G2. Data layer
+Migration 0004_memory.sql (exact virtual-table syntax may be adapted to the pinned sqlite-vec version; record the final form in DECISIONS.md):
+sqlCREATE TABLE chunks(
+  id TEXT PRIMARY KEY,
+  kind TEXT NOT NULL CHECK(kind IN ('note','message','fact')),
+  ref_id TEXT NOT NULL,               -- note id / message id / memory_fact id
+  conv_id TEXT,                       -- messages only
+  text TEXT NOT NULL, ts INTEGER NOT NULL,
+  embedded_at INTEGER);
+CREATE INDEX idx_chunks_ref ON chunks(kind, ref_id);
+-- vector side, rowid-aligned to a mapping column:
+CREATE VIRTUAL TABLE vec_chunks USING vec0(chunk_id TEXT PRIMARY KEY, embedding float[384]);
+Indexed kinds and only these: note (chunked), message (user and assistant turns, only while history is enabled), fact (memory_facts). Explicitly not indexed: emails, web/search results, news. Rationale: those are remote or untrusted-external content; recall is the user's own corpus.
+Chunking: notes split on blank lines, each chunk capped at 1000 chars with a 1-sentence overlap; title line prepended to every chunk of its note for context. Messages: one chunk per message, capped 1000 chars. Facts: one chunk each, prefixed with category.
+G3. Indexer pipeline
+src/main/memory/indexer.ts: a low-priority background queue driven by the DataBus.
+
+note create/update: debounce 5s after the last autosave, then re-chunk (delete that note's chunks, insert new) and enqueue embedding.
+note delete (incl. undo interplay): remove its chunks and vectors.
+message persisted (history on): enqueue. History toggled off: immediately purge all message chunks and vectors, and stop indexing messages.
+memory_fact saved/forgotten: upsert/remove its chunk.
+Queue drains only when no agent turn is active and voice state is idle; batch 8 per embed call; yields to the event loop between batches; survives restart by scanning for embedded_at IS NULL at boot.
+Growth cap: 50,000 chunks. When exceeded, prune oldest message chunks first; note and fact chunks are never pruned.
+
+G4. Retrieval: recall.search tool
+Tier 1, not networked. Params:
+tsz.object({
+  query: z.string().min(2),
+  kinds: z.array(z.enum(['note','message','fact'])).optional(),   // default all
+  sinceIso: z.string().optional(),
+  limit: z.number().int().min(1).max(10).default(6),
+})
+Algorithm: (1) embed the query; (2) vector KNN top 24 from vec_chunks (filtered by kinds/since via join); (3) FTS/LIKE keyword pass over the same corpus, top 24; (4) merge by chunk id, score = 0.75 * cosine + 0.25 * keywordScore, then multiply by recency factor 0.7 + 0.3 * exp(-ageDays/45); (5) collapse to best chunk per ref_id; (6) return top limit.
+llmText: numbered plain-text list: 1. [note, Jul 3] "…snippet…". Empty result: No matches found in notes, chats, or memory for "{query}". Result card: new kind
+ts| { kind: 'recallList'; items: { chunkId: string; kind: 'note'|'message'|'fact';
+    refId: string; title: string; snippet: string; ts: number }[] }
+Card rows: kind icon + title + snippet + date; clicking a note row deep-links workspace.open{view:'notes', noteId}; message and fact rows expand inline in the card. Trust: recall results are wrapped in <data source="recall"> AND set untrusted:true. Rationale: notes can contain text pasted from hostile web pages; the cost is only extra confirmation friction on Tier 3 in the same turn, which is acceptable (record in DECISIONS.md).
+System prompt addition (append to C10 Tools paragraph):
+Past references: when the user refers to something from before ("that idea I
+wrote down", "what did I say about X", "did I ever mention…", "last week we
+discussed"), call recall.search before answering. Never invent past statements
+or notes: if recall returns nothing, say you couldn't find it and offer to
+save it now.
+Retrieval perf budget: recall.search end-to-end p95 under 150ms at 10,000 chunks (benchmarked with FakeEmbedder + real sqlite-vec).
+G5. Memory-fact lifecycle upgrade
+memory.save: before insert, embed the fact and compare against existing non-deleted facts in the same category; cosine > 0.90 → update that fact's text and updated_at instead of inserting (llmText says "Updated what I knew"). Contradiction handling is the same path: newest wins, the old row gets deleted_at when text materially differs (cosine 0.75 to 0.90 and same category): insert new, soft-delete old, llmText notes the replacement. memory.forget: resolve the target by embedding similarity over facts (top 1, cosine > 0.6) instead of substring-only fuzzy match; below threshold, list the 3 nearest candidates in llmText and do nothing.
+G6. Workspace omnisearch
+Cmd/Ctrl+K inside the Workspace opens a centered overlay (560px): one input, results grouped as Notes (recall, kind note), Events (existing title search via calendar.search repo path), Facts (recall, kind fact). Debounce 150ms; arrow keys + Enter navigate (note → notes view, event → calendar at that date, fact → Privacy memory table with the row highlighted); Esc closes. Under 10 total results shown; no pagination. Uses the same recall machinery through a new IPC channel recall.query (R→M, mirrors the tool params, response is the recallList items array).
+G7. Settings and privacy
+Privacy tab, new "Memory index" section: what is indexed (plain sentence per kind, and the sentence "Indexing happens entirely on this device; nothing is uploaded"); live counts per kind and index size on disk; Rebuild index (drops chunks+vectors, re-scans corpus in the background); Clear index (drops and disables until re-enabled); the existing history toggle description gains "turning this off also deletes indexed chats" and the purge is immediate and tested. Wipe-all-data clears chunks and vec tables. Diagnostics gains embedder adapter state and queue depth.
+G8. Testing and gates
+Unit: chunker (blank-line split, 1000 cap, overlap, title prepend); indexer debounce and re-chunk-on-edit; purge on note delete, on history-off, on wipe-all; boot rescan of unembedded chunks; growth-cap pruning order (messages first, notes/facts never); ranking math with contrived FakeEmbedder vectors (cosine ordering, keyword blend, recency decay, per-ref collapse); fact dedupe thresholds (0.91 updates, 0.85 replaces, 0.5 inserts); forget threshold and candidate listing; sqlite-vec load + KNN smoke on the real extension. IPC: recall.query round-trip + malformed rejection. Eval additions (minimum 10 rows): 5 recall triggers ("what was that idea about the drone project", "did I ever mention my dentist appointment") asserting recall.search; 1 fabrication guard (mocked empty recall → reply must contain "couldn't find" and offer to save); 4 forbid_tools rows (general-knowledge questions and "what's on my calendar" must not call recall). Perf: the G4 budget benchmark in CI with FakeEmbedder. Egress: a test asserts no network attempts occur during embed/recall (egress wrapper spy). Semantic quality (real model) is a HUMAN_TODO checklist item: 10 scripted queries against seeded notes, human eyeballs top-1.
+Milestones (Phase 7, strict order):
+
+7.1 Embedder adapter (real + Fake) + scripts/fetch-models.ts + config + Diagnostics state. Verify: adapter tests on Fake; hash recording; A2 fallback path exercised.
+7.2 Migration 0004 + sqlite-vec load + chunksRepo + chunker + indexer (DataBus-driven, debounced, purge rules, boot rescan, cap). Verify: indexer suite green.
+7.3 recall.search tool + hybrid ranking + recallList card + system prompt addition + eval rows. Verify: ranking tests + eval >= 90% incl. new rows.
+7.4 Memory-fact dedupe/replace/forget-by-similarity. Verify: threshold suite.
+7.5 Workspace omnisearch (Cmd/Ctrl+K) + recall.query IPC. Verify: IPC tests + keyboard-nav manual entry to HUMAN_TODO.
+7.6 Privacy "Memory index" section + rebuild/clear + history-off purge wiring + docs/README. Verify: purge and wipe tests; settings broadcast.
+
+Phase 7 gate: all suites green; full Phase 0 through 6 test, eval (now 115+ rows), and injection suites re-run clean (injection 100%); recall perf budget met; runtime egress list unchanged (test-proven); pnpm build still produces installable artifacts; Global DoD re-verified.
