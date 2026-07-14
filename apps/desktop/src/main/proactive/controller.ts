@@ -20,6 +20,8 @@ export interface ProactiveControllerDeps {
   speak?: (line: string) => void;         // TTS one-liner (voiceOnNudges)
   navigate: (target: WorkspaceNavigate) => void;
   isDND: () => boolean;
+  emailNeedingReply?: (staleHours: number) => Promise<Array<{ from: string; subject: string }>>;
+  weatherPrecipNext12h?: () => Promise<number | null>;
   rules?: ProactiveRule[];
   now?: () => number;
   setTimer?: (fn: () => void, ms: number) => { cancel: () => void };
@@ -44,6 +46,8 @@ export function createProactiveController(deps: ProactiveControllerDeps) {
     voiceBusy: deps.voiceBusy,
     isFullscreen: deps.isFullscreen,
     deliver: (group, opts) => onDeliver(group, opts.silent),
+    ...(deps.emailNeedingReply ? { emailNeedingReply: deps.emailNeedingReply } : {}),
+    ...(deps.weatherPrecipNext12h ? { weatherPrecipNext12h: deps.weatherPrecipNext12h } : {}),
     now,
     setTimer,
     rules,

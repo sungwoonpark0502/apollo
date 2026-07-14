@@ -21,6 +21,10 @@ export interface RuleCtx {
   repos: Repos; // read-only usage by rules (evaluate must have no side effects)
   settings: Settings;
   gmailConnected: boolean;
+  /** F3.3 needs_reply: inbound threads addressed to the user, unreplied, older than staleHours. */
+  emailNeedingReply?: (staleHours: number) => Promise<Array<{ from: string; subject: string }>>;
+  /** F3.3 weather_heads_up: max precipitation probability (%) over the next 12h at home, or null. */
+  weatherPrecipNext12h?: () => Promise<number | null>;
 }
 
 export interface ProactiveRule {

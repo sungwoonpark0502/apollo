@@ -531,6 +531,28 @@ function boot(): void {
     },
     navigate: (target) => openWorkspace(target),
     isDND: () => isDNDNow(settings.get(), Intl.DateTimeFormat().resolvedOptions().timeZone, Date.now()),
+    // needs_reply (F3.3): read-only Gmail search for unreplied inbound threads.
+    emailNeedingReply: async (staleHours) => {
+      const p = emailService.provider();
+      if (!p.isConnected()) return [];
+      const days = Math.max(1, Math.ceil(staleHours / 24));
+      const items = await p.list(`is:unread to:me -in:sent older_than:${days}d`, 3);
+      return items.map((m) => ({ from: m.from, subject: m.subject })); // inert text only
+    },
+    // weather_heads_up (F3.3): max precip probability over the next 12h at home.
+    weatherPrecipNext12h: async () => {
+      const home = settings.get().profile.homePlace;
+      if (!home) return null;
+      try {
+        const data = (await http.getJson(
+          `https://api.open-meteo.com/v1/forecast?latitude=${home.lat}&longitude=${home.lon}&hourly=precipitation_probability&forecast_days=1`,
+        )) as { hourly?: { precipitation_probability?: number[] } };
+        const probs = (data.hourly?.precipitation_probability ?? []).slice(0, 12);
+        return probs.length ? Math.max(...probs) : null;
+      } catch {
+        return null;
+      }
+    },
     log,
   });
   proactive.start();
