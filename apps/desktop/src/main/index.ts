@@ -50,6 +50,8 @@ import { createProactiveController, isDNDNow, type ProactiveController } from '.
 import { createQuickCaptureService } from './quickCapture/service';
 import { createEmbedder } from './memory/embedderFactory';
 import { createIndexer } from './memory/indexer';
+import { createRecall } from './memory/recall';
+import { createRecallTool } from './tools/recall';
 import { initUpdater } from './updater';
 import { createEmailService } from './security/emailService';
 import { createDailyBrief } from './scheduler/dailyBrief';
@@ -183,6 +185,7 @@ function boot(): void {
     canDrain: () => activeTurns === 0 && voiceController.state() === 'idle',
     log,
   });
+  const recall = createRecall({ chunks: repos.chunks, repos, embedder });
 
   const registry = createRegistry(
     [
@@ -206,6 +209,7 @@ function boot(): void {
         getUnits: () => settings.get().profile.units,
       }),
       createSearchWebTool({ http, getBraveKey: () => secrets.get('brave') }),
+      createRecallTool({ recall, tz: () => Intl.DateTimeFormat().resolvedOptions().timeZone }),
       createNewsTool({ http, feeds: repos.feeds, summarize: createLlmSummarizer(llm) }),
       createFilesTool({ getApprovedDirs: () => settings.get().approvedDirs }),
       ...createEmailTools({ provider: () => emailService.provider(), contacts: repos.contacts }),
@@ -449,6 +453,13 @@ function boot(): void {
       embedder: embedderState,
     }),
     indexQueueDepth: () => repos.chunks.pendingEmbedding(1000).length,
+    recallQuery: (req) =>
+      recall.search({
+        query: req.query,
+        ...(req.kinds ? { kinds: req.kinds } : {}),
+        ...(req.sinceIso ? { sinceIso: req.sinceIso } : {}),
+        limit: req.limit,
+      }),
     logTail: (lines) => readLogTail(join(userData, 'logs', 'apollo.log'), lines),
     egressHosts: () => egress.allowedHosts(),
     wipeAllData: () => wipeAllData(),

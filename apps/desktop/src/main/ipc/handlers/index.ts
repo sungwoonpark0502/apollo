@@ -37,6 +37,7 @@ export interface HandlerDeps {
   suggestionAction?: (suggestionId: string, actionId: string) => void;
   openCapture?: () => void;
   captureSubmit?: (req: InvokeReq<'capture.submit'>) => InvokeRes<'capture.submit'>;
+  recallQuery?: (req: InvokeReq<'recall.query'>) => Promise<InvokeRes<'recall.query'>>;
   captureClassify?: (req: InvokeReq<'capture.classify'>) => InvokeRes<'capture.classify'>;
   tz?: () => string;
   log: (msg: string) => void;
@@ -71,6 +72,7 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
       if (!deps.captureSubmit) throw new Error('capture not available');
       return deps.captureSubmit(req);
     },
+    'recall.query': async (req) => (deps.recallQuery ? deps.recallQuery(req) : []),
     'capture.classify': (req) => {
       if (!deps.captureClassify) throw new Error('capture not available');
       return deps.captureClassify(req);

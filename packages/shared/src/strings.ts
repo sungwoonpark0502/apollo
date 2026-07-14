@@ -240,6 +240,11 @@ export const STRINGS = {
     savedReminder: 'reminder',
   },
 
+  recall: {
+    title: 'From your notes & memory',
+    empty: 'No matches in your notes, chats, or memory.',
+  },
+
   permissions: {
     accessibilityHint:
       'I need Accessibility permission to see the active window. Grant it in System Settings > Privacy & Security > Accessibility, then enable Apollo.',

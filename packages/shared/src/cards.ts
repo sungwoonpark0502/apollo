@@ -60,7 +60,17 @@ export type CardPayload =
   | { kind: 'confirm'; confirmationId: string; action: ConfirmAction; expiresAt: number }
   | { kind: 'brief'; sections: CardPayload[] }
   | { kind: 'nudge'; suggestion: SuggestionDTO }
-  | { kind: 'nudgeGroup'; suggestions: SuggestionDTO[] };
+  | { kind: 'nudgeGroup'; suggestions: SuggestionDTO[] }
+  | { kind: 'recallList'; items: RecallItem[] };
+
+export interface RecallItem {
+  chunkId: string;
+  kind: 'note' | 'message' | 'fact';
+  refId: string;
+  title: string;
+  snippet: string;
+  ts: number;
+}
 
 // ---- zod schemas (each DTO JSON-safe with a schema, C3) ----
 
@@ -98,6 +108,15 @@ const newsItemSchema = z.object({
   title: z.string(), source: z.string(), url: z.string(), summary: z.string(),
 });
 
+export const recallItemSchema: z.ZodType<RecallItem> = z.object({
+  chunkId: z.string(),
+  kind: z.enum(['note', 'message', 'fact']),
+  refId: z.string(),
+  title: z.string(),
+  snippet: z.string(),
+  ts: z.number(),
+});
+
 /** F1: schema for SuggestionDTO (type defined in agent.ts); the optional `card`
  *  references cardPayloadSchema via z.lazy to break the mutual recursion. */
 export const suggestionDTOSchema: z.ZodType<SuggestionDTO> = z.lazy(() =>
@@ -128,5 +147,6 @@ export const cardPayloadSchema: z.ZodType<CardPayload> = z.lazy(() =>
     z.object({ kind: z.literal('brief'), sections: z.array(cardPayloadSchema) }),
     z.object({ kind: z.literal('nudge'), suggestion: suggestionDTOSchema }),
     z.object({ kind: z.literal('nudgeGroup'), suggestions: z.array(suggestionDTOSchema) }),
+    z.object({ kind: z.literal('recallList'), items: z.array(recallItemSchema) }),
   ]) as unknown as z.ZodType<CardPayload>,
 );

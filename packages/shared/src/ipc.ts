@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { agentEventSchema, messageSourceSchema } from './agent';
 import { voiceStateSchema } from './voice';
 import { SettingsSchema } from './settings';
-import { cardPayloadSchema, eventDTOSchema, noteListItemSchema, occurrenceDTOSchema, suggestionDTOSchema, weatherNowSchema } from './cards';
+import { cardPayloadSchema, eventDTOSchema, noteListItemSchema, occurrenceDTOSchema, recallItemSchema, suggestionDTOSchema, weatherNowSchema } from './cards';
 
 /**
  * Single source of truth for everything crossing the IPC bridge (C4).
@@ -178,6 +178,15 @@ export const invokeChannels = {
       reminderIso: z.string().optional(),
     }),
     res: z.object({ ok: z.boolean(), savedAs: z.enum(['note', 'todo', 'reminder']), id: z.string() }),
+  },
+  'recall.query': {
+    req: z.object({
+      query: z.string().min(2),
+      kinds: z.array(z.enum(['note', 'message', 'fact'])).optional(),
+      sinceIso: z.string().optional(),
+      limit: z.number().int().min(1).max(10).default(6),
+    }),
+    res: z.array(recallItemSchema),
   },
   'settings.open': { req: z.object({}), res: ackSchema }, // rail gear → settings window
   'geocode.search': {

@@ -94,6 +94,10 @@ const invokeFixtures: Record<InvokeChannelName, { req: unknown; res: unknown }> 
     res: { suggestedType: 'reminder', reminderAvailable: true, reminderIso: '2026-07-14T18:00:00-07:00', timePhrase: 'tomorrow at 6', texts: { note: 'call mom tomorrow at 6', todo: 'call mom tomorrow at 6', reminder: 'call mom' } },
   },
   'capture.submit': { req: { text: 'buy milk', type: 'todo' }, res: { ok: true, savedAs: 'todo', id: 't1' } },
+  'recall.query': {
+    req: { query: 'drone startup', limit: 6 },
+    res: [{ chunkId: 'ch1', kind: 'note', refId: 'n1', title: 'Ideas', snippet: 'drone delivery…', ts: 5 }],
+  },
   'settings.open': { req: {}, res: { ok: true } },
   'geocode.search': { req: { query: 'columbus' }, res: [{ label: 'Columbus, Ohio', lat: 39.96, lon: -83, tz: 'America/New_York' }] },
   'update.check': { req: {}, res: { status: 'none' } },
@@ -192,6 +196,9 @@ describe('malformed payload rejection', () => {
     expect(invokeChannels['capture.submit'].req.safeParse({ text: '', type: 'note' }).success).toBe(false);
     expect(invokeChannels['capture.submit'].req.safeParse({ text: 'x', type: 'calendar' }).success).toBe(false);
     expect(invokeChannels['suggestion.action'].req.safeParse({ suggestionId: 's1' }).success).toBe(false);
+    expect(invokeChannels['recall.query'].req.safeParse({ query: 'x' }).success).toBe(false); // min length 2
+    expect(invokeChannels['recall.query'].req.safeParse({ query: 'hello', limit: 99 }).success).toBe(false);
+    expect(invokeChannels['recall.query'].req.safeParse({ query: 'hi', kinds: ['email'] }).success).toBe(false);
     expect(pushChannels['suggestion.show'].safeParse({ suggestion: { id: 's1', ruleId: 'r', urgency: 'urgent', title: 't', body: 'b', actions: [], createdAt: 1 } }).success).toBe(false);
   });
 });

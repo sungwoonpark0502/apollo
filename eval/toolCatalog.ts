@@ -53,6 +53,18 @@ function futureToolDefs(): ToolDef[] {
       description: 'Report which proactive nudges are on and how much of today\'s nudge budget remains. Use for "what nudges are on" or "why did you ping me".',
       params: z.object({}),
     },
+    {
+      name: 'recall.search',
+      tier: 1,
+      description:
+        'Search the user\'s own notes, past conversations, and saved memory facts by meaning. Use when the user refers to something from before ("that idea I wrote down", "did I ever mention…", "what did I say about X", "last week we discussed"). Not for general knowledge or current events.',
+      params: z.object({
+        query: z.string().min(2),
+        kinds: z.array(z.enum(['note', 'message', 'fact'])).optional(),
+        sinceIso: z.string().optional(),
+        limit: z.number().int().min(1).max(10).optional(),
+      }),
+    },
   ];
   return defs.map((d) => ({
     ...d,
@@ -118,6 +130,15 @@ function cannedResult(name: string, args: Record<string, unknown>): ToolResult {
         llmText: `1. Result about "${String(args['query'] ?? '')}" — helpful summary (https://example.com/a)\n2. Second result — more detail (https://example.com/b)`,
         untrusted: true,
       };
+    case 'recall.search': {
+      const q = String(args['query'] ?? '').toLowerCase();
+      // 'submarine' is the fabrication-guard sentinel: recall finds nothing.
+      if (q.includes('submarine')) return { llmText: `No matches found in notes, chats, or memory for "${String(args['query'] ?? '')}".`, untrusted: true };
+      return {
+        llmText: '1. [note, Jul 3] "the drone delivery startup idea for rural clinics"\n2. [fact, Jul 1] "person: dentist appointment is July 14 at 3 PM"',
+        untrusted: true,
+      };
+    }
     case 'email.list':
       return { llmText: '2 emails: 1. From jane@example.com "Lunch?" (id em_1, unread); 2. From newsletter@shop.com "Sale" (id em_2).', untrusted: true };
     case 'email.read':

@@ -104,3 +104,13 @@
 {"id":"f-forbid-02","utterance":"what's on my calendar tomorrow","expect_tools":[{"name":"calendar.list"}],"forbid_tools":["proactive.configure","proactive.status","app.open"]}
 {"id":"f-forbid-03","utterance":"do I have any overdue todos","expect_tools":[{"name":"todo.list"}],"forbid_tools":["proactive.configure","proactive.status"]}
 {"id":"f-forbid-04","utterance":"any meetings coming up this afternoon","expect_tools":[{"name":"calendar.list"}],"forbid_tools":["proactive.configure","proactive.status"]}
+{"id":"g-recall-01","utterance":"what was that idea about the drone project I wrote down","expect_tools":[{"name":"recall.search"}],"forbid_tools":["search.web"]}
+{"id":"g-recall-02","utterance":"did I ever mention when my dentist appointment was","expect_tools":[{"name":"recall.search"}]}
+{"id":"g-recall-03","utterance":"what did I say about the startup last week","expect_tools":[{"name":"recall.search"}]}
+{"id":"g-recall-04","utterance":"pull up that note I made about rural clinics","expect_tools":[{"name":"recall.search"}]}
+{"id":"g-recall-05","utterance":"remind me what we discussed about the budget earlier","expect_tools":[{"name":"recall.search"}]}
+{"id":"g-recall-fab","utterance":"what did I write down about the submarine patent idea","expect_tools":[{"name":"recall.search"}],"reply_must_include":"couldn't find"}
+{"id":"g-recall-forbid-01","utterance":"what's the capital of France","forbid_tools":["recall.search"]}
+{"id":"g-recall-forbid-02","utterance":"what's on my calendar tomorrow","expect_tools":[{"name":"calendar.list"}],"forbid_tools":["recall.search"]}
+{"id":"g-recall-forbid-03","utterance":"how many ounces in a pound","forbid_tools":["recall.search"]}
+{"id":"g-recall-forbid-04","utterance":"who painted the Mona Lisa","forbid_tools":["recall.search"]}

@@ -41,6 +41,10 @@ const samples: CardPayload[] = [
     },
   },
   {
+    kind: 'recallList',
+    items: [{ chunkId: 'ch1', kind: 'note', refId: 'n1', title: 'Startup ideas', snippet: 'a drone delivery…', ts: 5 }],
+  },
+  {
     kind: 'nudgeGroup',
     suggestions: [
       {
@@ -62,7 +66,7 @@ describe('card payload round-trips (every kind)', () => {
   it('covers every kind in the union', () => {
     const kinds = new Set(samples.map((s) => s.kind));
     expect([...kinds].sort()).toEqual(
-      ['brief', 'confirm', 'draft', 'emailDetail', 'emailList', 'event', 'eventList', 'newsList', 'nudge', 'nudgeGroup', 'text', 'timer', 'weather'].sort(),
+      ['brief', 'confirm', 'draft', 'emailDetail', 'emailList', 'event', 'eventList', 'newsList', 'nudge', 'nudgeGroup', 'recallList', 'text', 'timer', 'weather'].sort(),
     );
   });
   it('rejects unknown kind', () => {
