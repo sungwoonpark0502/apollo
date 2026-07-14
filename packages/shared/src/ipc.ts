@@ -155,6 +155,10 @@ export const invokeChannels = {
   'undo.apply': { req: z.object({ undoToken: z.string() }), res: ackSchema }, // UI undo toasts
   // ---- F1 Proactive + Quick Capture channels ----
   'suggestion.action': { req: z.object({ suggestionId: z.string(), actionId: z.string() }), res: ackSchema },
+  'proactive.recent': {
+    req: z.object({ limit: z.number().int().positive().max(50).default(10) }),
+    res: z.array(z.object({ id: z.string(), ruleId: z.string(), title: z.string(), createdAt: z.number(), outcome: z.string().nullable() })),
+  },
   'capture.open': { req: z.object({}), res: ackSchema },
   'capture.classify': {
     req: z.object({ text: z.string() }),

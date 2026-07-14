@@ -86,6 +86,29 @@ within one event-loop tick (a `DataBus` broadcasts `data.changed` to every
 window). Settings edits broadcast the same way — no restart to change units,
 time format, week start, or profile.
 
+## Proactive nudges (quiet by design)
+
+Apollo also notices things in your **own local data** and offers a small, polite
+nudge — a meeting starting soon, overdue to-dos, a busy tomorrow, stale email
+threads, rain before an event. Every rule is deterministic and local: **no LLM
+calls and no new network egress**. A **governor** enforces the Quiet invariant in
+code before anything reaches you: a per-day budget, Do-Not-Disturb hours,
+de-duplication, 20-minute spacing, deferral while you're talking or in
+fullscreen, batching into one card, and **auto-tune** (if you dismiss a rule's
+nudges five times, it offers to turn that rule off). Time-sensitive nudges are
+exempt from the budget but still respect DND (delivered silently). Turn any rule
+on/off by voice ("stop reminding me about meetings") or in **Settings →
+Proactive**.
+
+## Quick Capture
+
+A global-hotkey micro-window (**Ctrl/Cmd+Shift+N**) saves a thought as a note,
+to-do, or reminder in under two seconds, **with zero LLM involvement**. It
+classifies as you type — a future time turns it into a reminder (with the time
+phrase stripped), a leading `todo` or trailing `!` forces a to-do — and Tab
+cycles the type. It saves through the same repos, so a captured note is live in
+the Workspace and available to voice instantly, and it works fully offline.
+
 ## Scripts
 
 | Command | What it does |
@@ -121,6 +144,8 @@ apollo/
       net/                 httpClient + egress allowlist + circuit breaker + offline probe
       security/            secrets (safeStorage), email sanitizer, Gmail OAuth + provider
       scheduler/           timer/reminder/alarm scheduler + daily brief
+      proactive/           deterministic rules + governor (Quiet pipeline) + engine + controller
+      quickCapture/        classifier + save-path service (note/todo/reminder, zero LLM)
       workspace/           Today-view data provider (weather strip + latest brief)
     src/preload/           the single typed window.apollo bridge
     src/renderer/          orb, palette, workspace, settings, onboarding, audio windows

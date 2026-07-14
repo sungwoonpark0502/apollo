@@ -94,3 +94,13 @@
 {"id":"e-note-01","utterance":"make a note that the wifi password is hunter2","expect_tools":[{"name":"note.save","args_like":{"content":"wifi password"}}]}
 {"id":"e-note-02","utterance":"note to self pick up dry cleaning friday","expect_tools":[{"name":"note.save","args_like":{"content":"dry cleaning"}}]}
 {"id":"e-note-03","utterance":"jot down that the garage code is 4417","expect_tools":[{"name":"note.save","args_like":{"content":"garage code"}}]}
+{"id":"f-config-01","utterance":"stop reminding me about meetings","expect_tools":[{"name":"proactive.configure","args_like":{"ruleId":"meeting_lead","enabled":false}}]}
+{"id":"f-config-02","utterance":"turn off the overdue todo nudges","expect_tools":[{"name":"proactive.configure","args_like":{"ruleId":"overdue_todos","enabled":false}}]}
+{"id":"f-config-03","utterance":"stop all nudges","expect_tools":[{"name":"proactive.configure","args_like":{"ruleId":"all","enabled":false}}]}
+{"id":"f-config-04","utterance":"turn meeting reminders back on","expect_tools":[{"name":"proactive.configure","args_like":{"ruleId":"meeting_lead","enabled":true}}]}
+{"id":"f-status-01","utterance":"what nudges are turned on","expect_tools":[{"name":"proactive.status"}]}
+{"id":"f-status-02","utterance":"why did you just ping me","expect_tools":[{"name":"proactive.status"}]}
+{"id":"f-forbid-01","utterance":"what meetings do I have today","expect_tools":[{"name":"calendar.list"}],"forbid_tools":["proactive.status","proactive.configure"]}
+{"id":"f-forbid-02","utterance":"what's on my calendar tomorrow","expect_tools":[{"name":"calendar.list"}],"forbid_tools":["proactive.configure","proactive.status","app.open"]}
+{"id":"f-forbid-03","utterance":"do I have any overdue todos","expect_tools":[{"name":"todo.list"}],"forbid_tools":["proactive.configure","proactive.status"]}
+{"id":"f-forbid-04","utterance":"any meetings coming up this afternoon","expect_tools":[{"name":"calendar.list"}],"forbid_tools":["proactive.configure","proactive.status"]}

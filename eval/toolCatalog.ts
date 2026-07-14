@@ -40,6 +40,19 @@ function futureToolDefs(): ToolDef[] {
         'Open or focus the Apollo Workspace window at a view. Use ONLY for explicit open/show/pull-up requests ("open my calendar", "show my notes", "pull up today"). Do NOT use for informational questions like "what\'s on my calendar" — those use calendar.list and never open a window. view is today, calendar, or notes.',
       params: z.object({ view: z.enum(['today', 'calendar', 'notes']), dateIso: z.string().optional(), noteId: z.string().optional() }),
     },
+    {
+      name: 'proactive.configure',
+      tier: 2,
+      description:
+        'Turn a proactive nudge rule on or off, or "all" for every nudge. Use for "stop reminding me about meetings" (meeting_lead, false) or "stop all nudges" (all, false). Rule ids: meeting_lead, tomorrow_preview, overdue_todos, needs_reply, weather_heads_up.',
+      params: z.object({ ruleId: z.enum(['meeting_lead', 'tomorrow_preview', 'overdue_todos', 'needs_reply', 'weather_heads_up', 'all']), enabled: z.boolean() }),
+    },
+    {
+      name: 'proactive.status',
+      tier: 1,
+      description: 'Report which proactive nudges are on and how much of today\'s nudge budget remains. Use for "what nudges are on" or "why did you ping me".',
+      params: z.object({}),
+    },
   ];
   return defs.map((d) => ({
     ...d,

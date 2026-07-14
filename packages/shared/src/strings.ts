@@ -108,8 +108,20 @@ export const STRINGS = {
   },
 
   settings: {
-    tabs: { profile: 'Profile', general: 'General', voice: 'Voice', accounts: 'Accounts', keys: 'Keys', privacy: 'Privacy', diagnostics: 'Diagnostics', about: 'About' },
-    general: { launchAtLogin: 'Launch at login', hotkey: 'Global hotkey', orbEdge: 'Orb edge', homeLocation: 'Home location', openWorkspaceOnLaunch: 'Open Workspace on launch', resetOrbPosition: 'Reset orb position' },
+    tabs: { profile: 'Profile', general: 'General', voice: 'Voice', proactive: 'Proactive', accounts: 'Accounts', keys: 'Keys', privacy: 'Privacy', diagnostics: 'Diagnostics', about: 'About' },
+    proactive: {
+      title: 'Proactive nudges',
+      master: 'Let Apollo nudge me',
+      maxPerDay: 'Maximum nudges per day',
+      voiceOnNudges: 'Speak time-sensitive nudges',
+      leadMinutes: 'Lead time (minutes)',
+      digestTime: 'Time',
+      staleHours: 'Stale after (hours)',
+      recent: 'Recent nudges',
+      noRecent: 'No nudges yet.',
+      outcomeLabels: { acted: 'acted', dismissed: 'dismissed', snoozed: 'snoozed', expired: 'expired' } as Record<string, string>,
+    },
+    general: { launchAtLogin: 'Launch at login', hotkey: 'Global hotkey', orbEdge: 'Orb edge', homeLocation: 'Home location', openWorkspaceOnLaunch: 'Open Workspace on launch', resetOrbPosition: 'Reset orb position', quickCaptureHotkey: 'Quick Capture hotkey', quickCaptureType: 'Quick Capture default' },
     profile: {
       title: 'Your profile',
       name: 'Name',

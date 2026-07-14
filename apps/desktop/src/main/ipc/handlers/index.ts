@@ -60,6 +60,8 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
       deps.suggestionAction?.(req.suggestionId, req.actionId);
       return { ok: true as const };
     },
+    'proactive.recent': (req) =>
+      deps.repos.suggestions.recent(req.limit).map((s) => ({ id: s.id, ruleId: s.ruleId, title: s.payload.title, createdAt: s.createdAt, outcome: s.outcome })),
     'capture.open': () => {
       deps.openCapture?.();
       return { ok: true as const };

@@ -86,6 +86,7 @@ const invokeFixtures: Record<InvokeChannelName, { req: unknown; res: unknown }> 
   'todos.delete': { req: { id: 't1' }, res: { ok: true } },
   'undo.apply': { req: { undoToken: 'u1' }, res: { ok: true } },
   'suggestion.action': { req: { suggestionId: 's1', actionId: 'dismiss' }, res: { ok: true } },
+  'proactive.recent': { req: { limit: 10 }, res: [{ id: 's1', ruleId: 'meeting_lead', title: 'Standup in 10 min', createdAt: 1, outcome: 'dismissed' }] },
   'capture.open': { req: {}, res: { ok: true } },
   'capture.classify': {
     req: { text: 'call mom tomorrow at 6' },

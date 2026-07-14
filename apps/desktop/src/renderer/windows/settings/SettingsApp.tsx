@@ -8,9 +8,10 @@ import { PrivacyTab } from './PrivacyTab';
 import { GeneralTab } from './GeneralTab';
 import { ProfileTab } from './ProfileTab';
 import { AboutTab } from './AboutTab';
+import { ProactiveTab } from './ProactiveTab';
 
 type TabId = keyof typeof STRINGS.settings.tabs;
-const TAB_ORDER: TabId[] = ['profile', 'general', 'voice', 'accounts', 'keys', 'privacy', 'diagnostics', 'about'];
+const TAB_ORDER: TabId[] = ['profile', 'general', 'voice', 'proactive', 'accounts', 'keys', 'privacy', 'diagnostics', 'about'];
 
 export function SettingsApp(): React.JSX.Element {
   const [tab, setTab] = useState<TabId>('profile');
@@ -46,6 +47,8 @@ export function SettingsApp(): React.JSX.Element {
           <ProfileTab />
         ) : tab === 'about' ? (
           <AboutTab />
+        ) : tab === 'proactive' ? (
+          <ProactiveTab />
         ) : tab === 'keys' ? (
           <KeysTab />
         ) : tab === 'voice' ? (

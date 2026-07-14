@@ -45,6 +45,7 @@ import { createEmailTools } from './tools/email';
 import { createBriefTool } from './tools/brief';
 import { createScreenTool, readScreenContext } from './tools/screen';
 import { createAppOpenTool } from './tools/appOpen';
+import { createProactiveTools } from './tools/proactive';
 import { createProactiveController, isDNDNow, type ProactiveController } from './proactive/controller';
 import { createQuickCaptureService } from './quickCapture/service';
 import { initUpdater } from './updater';
@@ -188,6 +189,12 @@ function boot(): void {
       createBriefTool({ getTool: (n) => registry.get(n), emailConnected: () => emailService.isConnected() }),
       createScreenTool({ run: spawnRunner() }),
       createAppOpenTool({ openWorkspace: (target) => openWorkspace(target) }),
+      ...createProactiveTools({
+        getSettings: () => settings.get(),
+        setSettings: (next) => settings.set(next),
+        status: () => proactiveRef?.status() ?? { enabledRules: [], remainingBudget: 0 },
+        undo: repos.undo,
+      }),
       ...createSystemTools({
         run: spawnRunner(),
         openPath: (p) => shell.openPath(p),

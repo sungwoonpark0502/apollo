@@ -48,6 +48,30 @@ export function GeneralTab(): React.JSX.Element {
         </select>
       </Row>
 
+      <Row label={STRINGS.settings.general.openWorkspaceOnLaunch}>
+        <input type="checkbox" checked={settings.openWorkspaceOnLaunch} onChange={(e) => patch({ ...settings, openWorkspaceOnLaunch: e.target.checked })} />
+      </Row>
+
+      <Row label={STRINGS.settings.general.quickCaptureHotkey}>
+        <input
+          value={settings.quickCapture.hotkey}
+          onChange={(e) => patch({ ...settings, quickCapture: { ...settings.quickCapture, hotkey: e.target.value } })}
+          style={{ ...inputStyle, width: 200 }}
+          aria-label={STRINGS.settings.general.quickCaptureHotkey}
+        />
+      </Row>
+
+      <Row label={STRINGS.settings.general.quickCaptureType}>
+        <select
+          value={settings.quickCapture.defaultType}
+          onChange={(e) => patch({ ...settings, quickCapture: { ...settings.quickCapture, defaultType: e.target.value as 'note' | 'todo' } })}
+          style={{ ...inputStyle, width: 160 }}
+        >
+          <option value="note">{STRINGS.quickCapture.chipNote}</option>
+          <option value="todo">{STRINGS.quickCapture.chipTodo}</option>
+        </select>
+      </Row>
+
       <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-3)', marginTop: 'var(--sp-2)' }}>
         Home location, units, and time format live in the Profile tab.
       </div>
