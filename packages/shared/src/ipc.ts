@@ -67,8 +67,9 @@ export const invokeChannels = {
     req: z.object({}),
     res: z.object({
       perf: z.array(z.object({ name: z.string(), count: z.number(), p50: z.number(), p95: z.number() })),
-      adapters: z.object({ stt: z.string(), tts: z.string(), wake: z.string(), llm: z.string() }),
+      adapters: z.object({ stt: z.string(), tts: z.string(), wake: z.string(), llm: z.string(), embedder: z.string() }),
       logTail: z.array(z.string()),
+      indexQueueDepth: z.number(),
     }),
   },
   'tts.drained': { req: z.object({}), res: ackSchema },      // orb player → FSM "queue drained"

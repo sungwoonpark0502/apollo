@@ -28,6 +28,7 @@ export interface OrchestratorDeps {
   emit: (event: AgentEvent) => void;
   tz: () => string;
   historyEnabled: () => boolean;
+  onMessagePersisted?: (msg: { id: string; convId: string; content: string; ts: number }) => void;
   buildContext?: () => Record<string, string | number>;
   now?: () => number;
   confirmTtlMs?: number;
@@ -93,7 +94,9 @@ export function createOrchestrator(deps: OrchestratorDeps) {
   function persist(convId: string, role: 'user' | 'assistant' | 'tool', content: string): void {
     if (!deps.historyEnabled() || !content) return;
     deps.repos.conversations.ensure(convId);
-    deps.repos.conversations.addMessage({ convId, role, content });
+    const row = deps.repos.conversations.addMessage({ convId, role, content });
+    // G3: enqueue user/assistant messages for semantic indexing (tool rows excluded).
+    if (role !== 'tool') deps.onMessagePersisted?.({ id: row.id, convId, content, ts: row.ts });
   }
 
   function contextBlock(): string {

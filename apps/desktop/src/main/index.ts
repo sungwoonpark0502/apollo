@@ -48,6 +48,8 @@ import { createAppOpenTool } from './tools/appOpen';
 import { createProactiveTools } from './tools/proactive';
 import { createProactiveController, isDNDNow, type ProactiveController } from './proactive/controller';
 import { createQuickCaptureService } from './quickCapture/service';
+import { createEmbedder } from './memory/embedderFactory';
+import { createIndexer } from './memory/indexer';
 import { initUpdater } from './updater';
 import { createEmailService } from './security/emailService';
 import { createDailyBrief } from './scheduler/dailyBrief';
@@ -105,6 +107,7 @@ function boot(): void {
       if (next.hotkey !== prev.hotkey || next.quickCapture.hotkey !== prev.quickCapture.hotkey) reRegisterHotkeys?.();
       if (next.wake.sensitivity !== prev.wake.sensitivity) workerHost.send({ t: 'setSensitivity', v: next.wake.sensitivity });
       if (JSON.stringify(next.proactive) !== JSON.stringify(prev.proactive)) proactiveRef?.reconfigure();
+      if (next.history.enabled !== prev.history.enabled) indexer.onHistoryToggled(next.history.enabled); // G3/G7 immediate purge
       // E7: broadcast so open views re-render on units/timeFormat/weekStart/profile changes.
       // workspaceBounds churns on every drag; exclude it from the broadcast.
       if (JSON.stringify({ ...next, workspaceBounds: null }) !== JSON.stringify({ ...prev, workspaceBounds: null })) {
@@ -166,6 +169,21 @@ function boot(): void {
     log,
   });
 
+  // G1/G3 semantic memory: on-device embedder + background indexer.
+  const { embedder, adapterState: embedderState } = createEmbedder({
+    settings: () => settings.get(),
+    modelDir: join(__dirname, '../../resources/models'),
+    log,
+  });
+  let activeTurns = 0; // gate the indexer: drain only when no turn is running and voice is idle
+  const indexer = createIndexer({
+    repos,
+    embedder,
+    historyEnabled: () => settings.get().history.enabled,
+    canDrain: () => activeTurns === 0 && voiceController.state() === 'idle',
+    log,
+  });
+
   const registry = createRegistry(
     [
       ...createTimerTools({ timers: repos.timers, undo: repos.undo, onArm: () => scheduler.rearm() }),
@@ -173,7 +191,12 @@ function boot(): void {
       ...createNoteTools({ notes: repos.notes, undo: repos.undo }),
       ...createTodoTools({ todos: repos.todos, undo: repos.undo }),
       ...createContactTools({ contacts: repos.contacts, undo: repos.undo }),
-      ...createMemoryTools({ memory: repos.memory, undo: repos.undo }),
+      ...createMemoryTools({
+        memory: repos.memory,
+        undo: repos.undo,
+        onFactSaved: (f) => indexer.onFactSaved(f),
+        onFactForgotten: (id) => indexer.onFactForgotten(id),
+      }),
       createUndoTool(repos),
       ...createCalendarTools({ events: repos.events, undo: repos.undo }),
       ...createReminderTools({ reminders: repos.reminders, undo: repos.undo, onArm: () => scheduler.rearm() }),
@@ -233,7 +256,10 @@ function boot(): void {
     orbController.onAgentEvent(event);
     if (voiceTurnActive && event.type === 'token') ttsPipeline.feedToken(event.text);
     if (event.type === 'card' && event.card.kind === 'brief') lastBriefCard = event.card; // E3.1 latest brief
+    if (event.type === 'turnStart') activeTurns += 1;
     if (event.type === 'done' || event.type === 'error') {
+      activeTurns = Math.max(0, activeTurns - 1);
+      indexer.pump(); // G3: let the index queue drain now the turn is over
       if (voiceTurnActive) {
         voiceTurnActive = false;
         ttsPipeline.endTurn();
@@ -273,6 +299,7 @@ function boot(): void {
     emit: emitToAll,
     tz: () => Intl.DateTimeFormat().resolvedOptions().timeZone,
     historyEnabled: () => settings.get().history.enabled,
+    onMessagePersisted: (m) => indexer.onMessagePersisted(m),
     buildContext: () => {
       const c: Record<string, string> = {};
       if (lastScreen?.app) c.activeApp = lastScreen.app + (lastScreen.title ? ` — ${lastScreen.title}` : '');
@@ -302,6 +329,7 @@ function boot(): void {
     log,
   });
   function pushVoiceState(state: VoiceState): void {
+    if (state === 'idle') indexer.pump(); // G3: index queue may drain once voice is idle
     for (const win of BrowserWindow.getAllWindows()) {
       if (!win.isDestroyed()) pushTo(win.webContents, 'voice.state', { state });
     }
@@ -418,7 +446,9 @@ function boot(): void {
       tts: settings.get().adapters.tts === 'fake' ? 'fake' : 'edge',
       wake: useRealWake ? 'porcupine' : 'fake',
       llm: secrets.get('anthropic') ? 'anthropic' : 'no-key',
+      embedder: embedderState,
     }),
+    indexQueueDepth: () => repos.chunks.pendingEmbedding(1000).length,
     logTail: (lines) => readLogTail(join(userData, 'logs', 'apollo.log'), lines),
     egressHosts: () => egress.allowedHosts(),
     wipeAllData: () => wipeAllData(),
@@ -573,6 +603,7 @@ function boot(): void {
   });
   proactive.start();
   proactiveRef = proactive;
+  indexer.start(); // G3: boot rescan + DataBus-driven note indexing
   powerMonitor.on('resume', () => proactive.onResume());
 
   // F4 Quick Capture: global-hotkey micro-window; classify + save through the repos.

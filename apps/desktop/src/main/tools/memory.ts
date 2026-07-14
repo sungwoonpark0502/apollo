@@ -6,6 +6,9 @@ import { type UndoRepo } from '../db/repos/undo';
 export interface MemoryToolDeps {
   memory: MemoryRepo;
   undo: UndoRepo;
+  /** G3: notify the indexer to (re)embed or remove a fact's chunk. */
+  onFactSaved?: (fact: { id: string; category: string; fact: string; ts: number }) => void;
+  onFactForgotten?: (factId: string) => void;
 }
 
 export function createMemoryTools(deps: MemoryToolDeps): ToolDef[] {
@@ -17,6 +20,7 @@ export function createMemoryTools(deps: MemoryToolDeps): ToolDef[] {
     params: z.object({ category: z.enum(MEMORY_CATEGORIES), fact: z.string().min(1) }),
     async execute(a, ctx) {
       const f = deps.memory.save({ category: a.category, fact: a.fact, sourceConvId: ctx.convId });
+      deps.onFactSaved?.({ id: f.id, category: f.category, fact: f.fact, ts: f.updatedAt });
       const undoToken = deps.undo.push({ turnId: ctx.turnId, convId: ctx.convId, tool: 'memory.save', data: { id: f.id } });
       return { llmText: `Remembered (${a.category}): ${a.fact}`, undoToken };
     },
@@ -30,6 +34,7 @@ export function createMemoryTools(deps: MemoryToolDeps): ToolDef[] {
     async execute(a, ctx) {
       const removed = deps.memory.forgetFuzzy(a.fact);
       if (!removed) return { llmText: `WARNING no remembered fact matched "${a.fact}".` };
+      deps.onFactForgotten?.(removed.id);
       const undoToken = deps.undo.push({ turnId: ctx.turnId, convId: ctx.convId, tool: 'memory.forget', data: { id: removed.id } });
       return { llmText: `Forgot: "${removed.fact}".`, undoToken };
     },

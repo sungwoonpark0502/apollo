@@ -28,6 +28,12 @@ export function createConversationsRepo(db: Db) {
         .reverse()
         .map((r) => ({ id: r.id, convId: r.conv_id, role: r.role, content: r.content, ts: r.ts }));
     },
+    /** All messages across conversations, newest first (indexer rebuild). Excludes tool rows. */
+    recentAll(n = 5000): MessageRow[] {
+      return (db.prepare("SELECT * FROM messages WHERE role IN ('user','assistant') ORDER BY ts DESC LIMIT ?").all(n) as Raw[]).map((r) => ({
+        id: r.id, convId: r.conv_id, role: r.role, content: r.content, ts: r.ts,
+      }));
+    },
   };
 }
 

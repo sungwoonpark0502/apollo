@@ -16,7 +16,8 @@ export interface HandlerDeps {
   setMuted: (on: boolean) => void;
   onUserActivity?: () => void;
   ttsDrained?: () => void;
-  adapterStates: () => { stt: string; tts: string; wake: string; llm: string };
+  adapterStates: () => { stt: string; tts: string; wake: string; llm: string; embedder: string };
+  indexQueueDepth?: () => number;
   logTail: (lines: number) => string[];
   egressHosts: () => string[];
   wipeAllData: () => void;
@@ -99,6 +100,7 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
       perf: deps.repos.perf.aggregates(),
       adapters: deps.adapterStates(),
       logTail: deps.logTail(200),
+      indexQueueDepth: deps.indexQueueDepth?.() ?? 0,
     }),
     'privacy.get': () => ({
       egressHosts: deps.egressHosts(),

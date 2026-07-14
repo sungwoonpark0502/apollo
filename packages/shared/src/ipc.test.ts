@@ -31,8 +31,9 @@ const invokeFixtures: Record<InvokeChannelName, { req: unknown; res: unknown }> 
     req: {},
     res: {
       perf: [{ name: 'turn_total', count: 3, p50: 120, p95: 480 }],
-      adapters: { stt: 'fake', tts: 'real', wake: 'fake', llm: 'real' },
+      adapters: { stt: 'fake', tts: 'real', wake: 'fake', llm: 'real', embedder: 'fake' },
       logTail: ['line one', 'line two'],
+      indexQueueDepth: 0,
     },
   },
   'tts.drained': { req: {}, res: { ok: true } },
