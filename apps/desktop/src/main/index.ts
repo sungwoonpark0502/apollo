@@ -1,4 +1,4 @@
-import { app, BrowserWindow, globalShortcut, ipcMain, Notification, powerMonitor, safeStorage, shell, systemPreferences } from 'electron';
+import { app, BrowserWindow, dialog, globalShortcut, ipcMain, Notification, powerMonitor, safeStorage, shell, systemPreferences } from 'electron';
 import { join } from 'node:path';
 import { STRINGS, type AgentEvent } from '@apollo/shared';
 import { createTray, getTray } from './tray';
@@ -48,6 +48,9 @@ import { createAppOpenTool } from './tools/appOpen';
 import { createProactiveTools } from './tools/proactive';
 import { createProactiveController, isDNDNow, type ProactiveController } from './proactive/controller';
 import { createQuickCaptureService } from './quickCapture/service';
+import { createBackup, listBackups, recoverIfCorrupt, backupsDir } from './db/backup';
+import { exportZip, importZip } from './data/exportImport';
+import { writeFileSync } from 'node:fs';
 import { createEmbedder } from './memory/embedderFactory';
 import { createIndexer } from './memory/indexer';
 import { createRecall } from './memory/recall';
@@ -90,9 +93,41 @@ function boot(): void {
   logger.info({ dev }, 'apollo booting');
 
   const config = loadConfig({ dotEnvPath: join(app.getAppPath(), '../../.env') });
-  const db = openDb(dev && process.env['APOLLO_SMOKE'] === '1' ? ':memory:' : join(userData, 'apollo.db'));
-  const schemaVersion = migrate(db);
+  const inMemory = dev && process.env['APOLLO_SMOKE'] === '1';
+  const dbPath = join(userData, 'apollo.db');
+
+  // H2 boot integrity: quick_check, and on failure quarantine + restore newest backup.
+  let corruptRecovery: ReturnType<typeof recoverIfCorrupt> | null = null;
+  if (!inMemory) {
+    const rec = recoverIfCorrupt(dbPath, userData);
+    if (rec.recovered !== 'ok') {
+      corruptRecovery = rec;
+      logger.warn({ rec }, 'db corruption recovered');
+    }
+  }
+
+  const db = openDb(inMemory ? ':memory:' : dbPath);
+  const schemaVersion = migrate(db, {
+    // H2 pre-migrate backup: snapshot before applying any pending migration.
+    onBeforeMigrate: inMemory ? undefined : () => { try { createBackup(dbPath, userData, 'pre-migrate'); } catch { /* best effort */ } },
+  });
   logger.info({ schemaVersion }, 'db ready');
+
+  if (corruptRecovery) {
+    void app.whenReady().then(() => {
+      void dialog.showMessageBox({ type: 'warning', title: STRINGS.app.name, message: STRINGS.errors.DB_CORRUPT });
+    });
+  }
+
+  // H2 weekly auto-backup: on boot (and the daily scheduler tick) if the newest
+  // auto backup is older than 7 days and backup.autoWeekly is on.
+  const maybeAutoBackup = (): void => {
+    if (inMemory || !settings.get().backup.autoWeekly) return;
+    const newestAuto = listBackups(userData).find((b) => b.reason === 'auto');
+    if (!newestAuto || Date.now() - newestAuto.createdAt > 7 * 86_400_000) {
+      try { createBackup(dbPath, userData, 'auto'); } catch { /* best effort */ }
+    }
+  };
 
   const repos = createRepos(db);
   // Forward reference: the proactive controller is created later but settings.onChange
@@ -481,6 +516,49 @@ function boot(): void {
       indexer.clear();
       settings.patch({ memory: { indexEnabled: false } });
     },
+    backupNow: () => {
+      try {
+        const dest = createBackup(dbPath, userData, 'manual');
+        return { ok: true, filename: dest.split('/').pop() };
+      } catch (e) {
+        log(`backup failed: ${e instanceof Error ? e.message : String(e)}`);
+        return { ok: false };
+      }
+    },
+    backupList: () => listBackups(userData),
+    backupRestore: async (filename) => {
+      const src = join(backupsDir(userData), filename);
+      const res = await dialog.showMessageBox({
+        type: 'warning', buttons: ['Cancel', 'Restore & relaunch'], defaultId: 1, cancelId: 0,
+        title: STRINGS.app.name, message: STRINGS.settings.privacy.restoreConfirm(filename),
+      });
+      if (res.response !== 1) return { ok: true as const };
+      createBackup(dbPath, userData, 'manual'); // safety snapshot of current state
+      db.close();
+      for (const suffix of ['', '-wal', '-shm']) { try { rmSync(dbPath + suffix, { force: true }); } catch { /* best effort */ } }
+      writeFileSync(dbPath, readFileSync(src));
+      app.relaunch();
+      app.exit(0);
+      return { ok: true as const };
+    },
+    exportRun: async (includeConversations) => {
+      const { canceled, filePath } = await dialog.showSaveDialog({
+        title: 'Export Apollo data', defaultPath: `apollo-export-${new Date().toISOString().slice(0, 10)}.zip`,
+        filters: [{ name: 'Zip', extensions: ['zip'] }],
+      });
+      if (canceled || !filePath) return { path: null };
+      const { buffer } = exportZip(repos, settings.get(), { includeConversations });
+      writeFileSync(filePath, buffer);
+      return { path: filePath };
+    },
+    importRun: async () => {
+      const { canceled, filePaths } = await dialog.showOpenDialog({
+        title: 'Import Apollo data', properties: ['openFile'], filters: [{ name: 'Zip', extensions: ['zip'] }],
+      });
+      if (canceled || !filePaths[0]) return { counts: null };
+      const counts = importZip(repos, readFileSync(filePaths[0]));
+      return { counts };
+    },
     logTail: (lines) => readLogTail(join(userData, 'logs', 'apollo.log'), lines),
     egressHosts: () => egress.allowedHosts(),
     wipeAllData: () => wipeAllData(),
@@ -712,6 +790,8 @@ function boot(): void {
         });
     });
   }
+
+  maybeAutoBackup(); // H2 weekly auto-backup check on boot
 
   logger.info({ tools: registry.all().length, strings: Object.keys(STRINGS).length }, 'apollo ready');
 }

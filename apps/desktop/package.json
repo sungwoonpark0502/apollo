@@ -20,6 +20,7 @@
     "fetch-models": "vite-node scripts/fetch-models.ts"
   },
   "devDependencies": {
+    "@types/adm-zip": "^0.5.8",
     "@types/better-sqlite3": "^7.6.13",
     "@types/jsdom": "^28.0.3",
     "@types/luxon": "^3.7.2",
@@ -38,6 +39,7 @@
     "@deepgram/sdk": "^3.13.0",
     "@huggingface/transformers": "^4.2.0",
     "@picovoice/porcupine-node": "^4.0.2",
+    "adm-zip": "^0.6.0",
     "better-sqlite3": "^12.11.1",
     "chrono-node": "^2.10.0",
     "dompurify": "^3.4.12",

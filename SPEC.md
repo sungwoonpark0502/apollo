@@ -695,3 +695,109 @@ Milestones (Phase 7, strict order):
 7.6 Privacy "Memory index" section + rebuild/clear + history-off purge wiring + docs/README. Verify: purge and wipe tests; settings broadcast.
 
 Phase 7 gate: all suites green; full Phase 0 through 6 test, eval (now 115+ rows), and injection suites re-run clean (injection 100%); recall perf budget met; runtime egress list unchanged (test-proven); pnpm build still produces installable artifacts; Global DoD re-verified.
+
+PART H: Hardening, Trust, and Polish (v3.3 addendum, Phase 8)
+Status: normative extension. Parts A through G remain in force. Where Part H conflicts with earlier parts, Part H wins. Prerequisite: Phase 7 gate passed. This phase adds no new product surfaces; it closes gaps in conversation UX, alerting, data safety, security posture, networking, system integration, and performance. Scope discipline (A3) applies: nothing beyond this document.
+H1. Shared contract additions
+ts// errors.ts: extend ErrorCode
+export type ErrorCode = /* existing */ | 'THROTTLED' | 'REAUTH_NEEDED' | 'DB_CORRUPT';
+Settings schema additions:
+tsvoice: /* extend existing */ z.object({
+  inputDeviceId: z.string().nullable().default(null),      // null = system default
+  outputDeviceId: z.string().nullable().default(null),
+  ttsRate: z.number().min(0.8).max(1.5).default(1.0),
+  earconVolume: z.number().min(0).max(1).default(0.7),
+  followupWindowSec: z.number().int().min(0).max(15).default(6),  // 0 = off
+  pauseWakeOnBattery: z.boolean().default(false),
+}),
+usage: z.object({
+  warnDailyAnthropicTokens: z.number().int().nullable().default(null), // null = no warning
+}),
+backup: z.object({
+  autoWeekly: z.boolean().default(true),
+}),
+New IPC channels (router/zod/senderFrame rules unchanged):
+ChannelDirRequest → Responseconversations.listR→M{limit=50, before?} → {id, title, startedAt, lastTs, messageCount}[] (title derived: first user message, 60 chars)conversations.getR→M{id} → {messages: {role, content, ts}[]}conversations.deleteR→M{id} → ack (purges messages AND their chunks/vectors)conversations.setActiveR→M{id} → ack ("continue this conversation")usage.summaryR→M{} → {today, month} per metricbackup.now / backup.list / backup.restoreR→Mrestore takes {filename}, confirms, relaunchesexport.runR→M{includeConversations: boolean} → {path} (save dialog in main)import.runR→M{} → {counts} (open dialog in main; merge by id, skip existing)devices.listR→M{} → {inputs, outputs} (main proxies enumeration via the audio window)update.stateM→R push{status:'idle'|'checking'|'downloading'|'ready', version?}update.installR→M{} → ack (quit and install; only valid when ready)alert.ringingM→orb push{kind:'timer'|'alarm', id, label, firedAt}alert.actionR→M{kind, id, action:'dismiss'|'snooze', snoozeMin?} → ack
+New strings for all copy below. All new tables clear on Wipe-all-data.
+H2. Data safety (backups, integrity, export)
+Migration 0005_hardening.sql:
+sqlCREATE TABLE action_log(
+  id TEXT PRIMARY KEY, ts INTEGER NOT NULL, tool TEXT NOT NULL,
+  summary TEXT NOT NULL, outcome TEXT NOT NULL
+    CHECK(outcome IN ('executed','canceled','denied','expired','undone')),
+  conv_id TEXT);
+CREATE INDEX idx_action_ts ON action_log(ts DESC);
+CREATE TABLE usage_log(
+  day TEXT NOT NULL, provider TEXT NOT NULL, metric TEXT NOT NULL,
+  amount REAL NOT NULL, PRIMARY KEY(day, provider, metric));
+CREATE INDEX idx_conv_started ON conversations(started_at DESC);
+Backups: directory userData/backups/, filenames apollo-{iso}-{reason}.db. Triggers: (a) automatically before applying any pending migration (reason pre-migrate), (b) weekly when backup.autoWeekly (reason auto, checked on boot and daily tick), (c) backup.now (reason manual). Retention: keep newest 5 per reason class. Backup method: VACUUM INTO (safe under WAL) with fallback to file copy after a checkpoint.
+Boot integrity: run PRAGMA quick_check before migrations. On failure: rename the corrupt file to apollo-corrupt-{iso}.db, restore the newest backup if one exists (else start fresh), and show a one-time dialog explaining exactly what happened (DB_CORRUPT copy). This path is unit-tested with a deliberately corrupted fixture file.
+Export (export.run): zip containing notes/ (one .md per note, title-slug filenames), calendar.ics (all non-deleted events including RRULE/EXDATE), todos.json, reminders.json, facts.json, settings.json (secrets and oauth tokens explicitly excluded, test-proven), and optionally conversations.jsonl. Import merges by id (existing ids skipped), reports per-kind counts, and never touches settings secrets. Privacy tab gains a "Data" section: Back up now, backup list with restore, Export, Import.
+H3. Security hardening
+
+Electron Fuses via @electron/fuses applied in an afterPack hook: RunAsNode=false, EnableNodeOptionsEnvironmentVariable=false, EnableNodeCliInspectArguments=false, EnableCookieEncryption=true, OnlyLoadAppFromAsar=true, and ASAR integrity validation on macOS. A packaging script reads the fuse state back and fails the build if any fuse is wrong.
+Permission lockdown: session.defaultSession.setPermissionRequestHandler and setPermissionCheckHandler deny everything; the audio capture window runs on a dedicated session that allows only media (audio). Display capture, geolocation, notifications-via-web, midi, hid: all denied. Test: a scripted permission request from the palette window is rejected.
+IPC throttling: token-bucket per channel per sender window in the router. Defaults: agent.userMessage 20/min, capture.submit 30/min, mutation channels 120/min, keys.test 10/min, everything else 300/min. On breach: drop, log, emit error with THROTTLED copy ("That was too many requests at once. Give me a second."). Buckets are code constants, not settings.
+CI grep gates extended (C14.4 list plus): rejectUnauthorized, NODE_TLS_REJECT_UNAUTHORIZED, disable-web-security, allowRunningInsecureContent, ELECTRON_RUN_AS_NODE.
+Action audit log: every Tier 3 lifecycle event (confirmed-executed, canceled in grace window, denied, expired) and every undo.last writes to action_log with a one-line summary (recipients visible, bodies never). Privacy tab gains "Action log": last 100 rows, read-only. This is the user's own accountability trail for what Apollo actually did externally.
+Key management UX: at keys.set, main stores non-secret metadata {provider, last4, setAt} alongside the ciphertext. Keys tab shows "Configured (…{last4}) since {date}" with Replace and Remove; Remove revokes where applicable (Google) and deletes ciphertext + metadata.
+Gmail re-auth: on invalid_grant/401 during refresh, mark the account REAUTH_NEEDED; email tools return ERROR reauth needed with guidance; Accounts tab shows a badge and a Reconnect button that reruns the PKCE flow in place.
+
+H4. Networking and usage
+
+Proxy correctness: migrate httpClient's transport to Electron's net.fetch (system proxy, PAC, and OS certificate store for free), preserving the existing interface, breaker, and egress allowlist unchanged. For the Deepgram WebSocket: resolve the system proxy for the target URL via session.resolveProxy; when a proxy is present, connect through https-proxy-agent; otherwise direct. Verify with a unit test that the agent selection logic follows resolveProxy output.
+Egress canary: a CI test boots main with a spy on the egress wrapper, drives one FakeSTT turn plus one recall, and asserts the observed host set is exactly a subset of the C14.9 allowlist.
+Usage metering: the orchestrator records Anthropic input/output tokens per turn (from stream usage events), voiceController records Deepgram audio seconds, TTS adapter records synthesized characters, all upserted into usage_log by local day. Diagnostics gains a Usage panel: today and this-month totals per metric. If usage.warnDailyAnthropicTokens is set and crossed, show one warning card per day (not a proactive nudge; direct card on the next turn): "Heads up: today's usage passed your limit."
+Offline probe: prefer net.isOnline() as a fast hint, keep the HEAD probe as confirmation; no behavior change otherwise.
+
+H5. Conversation experience
+
+Conversation lifecycle (main owns activeConvId, shared across voice and palette, one-brain): a new conversation row is created when the previous activity is older than 30 minutes, on conversations.setActive, or on explicit user request ("new conversation" fast path ^(new|start a new) (conversation|chat)$). The CONTEXT block is unchanged; the memory digest already bridges conversations.
+Follow-up mode (the single biggest voice UX upgrade): FSM change: speaking → (queue drained) → followup instead of straight to idle, for followupWindowSec seconds (0 disables, muted disables). In followup: worker mode=stream, VAD active, STT socket closed. On vad speech=true: open STT, transition to listening, same conversation, no wake word needed. On timeout: end earcon suppressed, go idle/passive. Orb renders a thin breathing ring during followup. Barge-in during speaking is unchanged. Echo safety: followup begins only after the playback queue fully drains.
+"Repeat that": fast path ^(say that again|repeat( that)?|what did you say)$ replays the last assistant reply text through TTS (stored in memory per conversation); near-miss "repeat after me" must reach the LLM (eval negative row).
+Threaded palette: the palette renders the active conversation's turns (scrollback within session), Cmd/Ctrl+N starts a new conversation, a copy icon on each assistant turn copies plain text.
+Chats view: Workspace rail gains "Chats": left list from conversations.list (title, relative time, count) with a LIKE filter box; right pane read-only transcript with role-styled rows and rendered cards where payloads persist (text fallback otherwise); actions: Continue (sets active, opens palette) and Delete (confirm, purges messages and their chunks/vectors, test-proven). Visible only when history is enabled; the empty state explains the history setting.
+
+H6. Alerts that actually alert
+
+Ringing overlay: when a timer or alarm fires, the orb window presents a ringing card at Stage width: large label, elapsed-since-fired, Dismiss and Snooze (1/5/10 min presets; timer default 5, alarm default 10). Sound: a gentle loop from resources/ring.wav at earconVolume; timers auto-stop the loop after 60 seconds (card stays); alarms ring until dismissed or snoozed, with volume stepping down 20% every 60 seconds as an anti-annoyance ramp. DND: sound suppressed, card and OS notification still shown. Fullscreen apps: the overlay still appears (screen-saver level already guarantees this).
+Notification routing: clicking a reminder/timer/alarm OS notification focuses the ringing card (or Workspace Today for reminders). On macOS, notification actions Snooze and Complete/Dismiss are attached where supported; actions route through alert.action.
+Recurring alarms re-arm via rrule exactly as C19 specifies; a snoozed occurrence does not shift the recurrence.
+
+H7. Voice and system polish
+
+Device pickers: Settings > Voice gains input and output device dropdowns populated via devices.list (labels available because the audio window session holds mic permission). Input selection re-runs getUserMedia with the deviceId; output selection applies setSinkId on the orb's audio pipeline. On device disconnect (devicechange): fall back to system default, notify once, keep working.
+TTS rate: voice.ttsRate applied through the TTS adapter (msedge-tts rate parameter); the Settings preview button plays a sample sentence at the chosen rate.
+Earcon volume slider plus an implicit mute at 0.
+Hotkey registration failure: every globalShortcut.register result is checked; on failure (conflict), Settings and onboarding show an inline error naming the conflict and suggesting alternatives (Windows note: Alt+Space commonly conflicts with the system window menu; suggest Ctrl+Alt+Space). The app never silently loses its hotkey.
+Single instance: app.requestSingleInstanceLock(); the second launch focuses the Workspace (or tray-flashes) and exits. Test via a spawned second process in CI where feasible; otherwise a HUMAN_TODO manual check.
+Battery: when pauseWakeOnBattery and powerMonitor.isOnBatteryPower(), the audio worker drops to mode where wake is off (PTT still works); resumes on AC. Orb shows a subtle badge.
+Update UX: check on launch and every 6 hours; download in background; when ready, tray menu and About show "Restart to update {version}" driving update.install. Never auto-restart. update.state feeds both.
+
+H8. Performance budgets and lazy init
+
+Boot spans recorded to perf_spans: boot_to_tray, boot_db_ready, boot_windows_lazy. Budget: boot_to_tray p95 under 2500ms on the dev machine, asserted by a repeated-launch harness script (5 runs).
+Lazy initialization, test-proven with import/constructor spies: the embedder loads on first index/recall need, never at boot; the audio worker spawns only when wake is enabled or on first PTT; the Workspace window is created on demand; the ONNX runtime for VAD loads with the worker, not with main.
+Idle resource report: Diagnostics gains a Resources row (RSS of main, worker, and renderer processes via process.memoryUsage and app.getAppMetrics), refreshed on open. Measured, reported, and reviewed via HUMAN_TODO; not a hard CI gate (Electron variance), but a regression note in DECISIONS.md is required if idle RSS grows >20% across a phase.
+
+H9. Accessibility and platform parity
+
+Orb announcements: an aria-live="polite" visually-hidden region in the orb window announces state transitions ("Listening", "Thinking", "Timer ringing: {label}") so screen readers track voice state; nudge and ringing cards are focusable regions with labeled buttons.
+Keyboard pass: nudge cards, ringing overlay, Chats view, and all new Settings controls fully keyboard-operable; focus rings per C18.
+Windows parity: ci.yml becomes a matrix (macos-latest, windows-latest) running lint, typecheck, unit tests (native-audio-dependent tests behind a flag), and build on both. A Windows manual QA checklist (hotkey conflict, acrylic, notifications, ringing overlay, single instance) goes to HUMAN_TODO.
+
+H10. Testing and gates
+Unit: backup rotation and VACUUM INTO fallback; corrupt-DB boot path on a fixture; export content assertions including the secrets-absent proof; import id-merge; IPC token buckets (burst, refill, per-window isolation); permission handler denial; fuse verification script; usage upserts and warn-once logic; proxy agent selection from resolveProxy strings; conversation rotation (29 min vs 31 min boundary); followup FSM rows (speech within window resumes same conv, timeout goes passive, muted disables, queue-drain precondition); repeat-that fast path plus the "repeat after me" negative; chats delete purges chunks (index count before/after); ringing loop caps and alarm volume ramp math; device fallback on disconnect; hotkey failure branch; lazy-init spies. IPC: round-trip + malformed rejection for every new channel. Eval additions (minimum 8 rows): 2 two-turn follow-up continuity rows ("what's the weather" then "and tomorrow?" resolving via context in the same conversation), new-conversation fast path, repeat-that negative, 2 forbid_tools rows for usage/backup questions (answered from settings/diagnostics context, no tool invented), 2 unchanged-regression rows. Full regression: entire Phase 0 through 7 test, eval (now 123+ rows), injection (100%), perf, and egress suites re-run.
+Milestones (Phase 8, strict order):
+
+8.1 Data safety: migration 0005, backups (all three triggers, retention), integrity check + corrupt-recovery path, export/import, Privacy Data section. Verify: H2 suites.
+8.2 Security: fuses + afterPack verification, permission lockdown, IPC throttling, grep-gate additions, key metadata UX, action_log + viewer, Gmail re-auth flow. Verify: H3 suites; injection re-run.
+8.3 Network: net.fetch migration + WS proxy, egress canary, usage metering + Diagnostics panel + warn card. Verify: H4 suites.
+8.4 Conversation: rotation, followup mode, repeat-that, threaded palette, Chats view + delete purge, eval rows. Verify: FSM + continuity suites, eval >= 90%.
+8.5 Alerts: ringing overlay + sound policy + notification routing/actions + ring.wav asset. Verify: H6 suites + manual entry to HUMAN_TODO.
+8.6 Voice/system: device pickers + disconnect fallback, TTS rate, earcon volume, hotkey failure UX, single instance, battery pause, update UX. Verify: H7 suites.
+8.7 Performance: boot spans + launch harness + lazy-init proofs + Resources panel. Verify: budget script green; spies green.
+8.8 Quality: a11y additions, CI matrix, Windows checklist, README/docs, full regression of everything. Verify: Phase 8 gate.
+
+Phase 8 gate: all new suites green; full regression clean (injection 100%); boot budget met; fuse verification passes in a packaged build; egress canary passes; pnpm build produces installable artifacts on both CI platforms; Global DoD re-verified; DECISIONS.md records the net.fetch migration and any idle-RSS delta.

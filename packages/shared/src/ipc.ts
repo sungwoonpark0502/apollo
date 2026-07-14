@@ -198,6 +198,18 @@ export const invokeChannels = {
   },
   'memory.rebuild': { req: z.object({}), res: ackSchema }, // drops + re-scans corpus in background
   'memory.clear': { req: z.object({}), res: ackSchema },   // drops + disables until re-enabled
+  // ---- H2 data safety ----
+  'backup.now': { req: z.object({}), res: z.object({ ok: z.boolean(), filename: z.string().optional() }) },
+  'backup.list': {
+    req: z.object({}),
+    res: z.array(z.object({ filename: z.string(), reason: z.enum(['pre-migrate', 'auto', 'manual']), sizeBytes: z.number(), createdAt: z.number() })),
+  },
+  'backup.restore': { req: z.object({ filename: z.string() }), res: ackSchema },
+  'export.run': { req: z.object({ includeConversations: z.boolean() }), res: z.object({ path: z.string().nullable() }) },
+  'import.run': {
+    req: z.object({}),
+    res: z.object({ counts: z.object({ notes: z.number(), events: z.number(), todos: z.number(), reminders: z.number(), facts: z.number() }).nullable() }),
+  },
   'settings.open': { req: z.object({}), res: ackSchema }, // rail gear → settings window
   'geocode.search': {
     req: z.object({ query: z.string().min(1) }),

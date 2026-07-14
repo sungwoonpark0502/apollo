@@ -41,6 +41,11 @@ export interface HandlerDeps {
   memoryIndexStats?: () => InvokeRes<'memory.indexStats'>;
   memoryRebuild?: () => void;
   memoryClear?: () => void;
+  backupNow?: () => InvokeRes<'backup.now'>;
+  backupList?: () => InvokeRes<'backup.list'>;
+  backupRestore?: (filename: string) => Promise<InvokeRes<'backup.restore'>>;
+  exportRun?: (includeConversations: boolean) => Promise<InvokeRes<'export.run'>>;
+  importRun?: () => Promise<InvokeRes<'import.run'>>;
   captureClassify?: (req: InvokeReq<'capture.classify'>) => InvokeRes<'capture.classify'>;
   tz?: () => string;
   log: (msg: string) => void;
@@ -86,6 +91,11 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
       deps.memoryClear?.();
       return { ok: true as const };
     },
+    'backup.now': () => deps.backupNow?.() ?? { ok: false },
+    'backup.list': () => deps.backupList?.() ?? [],
+    'backup.restore': async (req) => (deps.backupRestore ? deps.backupRestore(req.filename) : { ok: true as const }),
+    'export.run': async (req) => (deps.exportRun ? deps.exportRun(req.includeConversations) : { path: null }),
+    'import.run': async () => (deps.importRun ? deps.importRun() : { counts: null }),
     'capture.classify': (req) => {
       if (!deps.captureClassify) throw new Error('capture not available');
       return deps.captureClassify(req);

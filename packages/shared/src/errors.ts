@@ -12,6 +12,9 @@ export const ERROR_CODES = [
   'TIMEOUT',
   'CANCELED',
   'INTERNAL',
+  'THROTTLED',
+  'REAUTH_NEEDED',
+  'DB_CORRUPT',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

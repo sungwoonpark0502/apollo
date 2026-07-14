@@ -67,6 +67,20 @@ export function createNotesRepo(db: Db) {
       return row;
     },
     get,
+    /** All non-deleted notes with full content (H2 export). */
+    allFull(): NoteRow[] {
+      return (db.prepare('SELECT * FROM notes WHERE deleted_at IS NULL ORDER BY updated_at DESC').all() as Raw[]).map(toRow);
+    },
+    /** H2 import: insert preserving id; returns false if the id already exists. */
+    importRow(row: { id: string; content: string; tags?: string[]; createdAt?: number; updatedAt?: number; pinned?: boolean }): boolean {
+      if (db.prepare('SELECT 1 FROM notes WHERE id=?').get(row.id)) return false;
+      const ts = nowMs();
+      db.prepare('INSERT INTO notes(id,content,tags,pinned,created_at,updated_at) VALUES (?,?,?,?,?,?)').run(
+        row.id, row.content, row.tags && row.tags.length ? JSON.stringify(row.tags) : null,
+        row.pinned ? 1 : 0, row.createdAt ?? ts, row.updatedAt ?? ts,
+      );
+      return true;
+    },
     update(id: string, content: string): NoteRow | null {
       const cur = get(id);
       if (!cur || cur.deletedAt) return null;

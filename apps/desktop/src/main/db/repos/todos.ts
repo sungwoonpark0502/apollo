@@ -30,6 +30,19 @@ export function createTodosRepo(db: Db) {
       return row;
     },
     get,
+    /** H2 export: all non-deleted todos. */
+    allActive(): TodoRow[] {
+      return (db.prepare('SELECT * FROM todos WHERE deleted_at IS NULL ORDER BY created_at').all() as Raw[]).map(toRow);
+    },
+    /** H2 import: insert preserving id; false if id exists. */
+    importRow(row: { id: string; content: string; dueTs?: number | null; done?: boolean; createdAt?: number; updatedAt?: number }): boolean {
+      if (db.prepare('SELECT 1 FROM todos WHERE id=?').get(row.id)) return false;
+      const ts = nowMs();
+      db.prepare('INSERT INTO todos(id,content,due_ts,done,created_at,updated_at) VALUES (?,?,?,?,?,?)').run(
+        row.id, row.content, row.dueTs ?? null, row.done ? 1 : 0, row.createdAt ?? ts, row.updatedAt ?? ts,
+      );
+      return true;
+    },
     listOpen(limit = 50): TodoRow[] {
       return (db.prepare('SELECT * FROM todos WHERE done=0 AND deleted_at IS NULL ORDER BY COALESCE(due_ts, 9e15), created_at LIMIT ?').all(limit) as Raw[]).map(toRow);
     },

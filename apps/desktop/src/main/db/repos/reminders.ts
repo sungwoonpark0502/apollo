@@ -38,6 +38,19 @@ export function createRemindersRepo(db: Db) {
       return row;
     },
     get,
+    /** All non-deleted reminders (H2 export). */
+    allActive(): ReminderRow[] {
+      return (db.prepare('SELECT * FROM reminders WHERE deleted_at IS NULL ORDER BY due_ts').all() as Raw[]).map(toRow);
+    },
+    /** H2 import: insert preserving id; false if id exists. */
+    importRow(row: { id: string; text: string; dueTs: number; rrule?: string | null; done?: boolean; createdAt?: number; updatedAt?: number }): boolean {
+      if (db.prepare('SELECT 1 FROM reminders WHERE id=?').get(row.id)) return false;
+      const ts = nowMs();
+      db.prepare('INSERT INTO reminders(id,text,due_ts,rrule,done,created_at,updated_at) VALUES (?,?,?,?,?,?,?)').run(
+        row.id, row.text, row.dueTs, row.rrule ?? null, row.done ? 1 : 0, row.createdAt ?? ts, row.updatedAt ?? ts,
+      );
+      return true;
+    },
     listPending(): ReminderRow[] {
       return (
         db.prepare('SELECT * FROM reminders WHERE done=0 AND deleted_at IS NULL ORDER BY due_ts LIMIT 50').all() as Raw[]

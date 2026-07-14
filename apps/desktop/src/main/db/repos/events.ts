@@ -170,6 +170,25 @@ export function createEventsRepo(db: Db) {
       return (likeSearch.all({ q: `%${q}%` }) as RawRow[]).map(toRow);
     },
 
+    /** All non-deleted events (H2 export). */
+    allActive(): EventRow[] {
+      return (db.prepare('SELECT * FROM events WHERE deleted_at IS NULL ORDER BY start_ts').all() as RawRow[]).map(toRow);
+    },
+    /** H2 import: insert preserving id; false if id exists. */
+    importRow(ev: EventRow): boolean {
+      if (db.prepare('SELECT 1 FROM events WHERE id=?').get(ev.id)) return false;
+      const ts = nowMs();
+      db.prepare(
+        `INSERT INTO events(id,title,start_ts,end_ts,tz,all_day,rrule,exdates,location,notes,reminder_min,created_at,updated_at)
+         VALUES (@id,@title,@start_ts,@end_ts,@tz,@all_day,@rrule,@exdates,@location,@notes,@reminder_min,@created_at,@updated_at)`,
+      ).run({
+        id: ev.id, title: ev.title, start_ts: ev.startTs, end_ts: ev.endTs, tz: ev.tz, all_day: ev.allDay ? 1 : 0,
+        rrule: ev.rrule, exdates: JSON.stringify(ev.exdates ?? []), location: ev.location, notes: ev.notes,
+        reminder_min: ev.reminderMin, created_at: ev.createdAt || ts, updated_at: ev.updatedAt || ts,
+      });
+      return true;
+    },
+
     expandOccurrences,
 
     findOverlapping(startMs: number, endMs: number, excludeId?: string): OccurrenceDTO[] {

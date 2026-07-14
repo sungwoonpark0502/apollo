@@ -1,5 +1,9 @@
 # PROGRESS
 
+## Phase 8 (Part H — Hardening, Trust, Polish)
+
+### [x] 8.1 Data safety — verified: migration 0005 (action_log, usage_log, conv index); ErrorCode +THROTTLED/REAUTH_NEEDED/DB_CORRUPT with copy; backup module (VACUUM INTO + checkpoint/copy fallback, 3 reasons, retention newest-5-per-class) + boot integrity (PRAGMA quick_check → quarantine corrupt + restore newest backup or start fresh) — 9 tests incl. deliberately-corrupted fixture recovery; export/import (zip: notes/*.md with full-id filenames, calendar.ics with RRULE/EXDATE + round-trip parser, todos/reminders/facts json, settings.json, optional conversations.jsonl) — 6 tests incl. **secrets-absent proof** (stored vault keys never appear in any export member) + id-merge skip-existing; pre-migrate backup hook + weekly auto-backup on boot; backup/export/import IPC channels + Privacy "Data" section (Back up now, backup list+restore, Export w/ chats toggle, Import); settings voice/usage/backup schema. Full suite 615 green; smoke green.
+
 ## Phase 7 (Part G — Semantic Memory + Recall)
 
 ### [x] Phase 7 GATE — all green

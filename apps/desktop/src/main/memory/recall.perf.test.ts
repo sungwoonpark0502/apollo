@@ -51,7 +51,6 @@ describe('recall.search perf (G4)', () => {
     }
     times.sort((a, b) => a - b);
     const p95 = times[Math.floor(times.length * 0.95)]!;
-    // eslint-disable-next-line no-console
     console.log(`recall p95=${p95.toFixed(1)}ms median=${times[Math.floor(times.length / 2)]!.toFixed(1)}ms over ${N} chunks`);
     expect(p95).toBeLessThan(150);
   }, 60_000);

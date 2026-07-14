@@ -37,6 +37,14 @@ export function createMemoryRepo(db: Db) {
     list(): MemoryFactRow[] {
       return (db.prepare('SELECT * FROM memory_facts WHERE deleted_at IS NULL ORDER BY updated_at DESC, rowid DESC').all() as Raw[]).map(toRow);
     },
+    /** H2 import: insert preserving id; false if id exists. */
+    importRow(row: { id: string; category: string; fact: string; confidence?: number; updatedAt?: number }): boolean {
+      if (db.prepare('SELECT 1 FROM memory_facts WHERE id=?').get(row.id)) return false;
+      db.prepare('INSERT INTO memory_facts(id,category,fact,confidence,updated_at) VALUES (?,?,?,?,?)').run(
+        row.id, row.category, row.fact, row.confidence ?? 0.8, row.updatedAt ?? nowMs(),
+      );
+      return true;
+    },
     listByCategory(category: string): MemoryFactRow[] {
       return (db.prepare('SELECT * FROM memory_facts WHERE deleted_at IS NULL AND category=? ORDER BY updated_at DESC, rowid DESC').all(category) as Raw[]).map(toRow);
     },

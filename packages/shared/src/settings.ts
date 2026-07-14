@@ -29,6 +29,23 @@ export const SettingsSchema = z.object({
     .default({}),
   ptt: z.object({ enabled: z.boolean().default(true) }).default({}),
   tts: z.object({ voice: z.string().default('en-US-JennyNeural') }).default({}),
+  // H1 voice device + playback + follow-up settings
+  voice: z
+    .object({
+      inputDeviceId: z.string().nullable().default(null), // null = system default
+      outputDeviceId: z.string().nullable().default(null),
+      ttsRate: z.number().min(0.8).max(1.5).default(1.0),
+      earconVolume: z.number().min(0).max(1).default(0.7),
+      followupWindowSec: z.number().int().min(0).max(15).default(6), // 0 = off
+      pauseWakeOnBattery: z.boolean().default(false),
+    })
+    .default({}),
+  usage: z
+    .object({
+      warnDailyAnthropicTokens: z.number().int().nullable().default(null), // null = no warning
+    })
+    .default({}),
+  backup: z.object({ autoWeekly: z.boolean().default(true) }).default({}),
   dnd: z
     .object({
       startHH: z.number().int().min(0).max(23).default(22),

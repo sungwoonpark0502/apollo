@@ -38,10 +38,14 @@ export function PrivacyTab(): React.JSX.Element {
   };
 
   if (!privacy || !settings) return <div style={{ color: 'var(--text-3)' }}>…</div>;
+  const s = settings;
 
   return (
     <div>
       <h2 style={{ fontSize: 'var(--fs-display)', margin: '0 0 var(--sp-4)' }}>{STRINGS.settings.tabs.privacy}</h2>
+
+      <DataSection settings={s} patch={patch} />
+
 
       <Row label={STRINGS.settings.privacy.history}>
         <input
@@ -156,6 +160,62 @@ export function PrivacyTab(): React.JSX.Element {
         </div>
       </section>
     </div>
+  );
+}
+
+interface BackupItem { filename: string; reason: 'pre-migrate' | 'auto' | 'manual'; sizeBytes: number; createdAt: number }
+
+function DataSection({ settings, patch }: { settings: Settings; patch: (s: Settings) => void }): React.JSX.Element {
+  const [backups, setBackups] = useState<BackupItem[]>([]);
+  const [status, setStatus] = useState('');
+  const [inclChats, setInclChats] = useState(false);
+
+  const refreshBackups = (): void => {
+    void window.apollo.call('backup.list', {}).then(setBackups);
+  };
+  useEffect(refreshBackups, []);
+
+  return (
+    <section style={{ margin: 'var(--sp-4) 0' }}>
+      <h3 style={sectionTitle}>{STRINGS.settings.privacy.data}</h3>
+      <div style={{ display: 'flex', gap: 'var(--sp-2)', flexWrap: 'wrap', alignItems: 'center' }}>
+        <button style={buttonStyle} onClick={() => void window.apollo.call('backup.now', {}).then(() => { refreshBackups(); setStatus('✓'); })}>
+          {STRINGS.settings.privacy.backupNow}
+        </button>
+        <label style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-2)', display: 'flex', gap: 4, alignItems: 'center' }}>
+          <input type="checkbox" checked={inclChats} onChange={(e) => setInclChats(e.target.checked)} />
+          {STRINGS.settings.privacy.exportWithChats}
+        </label>
+        <button style={buttonStyle} onClick={() => void window.apollo.call('export.run', { includeConversations: inclChats }).then((r) => setStatus(r.path ? STRINGS.settings.privacy.exportDone(r.path) : ''))}>
+          {STRINGS.settings.privacy.export}
+        </button>
+        <button style={buttonStyle} onClick={() => void window.apollo.call('import.run', {}).then((r) => { if (r.counts) { const n = Object.values(r.counts).reduce((a, b) => a + b, 0); setStatus(STRINGS.settings.privacy.importDone(n)); } })}>
+          {STRINGS.settings.privacy.import}
+        </button>
+        <label style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-2)', display: 'flex', gap: 4, alignItems: 'center' }}>
+          <input type="checkbox" checked={settings.backup.autoWeekly} onChange={(e) => patch({ ...settings, backup: { autoWeekly: e.target.checked } })} />
+          Weekly auto-backup
+        </label>
+      </div>
+      {status ? <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-2)', marginTop: 'var(--sp-2)' }}>{status}</div> : null}
+      <div style={{ marginTop: 'var(--sp-3)' }}>
+        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-3)', marginBottom: 'var(--sp-1)' }}>{STRINGS.settings.privacy.backups}</div>
+        {backups.length === 0 ? (
+          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-3)' }}>—</div>
+        ) : (
+          backups.slice(0, 10).map((b) => (
+            <div key={b.filename} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--sp-1) 0' }}>
+              <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-2)' }}>
+                {new Date(b.createdAt).toLocaleString()} · {b.reason} · {(b.sizeBytes / 1024).toFixed(0)} KB
+              </span>
+              <button style={buttonStyle} onClick={() => void window.apollo.call('backup.restore', { filename: b.filename })}>
+                {STRINGS.settings.privacy.restore}
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+    </section>
   );
 }
 
