@@ -1,5 +1,12 @@
 # DECISIONS
 
+- 2026-07-13 (Phase 6): suggestionDTOSchema lives in cards.ts with its sub-schemas (urgency/action) inlined rather than imported from agent.ts — importing runtime schemas from agent.ts into cards.ts creates a module-init cycle that leaves cardPayloadSchema/agentEventSchema undefined. Types stay in agent.ts.
+- 2026-07-13 (Phase 6): the governor is a pure, clock-injectable pipeline that delivers survivors and returns deferrals; the engine owns timers/DataBus subscription and re-submits deferred candidates. This makes every Quiet-invariant rule (budget/DND/spacing/fullscreen/batching/auto-tune) unit-testable with a fake clock, no Electron.
+- 2026-07-13 (Phase 6): cross-app fullscreen detection is stubbed `false` (Electron exposes no reliable API for another app's fullscreen state). The governor's fullscreen branch is proven by the injected-flag test; real detection is a documented HUMAN_TODO needing a native helper.
+- 2026-07-13 (Phase 6): needs_reply uses a read-only Gmail search (`is:unread to:me -in:sent older_than:Nd`) and renders sender/subject as inert card text — never fed into an LLM turn (F6). Skips silently when Gmail is disconnected.
+- 2026-07-13 (Phase 6): Quick Capture classification runs in main (via capture.classify IPC, 50ms-debounced) reusing the real timeResolver; the pure classifier is unit-tested with a 16-case golden set. The renderer holds only the Tab-override + submit UI.
+- 2026-07-13 (Phase 6): proactive.configure "all" toggles the master `proactive.enabled` switch; per-rule ids toggle `proactive.rules[id].enabled`. Undoable via a registered inverse that restores the captured prior state.
+
 - 2026-07-12 (Phase 5): E2's literal FTS trigger SQL (direct UPDATE/DELETE on notes_fts) is invalid for FTS5 external-content tables; implemented with the canonical 'delete'-command INSERT form. Proven by the trigger-integrity test.
 - 2026-07-12 (Phase 5): notes repo no longer writes notes_fts manually — the 0002 triggers own sync (double-write otherwise). Soft-deleted notes keep their FTS row and are filtered by the deleted_at IS NULL join.
 - 2026-07-12 (Phase 5): pre-Part-E top-level settings home/units fold into profile via migrateLegacySettings at load (tz backfilled from the local zone); Part E wins over C3's field list.
