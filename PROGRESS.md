@@ -2,6 +2,16 @@
 
 ## Phase 7 (Part G — Semantic Memory + Recall)
 
+### [x] Phase 7 GATE — all green
+- Full unit/integration suite: **596 tests** (96 shared + 500 desktop) pass under Node ABI.
+- Injection suite (release gate): **14/14 = 100%**; recall results flow through the untrusted/taint machinery (`<data source="recall.search">`).
+- Egress guard (G8): zero `fetch` during index + recall; C14.9 allowlist unchanged, no `huggingface.co` at runtime; model fetched build-time only.
+- Retrieval perf (G4): recall.search **p95 4.2ms** over 10,000 chunks (budget 150ms), FakeEmbedder + real sqlite-vec.
+- On-device real model verified (MiniLM q8): dim 384, semantic ordering holds (dentist↔dental 0.74 vs 0.20). CI/tests need no model files (FakeEmbedder).
+- Grep gates pass (no exec/child_process); `pnpm audit --prod` clean; lint + strict typecheck clean.
+- Real-LLM eval: harness parses all 116 rows (incl. 10 new recall rows) and self-SKIPs without ANTHROPIC_API_KEY (documented in HUMAN_TODO; C22 CI runs it when the secret exists).
+- Phases 0–6 suites re-run green — nothing broke.
+
 ### [x] 7.6 Privacy Memory-index section + rebuild/clear + history-off purge + README — verified: settings.memory.indexEnabled flag; memory.indexStats/rebuild/clear IPC channels (round-trip fixtures); indexer gains indexEnabled gate (no enqueue/drain when off) + clear() (purge chunks+vectors); chunksRepo sizeBytes estimate; main handlers (rebuild re-enables + rescans, clear disables + purges, stats reports per-kind counts/pending/size/embedder); Privacy tab "Memory index" section (on-device sentence, live counts + MB, embedder state, Rebuild/Clear buttons) + history-off hint; 3 new indexer tests (clear drops all, disabled gate blocks enqueue, rebuild re-chunks corpus); egress guard test (2: zero fetch during index+recall, allowlist unchanged/no huggingface.co); README semantic-memory section + fetch-models script row; smoke green. Full suite 595 green.
 
 ### [x] 7.5 Workspace omnisearch (Cmd/Ctrl+K) + recall.query IPC — verified: recall.query IPC channel (mirrors tool params, returns recallList items) + events.search channel (title/location LIKE, top 8) with round-trip + malformed fixtures; OmniSearch overlay (560px centered, 150ms debounce, grouped Notes[recall note]/Events[events.search]/Facts[recall fact], ≤10 total, arrow+Enter nav across groups, hover-sync, Esc close, note→notes view / event→calendar at date / fact→Settings Privacy); Cmd/Ctrl+K toggle wired into WorkspaceApp; keyboard-nav manual QA added to HUMAN_TODO; smoke green. Full suite 587 green.
