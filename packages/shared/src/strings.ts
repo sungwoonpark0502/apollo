@@ -5,7 +5,7 @@
 export const STRINGS = {
   app: {
     name: 'Apollo',
-    tray: { open: 'Open Apollo', palette: 'Command palette', settings: 'Settings…', mute: 'Mute microphone', unmute: 'Unmute microphone', quit: 'Quit Apollo' },
+    tray: { open: 'Open Apollo', quickCapture: 'Quick capture', palette: 'Command palette', settings: 'Settings…', mute: 'Mute microphone', unmute: 'Unmute microphone', quit: 'Quit Apollo' },
     palettePlaceholder: 'Ask Apollo…',
   },
 

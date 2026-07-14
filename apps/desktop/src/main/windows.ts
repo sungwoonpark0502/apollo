@@ -219,6 +219,56 @@ export function openWorkspaceWindow(deps: WorkspaceWindowDeps): BrowserWindow {
   return workspaceWin;
 }
 
+let captureWin: BrowserWindow | null = null;
+
+/** F4 Quick Capture: frameless 520x64, centered at 22% viewport height, Esc/blur closes. */
+export function openCaptureWindow(): BrowserWindow {
+  if (captureWin && !captureWin.isDestroyed()) {
+    captureWin.show();
+    captureWin.focus();
+    return captureWin;
+  }
+  const display = screen.getPrimaryDisplay();
+  const { width, height, x, y } = display.workArea;
+  const W = 520;
+  const H = 64;
+  captureWin = new BrowserWindow({
+    width: W,
+    height: H,
+    x: x + Math.round((width - W) / 2),
+    y: y + Math.round(height * 0.22),
+    show: false,
+    frame: false,
+    resizable: false,
+    fullscreenable: false,
+    skipTaskbar: true,
+    alwaysOnTop: true,
+    ...(process.platform === 'darwin'
+      ? { vibrancy: 'under-window' as const, visualEffectState: 'active' as const, transparent: true }
+      : { backgroundMaterial: 'acrylic' as const }),
+    webPreferences: secureWebPreferences(),
+  });
+  hardenWindow(captureWin);
+  captureWin.on('blur', () => captureWin?.hide());
+  captureWin.on('closed', () => {
+    captureWin = null;
+  });
+  if (process.env['ELECTRON_RENDERER_URL']) {
+    void captureWin.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/windows/capture/index.html`);
+  } else {
+    void captureWin.loadFile(join(__dirname, '../renderer/windows/capture/index.html'));
+  }
+  captureWin.once('ready-to-show', () => {
+    captureWin?.show();
+    captureWin?.focus();
+  });
+  return captureWin;
+}
+
+export function getCaptureWindow(): BrowserWindow | null {
+  return captureWin;
+}
+
 let settingsWin: BrowserWindow | null = null;
 
 export function openSettingsWindow(): BrowserWindow {

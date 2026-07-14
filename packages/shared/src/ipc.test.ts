@@ -87,6 +87,10 @@ const invokeFixtures: Record<InvokeChannelName, { req: unknown; res: unknown }> 
   'undo.apply': { req: { undoToken: 'u1' }, res: { ok: true } },
   'suggestion.action': { req: { suggestionId: 's1', actionId: 'dismiss' }, res: { ok: true } },
   'capture.open': { req: {}, res: { ok: true } },
+  'capture.classify': {
+    req: { text: 'call mom tomorrow at 6' },
+    res: { suggestedType: 'reminder', reminderAvailable: true, reminderIso: '2026-07-14T18:00:00-07:00', timePhrase: 'tomorrow at 6', texts: { note: 'call mom tomorrow at 6', todo: 'call mom tomorrow at 6', reminder: 'call mom' } },
+  },
   'capture.submit': { req: { text: 'buy milk', type: 'todo' }, res: { ok: true, savedAs: 'todo', id: 't1' } },
   'settings.open': { req: {}, res: { ok: true } },
   'geocode.search': { req: { query: 'columbus' }, res: [{ label: 'Columbus, Ohio', lat: 39.96, lon: -83, tz: 'America/New_York' }] },

@@ -9,7 +9,7 @@ export function getTray(): Tray | null {
   return tray;
 }
 
-export function createTray(opts: { onOpenSettings?: () => void; onOpenWorkspace?: () => void } = {}): Tray {
+export function createTray(opts: { onOpenSettings?: () => void; onOpenWorkspace?: () => void; onQuickCapture?: () => void } = {}): Tray {
   if (tray) return tray;
   const iconPath = join(__dirname, '../../resources/trayTemplate.png');
   const icon = nativeImage.createFromPath(iconPath);
@@ -20,6 +20,7 @@ export function createTray(opts: { onOpenSettings?: () => void; onOpenWorkspace?
   tray.setContextMenu(
     Menu.buildFromTemplate([
       { label: STRINGS.app.tray.open, click: () => opts.onOpenWorkspace?.() },
+      { label: STRINGS.app.tray.quickCapture, click: () => opts.onQuickCapture?.() },
       { label: STRINGS.app.tray.palette, click: () => togglePalette() },
       { label: STRINGS.app.tray.settings, click: () => opts.onOpenSettings?.() },
       { type: 'separator' },

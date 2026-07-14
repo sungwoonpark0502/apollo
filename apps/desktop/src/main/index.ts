@@ -1,8 +1,8 @@
-import { app, BrowserWindow, ipcMain, Notification, powerMonitor, safeStorage, shell, systemPreferences } from 'electron';
+import { app, BrowserWindow, globalShortcut, ipcMain, Notification, powerMonitor, safeStorage, shell, systemPreferences } from 'electron';
 import { join } from 'node:path';
 import { STRINGS, type AgentEvent } from '@apollo/shared';
 import { createTray, getTray } from './tray';
-import { createAudioWindow, createOnboardingWindow, closeOnboardingWindow, createOrbWindow, createPaletteWindow, openSettingsWindow, openWorkspaceWindow, getWorkspaceWindow, togglePalette } from './windows';
+import { createAudioWindow, createOnboardingWindow, closeOnboardingWindow, createOrbWindow, createPaletteWindow, openCaptureWindow, openSettingsWindow, openWorkspaceWindow, getWorkspaceWindow, togglePalette } from './windows';
 import { createTodayProvider } from './workspace/today';
 import { type CardPayload, type WorkspaceNavigate } from '@apollo/shared';
 import { createOrbController } from './orbController';
@@ -46,6 +46,7 @@ import { createBriefTool } from './tools/brief';
 import { createScreenTool, readScreenContext } from './tools/screen';
 import { createAppOpenTool } from './tools/appOpen';
 import { createProactiveController, isDNDNow, type ProactiveController } from './proactive/controller';
+import { createQuickCaptureService } from './quickCapture/service';
 import { initUpdater } from './updater';
 import { createEmailService } from './security/emailService';
 import { createDailyBrief } from './scheduler/dailyBrief';
@@ -92,13 +93,15 @@ function boot(): void {
   // Forward reference: the proactive controller is created later but settings.onChange
   // (which can fire during boot) must not touch it before it exists.
   let proactiveRef: ProactiveController | null = null;
+  let quickCaptureRef: ReturnType<typeof createQuickCaptureService> | null = null;
+  let reRegisterHotkeys: (() => void) | null = null;
   const onHotkeyPress = (): void => {
     togglePalette();
     if (settings.get().ptt.enabled && !voiceController.isVoiceDisabled()) voiceController.onHotkey();
   };
   const settings = createSettingsService(repos.settings, {
     onChange: (next, prev) => {
-      if (next.hotkey !== prev.hotkey) registerHotkey(next.hotkey, onHotkeyPress, log);
+      if (next.hotkey !== prev.hotkey || next.quickCapture.hotkey !== prev.quickCapture.hotkey) reRegisterHotkeys?.();
       if (next.wake.sensitivity !== prev.wake.sensitivity) workerHost.send({ t: 'setSensitivity', v: next.wake.sensitivity });
       if (JSON.stringify(next.proactive) !== JSON.stringify(prev.proactive)) proactiveRef?.reconfigure();
       // E7: broadcast so open views re-render on units/timeFormat/weekStart/profile changes.
@@ -450,6 +453,12 @@ function boot(): void {
     },
     checkForUpdates: async () => (app.isPackaged ? { status: 'checking' as const } : { status: 'disabled' as const }),
     suggestionAction: (suggestionId, actionId) => proactiveRef?.handleAction(suggestionId, actionId),
+    openCapture: () => openCaptureWindow(),
+    captureSubmit: (req) => {
+      if (!quickCaptureRef) throw new Error('capture not ready');
+      return quickCaptureRef.submit(req);
+    },
+    captureClassify: (req) => quickCaptureRef?.classify(req) ?? { suggestedType: 'note', reminderAvailable: false, reminderIso: null, timePhrase: null, texts: { note: req.text, todo: req.text, reminder: req.text } },
     tz: () => Intl.DateTimeFormat().resolvedOptions().timeZone,
     debugWake: () => voiceController.onWake(),
     debugInjectAudio: async (wavPath) => {
@@ -471,7 +480,7 @@ function boot(): void {
     log,
   });
 
-  createTray({ onOpenSettings: () => openSettingsWindow(), onOpenWorkspace: () => openWorkspace({ view: 'today' }) });
+  createTray({ onOpenSettings: () => openSettingsWindow(), onOpenWorkspace: () => openWorkspace({ view: 'today' }), onQuickCapture: () => openCaptureWindow() });
   const palette = createPaletteWindow();
   // B1: the hotkey activates Apollo — palette for typing, and (PTT) listening when voice is up
   registerHotkey(settings.get().hotkey, onHotkeyPress, log);
@@ -559,6 +568,26 @@ function boot(): void {
   proactiveRef = proactive;
   powerMonitor.on('resume', () => proactive.onResume());
 
+  // F4 Quick Capture: global-hotkey micro-window; classify + save through the repos.
+  const quickCapture = createQuickCaptureService({
+    repos,
+    tz: () => Intl.DateTimeFormat().resolvedOptions().timeZone,
+    defaultType: () => settings.get().quickCapture.defaultType,
+    onReminderArmed: () => scheduler.rearm(),
+  });
+  quickCaptureRef = quickCapture;
+  // registerHotkey() unregisters all shortcuts then registers the palette hotkey,
+  // so the capture hotkey must be (re-)added right after. reRegisterHotkeys does both.
+  reRegisterHotkeys = (): void => {
+    registerHotkey(settings.get().hotkey, onHotkeyPress, log);
+    try {
+      globalShortcut.register(settings.get().quickCapture.hotkey, () => openCaptureWindow());
+    } catch (e) {
+      log(`quick-capture hotkey failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
+  reRegisterHotkeys();
+
   if (process.env['APOLLO_SMOKE'] === '1') {
     palette.webContents.once('did-finish-load', () => {
       // Drives a real turn over the bridge: IPC → router → orchestrator →
@@ -579,7 +608,13 @@ function boot(): void {
         const seen = list.some((n) => n.id === saved.id && n.title === 'Smoke test note');
         await window.apollo.call('workspace.open', { view: 'today' });
         await new Promise((r) => setTimeout(r, 100));
-        return seen && changed > 0 ? 'turn-ok' : 'workspace-bad:seen=' + seen + ',changed=' + changed;
+        // F4 Quick Capture: classify (reminder detection) + submit a todo, verify it appears live (zero LLM).
+        const cls = await window.apollo.call('capture.classify', { text: 'call mom tomorrow at 6' });
+        const cap = await window.apollo.call('capture.submit', { text: 'file quarterly taxes', type: 'todo' });
+        const todos = await window.apollo.call('todos.list', {});
+        const captureOk = cls.suggestedType === 'reminder' && cap.ok && todos.some((t) => t.id === cap.id);
+        if (!seen || changed === 0) return 'workspace-bad:seen=' + seen + ',changed=' + changed;
+        return captureOk ? 'turn-ok' : 'capture-bad:cls=' + cls.suggestedType + ',ok=' + cap.ok;
       })()`;
       const idleClickThrough = orbController.isClickThrough(); // sampled before the turn activates the orb
       void palette.webContents

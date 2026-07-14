@@ -50,6 +50,7 @@ export default defineConfig({
           audio: resolve(__dirname, 'src/renderer/windows/audio/index.html'),
           onboarding: resolve(__dirname, 'src/renderer/windows/onboarding/index.html'),
           workspace: resolve(__dirname, 'src/renderer/windows/workspace/index.html'),
+          capture: resolve(__dirname, 'src/renderer/windows/capture/index.html'),
         },
       },
     },

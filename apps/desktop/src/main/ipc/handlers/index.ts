@@ -36,6 +36,7 @@ export interface HandlerDeps {
   suggestionAction?: (suggestionId: string, actionId: string) => void;
   openCapture?: () => void;
   captureSubmit?: (req: InvokeReq<'capture.submit'>) => InvokeRes<'capture.submit'>;
+  captureClassify?: (req: InvokeReq<'capture.classify'>) => InvokeRes<'capture.classify'>;
   tz?: () => string;
   log: (msg: string) => void;
 }
@@ -66,6 +67,10 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
     'capture.submit': (req) => {
       if (!deps.captureSubmit) throw new Error('capture not available');
       return deps.captureSubmit(req);
+    },
+    'capture.classify': (req) => {
+      if (!deps.captureClassify) throw new Error('capture not available');
+      return deps.captureClassify(req);
     },
     'agent.userMessage': (req) => {
       deps.onUserActivity?.();

@@ -156,6 +156,16 @@ export const invokeChannels = {
   // ---- F1 Proactive + Quick Capture channels ----
   'suggestion.action': { req: z.object({ suggestionId: z.string(), actionId: z.string() }), res: ackSchema },
   'capture.open': { req: z.object({}), res: ackSchema },
+  'capture.classify': {
+    req: z.object({ text: z.string() }),
+    res: z.object({
+      suggestedType: z.enum(['note', 'todo', 'reminder']),
+      reminderAvailable: z.boolean(),
+      reminderIso: z.string().nullable(),
+      timePhrase: z.string().nullable(),
+      texts: z.object({ note: z.string(), todo: z.string(), reminder: z.string() }),
+    }),
+  },
   'capture.submit': {
     req: z.object({
       text: z.string().min(1),
