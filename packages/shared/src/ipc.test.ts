@@ -112,6 +112,7 @@ const invokeFixtures: Record<InvokeChannelName, { req: unknown; res: unknown }> 
   'export.run': { req: { includeConversations: false }, res: { path: '/tmp/apollo-export.zip' } },
   'import.run': { req: {}, res: { counts: { notes: 2, events: 1, todos: 0, reminders: 0, facts: 3 } } },
   'actionLog.list': { req: {}, res: [{ id: 'a1', ts: 1, tool: 'email.send', summary: 'Send email to jane@x.com', outcome: 'executed', convId: 'c1' }] },
+  'usage.summary': { req: {}, res: { today: [{ provider: 'anthropic', metric: 'inputTokens', amount: 100 }], month: [{ provider: 'anthropic', metric: 'inputTokens', amount: 3000 }] } },
   'keys.info': { req: {}, res: [{ provider: 'anthropic', configured: true, last4: 'x123', setAt: 1 }] },
   'keys.remove': { req: { provider: 'anthropic' }, res: { ok: true } },
   'settings.open': { req: {}, res: { ok: true } },

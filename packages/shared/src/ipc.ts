@@ -215,6 +215,13 @@ export const invokeChannels = {
     req: z.object({}),
     res: z.array(z.object({ id: z.string(), ts: z.number(), tool: z.string(), summary: z.string(), outcome: z.enum(['executed', 'canceled', 'denied', 'expired', 'undone']), convId: z.string().nullable() })),
   },
+  'usage.summary': {
+    req: z.object({}),
+    res: z.object({
+      today: z.array(z.object({ provider: z.string(), metric: z.string(), amount: z.number() })),
+      month: z.array(z.object({ provider: z.string(), metric: z.string(), amount: z.number() })),
+    }),
+  },
   // H3 key metadata (write-only keys; this returns non-secret metadata only)
   'keys.info': {
     req: z.object({}),

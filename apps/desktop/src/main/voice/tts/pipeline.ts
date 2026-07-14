@@ -14,6 +14,7 @@ export interface TtsPipelineDeps {
   onFirstChunk: () => void;   // → voiceController.ttsStarted()
   onSentence?: (index: number) => void; // E4 spoken-row sync: sentence index now starting
   onError?: (copy: string) => void;
+  onSynthChars?: (chars: number) => void; // H4 usage metering: synthesized character count
   perf?: (name: string, durMs: number) => void;
   log?: (msg: string) => void;
 }
@@ -51,6 +52,7 @@ export function createTtsPipeline(deps: TtsPipelineDeps) {
     try {
       while (queue.length > 0 && gen === generation) {
         const sentence = queue.shift() as string;
+        deps.onSynthChars?.(sentence.length); // H4 usage metering
         const sentenceIndex = spokenIndex++;
         abort = new AbortController();
         let announced = false;

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, globalShortcut, ipcMain, Notification, powerMonitor, safeStorage, session, shell, systemPreferences } from 'electron';
+import { app, BrowserWindow, dialog, globalShortcut, ipcMain, net, Notification, powerMonitor, safeStorage, session, shell, systemPreferences } from 'electron';
 import { lockDownSession, defaultSessionAllows, audioSessionAllows } from './security/permissions';
 import { join } from 'node:path';
 import { STRINGS, type AgentEvent } from '@apollo/shared';
@@ -65,6 +65,7 @@ import { createAnthropicLlm } from './agent/llmAnthropic';
 import { createScheduler } from './scheduler/scheduler';
 import { registerRouter, makeTrustedUrlCheck, pushTo } from './ipc/router';
 import { createThrottle } from './ipc/throttle';
+import { shouldWarnUsage } from './net/usageWarn';
 import { buildHandlers } from './ipc/handlers/index';
 import { registerHotkey, unregisterAll } from './shortcuts';
 import { userInfo } from 'node:os';
@@ -174,7 +175,9 @@ function boot(): void {
   });
 
   const egress = createEgressPolicy(() => repos.feeds.list().map((f) => new URL(f.url).hostname));
-  const http = createHttpClient({ egress, breaker: createBreaker(), log });
+  // H4: use Electron's net.fetch transport (system proxy, PAC, OS cert store) while
+  // preserving the httpClient interface, breaker, and egress allowlist.
+  const http = createHttpClient({ egress, breaker: createBreaker(), fetchFn: (url, init) => net.fetch(url as string, init), log });
 
   const scheduler = createScheduler({
     repos,
@@ -300,6 +303,21 @@ function boot(): void {
     else nav();
   }
 
+  // H4 usage warn card: at most once per local day when Anthropic tokens cross the limit.
+  let lastUsageWarnDay: string | null = null;
+  function maybeWarnUsage(): void {
+    const limit = settings.get().usage.warnDailyAnthropicTokens;
+    const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
+    const total = repos.usageLog.todayTotal('anthropic', 'inputTokens') + repos.usageLog.todayTotal('anthropic', 'outputTokens');
+    const decision = shouldWarnUsage({ todayTotalTokens: total, limit, today, lastWarnedDay: lastUsageWarnDay });
+    lastUsageWarnDay = decision.lastWarnedDay;
+    if (decision.warn) {
+      for (const win of BrowserWindow.getAllWindows()) {
+        if (!win.isDestroyed()) pushTo(win.webContents, 'agent.events', { type: 'card', card: { kind: 'text', body: STRINGS.usage.warnCard } });
+      }
+    }
+  }
+
   function emitToAll(event: AgentEvent): void {
     orbController.onAgentEvent(event);
     if (voiceTurnActive && event.type === 'token') ttsPipeline.feedToken(event.text);
@@ -352,6 +370,7 @@ function boot(): void {
     onUsage: (e) => {
       repos.usageLog.add('anthropic', 'inputTokens', e.inputTokens);
       repos.usageLog.add('anthropic', 'outputTokens', e.outputTokens);
+      maybeWarnUsage(); // H4: one warning card per day when over the configured limit
     },
     buildContext: () => {
       const c: Record<string, string> = {};
@@ -392,7 +411,7 @@ function boot(): void {
   const sttMode = settings.get().adapters.stt;
   const useRealStt = sttMode === 'real' || (sttMode === 'auto' && secrets.get('deepgram') !== null);
   const sttAdapter = useRealStt
-    ? createDeepgramStt({ apiKey: () => secrets.get('deepgram'), log })
+    ? createDeepgramStt({ apiKey: () => secrets.get('deepgram'), resolveProxy: (url) => session.defaultSession.resolveProxy(url), log })
     : new FakeStt(loadVoiceFixtures());
 
   function loadVoiceFixtures(): FakeSttFixture[] {
@@ -421,6 +440,7 @@ function boot(): void {
       if (!orbWindow.isDestroyed()) pushTo(orbWindow.webContents, 'tts.spoken', { index });
     },
     onError: (copy) => new Notification({ title: STRINGS.app.name, body: copy }).show(),
+    onSynthChars: (chars) => repos.usageLog.add('tts', 'characters', chars), // H4
     perf: (name, dur) => repos.perf.record('voice', name, dur),
     log,
   });
@@ -430,6 +450,7 @@ function boot(): void {
   const voiceController = createVoiceController({
     stt: sttAdapter,
     workerSend: (m) => workerHost.send(m),
+    onAudioSeconds: (s) => repos.usageLog.add('deepgram', 'seconds', s), // H4
     dispatch: (text) => {
       voiceTurnActive = true;
       ttsPipeline.beginTurn();

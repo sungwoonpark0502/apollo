@@ -190,6 +190,7 @@ export function createOrchestrator(deps: OrchestratorDeps) {
             emit({ type: 'token', text: delta });
           },
         });
+        if (res.usage) deps.onUsage?.({ inputTokens: res.usage.inputTokens, outputTokens: res.usage.outputTokens });
         finalText = res.text || turnText;
 
         if (res.toolUses.length === 0) {

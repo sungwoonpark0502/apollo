@@ -273,6 +273,13 @@ export const STRINGS = {
     empty: 'No matches in your notes, chats, or memory.',
   },
 
+  usage: {
+    warnCard: "Heads up: today's usage passed your limit.",
+    panelTitle: 'Usage',
+    today: 'Today',
+    month: 'This month',
+  },
+
   permissions: {
     accessibilityHint:
       'I need Accessibility permission to see the active window. Grant it in System Settings > Privacy & Security > Accessibility, then enable Apollo.',

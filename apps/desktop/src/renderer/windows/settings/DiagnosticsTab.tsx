@@ -3,16 +3,20 @@ import { STRINGS } from '@apollo/shared';
 
 interface Diag {
   perf: Array<{ name: string; count: number; p50: number; p95: number }>;
-  adapters: { stt: string; tts: string; wake: string; llm: string };
+  adapters: { stt: string; tts: string; wake: string; llm: string; embedder: string };
   logTail: string[];
+  indexQueueDepth: number;
 }
+interface Usage { today: Array<{ provider: string; metric: string; amount: number }>; month: Array<{ provider: string; metric: string; amount: number }> }
 
 export function DiagnosticsTab(): React.JSX.Element {
   const [diag, setDiag] = useState<Diag | null>(null);
+  const [usage, setUsage] = useState<Usage | null>(null);
   const [copied, setCopied] = useState(false);
 
   const refresh = useCallback(() => {
     void window.apollo.call('diagnostics.get', {}).then(setDiag);
+    void window.apollo.call('usage.summary', {}).then(setUsage);
   }, []);
 
   useEffect(() => {
@@ -75,6 +79,29 @@ export function DiagnosticsTab(): React.JSX.Element {
                 </span>
               ))
             : null}
+        </div>
+      </section>
+
+      <section style={{ marginBottom: 'var(--sp-5)' }}>
+        <h3 style={sectionTitle}>{STRINGS.usage.panelTitle}</h3>
+        <div style={{ display: 'flex', gap: 'var(--sp-6)', fontSize: 'var(--fs-caption)' }}>
+          {(['today', 'month'] as const).map((period) => (
+            <div key={period}>
+              <div style={{ color: 'var(--text-3)', marginBottom: 'var(--sp-1)' }}>{period === 'today' ? STRINGS.usage.today : STRINGS.usage.month}</div>
+              {(usage?.[period] ?? []).length === 0 ? (
+                <div style={{ color: 'var(--text-3)' }}>—</div>
+              ) : (
+                (usage?.[period] ?? []).map((u) => (
+                  <div key={`${u.provider}-${u.metric}`} style={{ color: 'var(--text-2)' }}>
+                    <span style={{ color: 'var(--text-3)' }}>{u.provider} {u.metric}:</span> {Math.round(u.amount).toLocaleString()}
+                  </div>
+                ))
+              )}
+            </div>
+          ))}
+        </div>
+        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-3)', marginTop: 'var(--sp-2)' }}>
+          index queue: {diag?.indexQueueDepth ?? 0}
         </div>
       </section>
 

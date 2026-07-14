@@ -1,4 +1,4 @@
-import { STRINGS, type VoiceState, type WorkerToMain } from '@apollo/shared';
+import { AUDIO, STRINGS, type VoiceState, type WorkerToMain } from '@apollo/shared';
 import { type SttAdapter, type SttSession } from './stt';
 
 /**
@@ -14,6 +14,7 @@ export interface VoiceControllerDeps {
   playEarcon: (name: 'wake' | 'done' | 'error') => void;
   stopTts: () => void;                                     // must take effect <100ms (C12.3 barge-in)
   notify?: (copy: string) => void;
+  onAudioSeconds?: (seconds: number) => void;              // H4 usage metering (Deepgram seconds)
   log?: (msg: string) => void;
 }
 
@@ -28,6 +29,7 @@ export function createVoiceController(deps: VoiceControllerDeps) {
   let transcript = '';
   let sawSpeech = false;
   let lastRms = 0;
+  let audioFramesSent = 0;
   let sttFailures = 0;
   let voiceDisabled = false;
 
@@ -108,6 +110,11 @@ export function createVoiceController(deps: VoiceControllerDeps) {
     if (state !== 'listening') return;
     clearTimers();
     closeSession();
+    // H4: report the audio duration streamed to Deepgram this listen (512 samples @ 16 kHz).
+    if (audioFramesSent > 0) {
+      deps.onAudioSeconds?.((audioFramesSent * AUDIO.frameSamples) / AUDIO.sampleRate);
+      audioFramesSent = 0;
+    }
     if (!transcript.trim()) {
       deps.playEarcon('done');
       toIdle();
@@ -148,6 +155,7 @@ export function createVoiceController(deps: VoiceControllerDeps) {
           for (let i = 0; i < pcm.length; i++) sum += (pcm[i] as number) ** 2;
           lastRms = Math.sqrt(sum / pcm.length) / 32768;
           session.sendFrame(msg.pcm);
+          audioFramesSent += 1; // H4: 512 samples @ 16 kHz per frame
           return;
         }
         case 'vad':

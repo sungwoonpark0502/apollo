@@ -75,6 +75,7 @@ export function createAnthropicLlm(deps: AnthropicLlmDeps): LlmClient {
           stopReason: final.stop_reason === 'tool_use' ? 'tool_use' : final.stop_reason === 'max_tokens' ? 'max_tokens' : 'end_turn',
           text,
           toolUses,
+          usage: { inputTokens: final.usage?.input_tokens ?? 0, outputTokens: final.usage?.output_tokens ?? 0 },
         };
       } catch (e) {
         deps.log?.(`anthropic stream error: ${e instanceof Error ? e.message : String(e)}`);

@@ -194,6 +194,10 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
       return { ok: true as const };
     },
     'actionLog.list': () => deps.repos.actionLog.recent(100),
+    'usage.summary': () => ({
+      today: deps.repos.usageLog.today().map((u) => ({ provider: u.provider, metric: u.metric, amount: u.amount })),
+      month: deps.repos.usageLog.month().map((u) => ({ provider: u.provider, metric: u.metric, amount: u.amount })),
+    }),
     'oauth.google.start': async () => (deps.oauthConnect ? await deps.oauthConnect() : { ok: false }),
     'oauth.google.revoke': () => {
       deps.oauthRevoke?.();

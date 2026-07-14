@@ -33,6 +33,7 @@ export interface LlmTurnResult {
   stopReason: 'end_turn' | 'tool_use' | 'max_tokens';
   text: string;
   toolUses: LlmToolUse[];
+  usage?: { inputTokens: number; outputTokens: number }; // H4 usage metering
 }
 
 export class LlmAbortError extends Error {
