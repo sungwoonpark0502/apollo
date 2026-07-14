@@ -7,15 +7,19 @@ interface Privacy {
   memoryFacts: Array<{ id: string; category: string; fact: string }>;
 }
 
+type IndexStats = { note: number; message: number; fact: number; total: number; pending: number; sizeBytes: number; enabled: boolean; embedder: string };
+
 export function PrivacyTab(): React.JSX.Element {
   const [privacy, setPrivacy] = useState<Privacy | null>(null);
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [stats, setStats] = useState<IndexStats | null>(null);
   const [wipeText, setWipeText] = useState('');
   const [newDir, setNewDir] = useState('');
 
   const refresh = (): void => {
     void window.apollo.call('privacy.get', {}).then(setPrivacy);
     void window.apollo.call('settings.get', {}).then(setSettings);
+    void window.apollo.call('memory.indexStats', {}).then(setStats);
   };
   useEffect(refresh, []);
 
@@ -46,6 +50,29 @@ export function PrivacyTab(): React.JSX.Element {
           onChange={(e) => patch({ ...settings, history: { enabled: e.target.checked } })}
         />
       </Row>
+      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-3)', margin: '0 0 var(--sp-3)' }}>{STRINGS.settings.privacy.historyHint}</div>
+
+      <section style={{ margin: 'var(--sp-4) 0' }}>
+        <h3 style={sectionTitle}>{STRINGS.settings.privacy.memoryIndex}</h3>
+        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-2)', marginBottom: 'var(--sp-2)' }}>{STRINGS.settings.privacy.memoryIndexWhat}</div>
+        {stats ? (
+          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-2)' }}>
+            {stats.enabled
+              ? STRINGS.settings.privacy.memoryIndexCounts(stats.note, stats.message, stats.fact, (stats.sizeBytes / 1_048_576).toFixed(1))
+              : STRINGS.settings.privacy.memoryIndexDisabled}
+            {stats.pending > 0 ? ` · ${STRINGS.settings.privacy.memoryIndexPending(stats.pending)}` : ''}
+            <div style={{ color: 'var(--text-3)', marginTop: 2 }}>{STRINGS.settings.privacy.embedderState(stats.embedder)}</div>
+          </div>
+        ) : null}
+        <div style={{ display: 'flex', gap: 'var(--sp-2)', marginTop: 'var(--sp-2)' }}>
+          <button style={buttonStyle} onClick={() => void window.apollo.call('memory.rebuild', {}).then(() => setTimeout(refresh, 300))}>
+            {STRINGS.settings.privacy.rebuildIndex}
+          </button>
+          <button style={buttonStyle} onClick={() => void window.apollo.call('memory.clear', {}).then(refresh)}>
+            {STRINGS.settings.privacy.clearIndex}
+          </button>
+        </div>
+      </section>
 
       <section style={{ margin: 'var(--sp-4) 0' }}>
         <h3 style={sectionTitle}>{STRINGS.settings.privacy.memoryFacts}</h3>

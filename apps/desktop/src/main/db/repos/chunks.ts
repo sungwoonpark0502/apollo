@@ -84,6 +84,13 @@ export function createChunksRepo(db: Db) {
       return (db.prepare('SELECT COUNT(*) AS c FROM chunks').get() as { c: number }).c;
     },
 
+    /** Rough on-disk footprint: chunk text bytes + one float32[384] vector per embedded chunk. */
+    sizeBytes(): number {
+      const textBytes = (db.prepare('SELECT COALESCE(SUM(LENGTH(text)),0) AS b FROM chunks').get() as { b: number }).b;
+      const embedded = (db.prepare('SELECT COUNT(*) AS c FROM chunks WHERE embedded_at IS NOT NULL').get() as { c: number }).c;
+      return textBytes + embedded * 384 * 4;
+    },
+
     countByKind(): Record<ChunkKind, number> {
       const rows = db.prepare('SELECT kind, COUNT(*) AS c FROM chunks GROUP BY kind').all() as Array<{ kind: ChunkKind; c: number }>;
       const out: Record<ChunkKind, number> = { note: 0, message: 0, fact: 0 };

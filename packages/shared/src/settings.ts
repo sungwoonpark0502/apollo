@@ -85,6 +85,11 @@ export const SettingsSchema = z.object({
       defaultType: z.enum(['note', 'todo']).default('note'),
     })
     .default({}),
+  memory: z
+    .object({
+      indexEnabled: z.boolean().default(true), // G7: Clear index disables until re-enabled
+    })
+    .default({}),
   launchAtLogin: z.boolean().default(false),
   openWorkspaceOnLaunch: z.boolean().default(false), // E7 General tab
   workspaceBounds: z

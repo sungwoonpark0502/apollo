@@ -15,12 +15,13 @@ beforeEach(() => {
   repos = createRepos(db);
 });
 
-function setup(opts: { canDrain?: () => boolean; historyEnabled?: () => boolean } = {}): { indexer: ReturnType<typeof createIndexer>; clock: FakeClock } {
+function setup(opts: { canDrain?: () => boolean; historyEnabled?: () => boolean; indexEnabled?: () => boolean } = {}): { indexer: ReturnType<typeof createIndexer>; clock: FakeClock } {
   const clock = createFakeClock(1_000_000);
   const indexer = createIndexer({
     repos,
     embedder: new FakeEmbedder(),
     historyEnabled: opts.historyEnabled ?? (() => true),
+    indexEnabled: opts.indexEnabled ?? (() => true),
     canDrain: opts.canDrain ?? (() => true),
     now: clock.now,
     setTimer: clock.setTimer,
@@ -122,6 +123,41 @@ describe('indexer gating + boot rescan (G3)', () => {
     clock.advance(1);
     await flush();
     expect(repos.chunks.pendingEmbedding(10)).toHaveLength(0);
+    indexer.stop();
+  });
+});
+
+describe('clear + disabled gate (G7)', () => {
+  it('clear() drops all chunks and vectors', async () => {
+    const { indexer, clock } = setup();
+    indexer.start();
+    indexer.onFactSaved({ id: 'f1', category: 'work', fact: 'deadline Friday', ts: 1 });
+    clock.advance(1);
+    await flush();
+    expect(repos.chunks.count()).toBeGreaterThan(0);
+    indexer.clear();
+    expect(repos.chunks.count()).toBe(0);
+    indexer.stop();
+  });
+
+  it('when index is disabled, nothing is enqueued', () => {
+    const { indexer } = setup({ indexEnabled: () => false });
+    indexer.start();
+    indexer.onFactSaved({ id: 'f1', category: 'work', fact: 'deadline Friday', ts: 1 });
+    expect(repos.chunks.count()).toBe(0);
+    indexer.stop();
+  });
+
+  it('rebuild re-chunks the whole corpus from repos', async () => {
+    repos.notes.save({ content: 'Alpha\n\nsome content' });
+    repos.memory.save({ category: 'work', fact: 'ships in Q3' });
+    const { indexer, clock } = setup();
+    indexer.rebuild();
+    clock.advance(1);
+    await flush();
+    const kinds = repos.chunks.countByKind();
+    expect(kinds.note).toBeGreaterThan(0);
+    expect(kinds.fact).toBeGreaterThan(0);
     indexer.stop();
   });
 });

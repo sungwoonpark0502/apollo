@@ -109,6 +109,29 @@ phrase stripped), a leading `todo` or trailing `!` forces a to-do — and Tab
 cycles the type. It saves through the same repos, so a captured note is live in
 the Workspace and available to voice instantly, and it works fully offline.
 
+## Semantic memory & recall (on-device)
+
+Apollo remembers meaning, not just keywords. Your **notes, past conversations,
+and saved memory facts** are embedded on-device with a local MiniLM model
+(`@huggingface/transformers`) into a vector index inside the same SQLite file
+(`sqlite-vec`), so "what was that idea I noted about the startup last week" is
+answered by semantic search — **no network egress for embedding or retrieval,
+ever**. A background indexer chunks and embeds on the DataBus (debounced, and
+only while no turn is active and voice is idle); `recall.search` does hybrid
+vector + keyword ranking with a recency tilt; results are treated as untrusted
+(notes can hold pasted text). **Cmd/Ctrl+K** in the Workspace opens an
+omnisearch across Notes, Events, and Facts.
+
+Memory facts dedupe by meaning (a near-duplicate updates in place; a
+contradiction replaces and is undoable). Everything is controllable in
+**Settings → Privacy → Memory index** (live counts, size on disk, Rebuild,
+Clear); turning off conversation history immediately purges indexed chats.
+
+The model is fetched **only at build time** by `pnpm --filter @apollo/desktop
+fetch-models` (23 MB quantized ONNX; SHA-256 recorded in `DECISIONS.md`).
+Without it, Apollo runs on a deterministic Fake embedder, so all tests and CI
+need no model files.
+
 ## Scripts
 
 | Command | What it does |
@@ -118,6 +141,7 @@ the Workspace and available to voice instantly, and it works fully offline.
 | `pnpm lint` | ESLint (no `any`, no `console`, hook rules) |
 | `pnpm -r test` | all unit/integration suites (Vitest) |
 | `pnpm eval` | agent eval harness against the real LLM (skips without a key) |
+| `pnpm --filter @apollo/desktop fetch-models` | download the on-device embedding model (build time only) |
 | `pnpm --filter @apollo/desktop package` | build installable artifacts into `apps/desktop/release/` |
 
 Tests run under the Node ABI and dev/packaging under the Electron ABI; the

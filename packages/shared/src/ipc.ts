@@ -189,6 +189,15 @@ export const invokeChannels = {
     }),
     res: z.array(recallItemSchema),
   },
+  'memory.indexStats': {
+    req: z.object({}),
+    res: z.object({
+      note: z.number(), message: z.number(), fact: z.number(),
+      total: z.number(), pending: z.number(), sizeBytes: z.number(), enabled: z.boolean(), embedder: z.string(),
+    }),
+  },
+  'memory.rebuild': { req: z.object({}), res: ackSchema }, // drops + re-scans corpus in background
+  'memory.clear': { req: z.object({}), res: ackSchema },   // drops + disables until re-enabled
   'settings.open': { req: z.object({}), res: ackSchema }, // rail gear → settings window
   'geocode.search': {
     req: z.object({ query: z.string().min(1) }),

@@ -10,6 +10,8 @@ export interface IndexerDeps {
   repos: Repos;
   embedder: Embedder;
   historyEnabled: () => boolean;
+  /** G7: master switch; Clear index sets this false until the user rebuilds/re-enables. */
+  indexEnabled?: () => boolean;
   /** Drains only when no agent turn is active and voice is idle (G3). */
   canDrain: () => boolean;
   now?: () => number;
@@ -22,11 +24,13 @@ export function createIndexer(deps: IndexerDeps) {
   const setTimer = deps.setTimer ?? ((fn: () => void, ms: number) => { const h = setTimeout(fn, Math.max(0, ms)); return { cancel: () => clearTimeout(h) }; });
 
   const noteTimers = new Map<string, { cancel: () => void }>();
+  const enabled = deps.indexEnabled ?? ((): boolean => true);
   let unsub: (() => void) | null = null;
   let draining = false;
   let stopped = false;
 
   function rechunkNote(noteId: string): void {
+    if (!enabled()) return;
     const note = deps.repos.notes.get(noteId);
     if (!note || note.deletedAt) {
       deps.repos.chunks.removeForRef('note', noteId);
@@ -53,7 +57,7 @@ export function createIndexer(deps: IndexerDeps) {
 
   /** Message persisted (only while history is enabled). */
   function onMessagePersisted(msg: { id: string; convId: string; content: string; ts: number }): void {
-    if (!deps.historyEnabled()) return;
+    if (!enabled() || !deps.historyEnabled()) return;
     const chunks = chunkMessage(msg.content);
     if (chunks.length === 0) return;
     deps.repos.chunks.replaceForRef('message', msg.id, chunks, { convId: msg.convId, ts: msg.ts });
@@ -61,6 +65,7 @@ export function createIndexer(deps: IndexerDeps) {
   }
 
   function onFactSaved(fact: { id: string; category: string; fact: string; ts: number }): void {
+    if (!enabled()) return;
     deps.repos.chunks.replaceForRef('fact', fact.id, chunkFact(fact.category, fact.fact), { ts: fact.ts });
     pump();
   }
@@ -106,7 +111,7 @@ export function createIndexer(deps: IndexerDeps) {
 
   /** Schedule a drain if the gate is open (called after enqueues and when a turn ends). */
   function pump(): void {
-    if (stopped || !deps.canDrain()) return;
+    if (stopped || !enabled() || !deps.canDrain()) return;
     setTimer(() => void drainNow(), 0);
   }
 
@@ -128,6 +133,12 @@ export function createIndexer(deps: IndexerDeps) {
     /** Called when a turn ends / voice returns to idle so the queue can drain. */
     pump,
     drainNow,
+    /** G7 Clear index: drop all chunks + vectors. The caller flips indexEnabled off. */
+    clear(): void {
+      for (const t of noteTimers.values()) t.cancel();
+      noteTimers.clear();
+      deps.repos.chunks.purgeAll();
+    },
     /** Rebuild: purge and re-chunk the whole corpus from repos (G7). */
     rebuild(): void {
       deps.repos.chunks.purgeAll();

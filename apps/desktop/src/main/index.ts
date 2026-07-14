@@ -182,6 +182,7 @@ function boot(): void {
     repos,
     embedder,
     historyEnabled: () => settings.get().history.enabled,
+    indexEnabled: () => settings.get().memory.indexEnabled,
     canDrain: () => activeTurns === 0 && voiceController.state() === 'idle',
     log,
   });
@@ -461,6 +462,25 @@ function boot(): void {
         ...(req.sinceIso ? { sinceIso: req.sinceIso } : {}),
         limit: req.limit,
       }),
+    memoryIndexStats: () => {
+      const k = repos.chunks.countByKind();
+      return {
+        note: k.note, message: k.message, fact: k.fact,
+        total: repos.chunks.count(),
+        pending: repos.chunks.pendingEmbedding(100_000).length,
+        sizeBytes: repos.chunks.sizeBytes(),
+        enabled: settings.get().memory.indexEnabled,
+        embedder: embedderState,
+      };
+    },
+    memoryRebuild: () => {
+      if (!settings.get().memory.indexEnabled) settings.patch({ memory: { indexEnabled: true } });
+      indexer.rebuild();
+    },
+    memoryClear: () => {
+      indexer.clear();
+      settings.patch({ memory: { indexEnabled: false } });
+    },
     logTail: (lines) => readLogTail(join(userData, 'logs', 'apollo.log'), lines),
     egressHosts: () => egress.allowedHosts(),
     wipeAllData: () => wipeAllData(),

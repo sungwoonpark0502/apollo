@@ -38,6 +38,9 @@ export interface HandlerDeps {
   openCapture?: () => void;
   captureSubmit?: (req: InvokeReq<'capture.submit'>) => InvokeRes<'capture.submit'>;
   recallQuery?: (req: InvokeReq<'recall.query'>) => Promise<InvokeRes<'recall.query'>>;
+  memoryIndexStats?: () => InvokeRes<'memory.indexStats'>;
+  memoryRebuild?: () => void;
+  memoryClear?: () => void;
   captureClassify?: (req: InvokeReq<'capture.classify'>) => InvokeRes<'capture.classify'>;
   tz?: () => string;
   log: (msg: string) => void;
@@ -73,6 +76,16 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
       return deps.captureSubmit(req);
     },
     'recall.query': async (req) => (deps.recallQuery ? deps.recallQuery(req) : []),
+    'memory.indexStats': () =>
+      deps.memoryIndexStats?.() ?? { note: 0, message: 0, fact: 0, total: 0, pending: 0, sizeBytes: 0, enabled: true, embedder: 'fake' },
+    'memory.rebuild': () => {
+      deps.memoryRebuild?.();
+      return { ok: true as const };
+    },
+    'memory.clear': () => {
+      deps.memoryClear?.();
+      return { ok: true as const };
+    },
     'capture.classify': (req) => {
       if (!deps.captureClassify) throw new Error('capture not available');
       return deps.captureClassify(req);
