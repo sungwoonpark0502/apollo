@@ -197,6 +197,7 @@ function boot(): void {
       ...createMemoryTools({
         memory: repos.memory,
         undo: repos.undo,
+        embedder,
         onFactSaved: (f) => indexer.onFactSaved(f),
         onFactForgotten: (id) => indexer.onFactForgotten(id),
       }),

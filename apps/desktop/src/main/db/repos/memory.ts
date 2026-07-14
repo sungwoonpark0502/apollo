@@ -37,6 +37,14 @@ export function createMemoryRepo(db: Db) {
     list(): MemoryFactRow[] {
       return (db.prepare('SELECT * FROM memory_facts WHERE deleted_at IS NULL ORDER BY updated_at DESC, rowid DESC').all() as Raw[]).map(toRow);
     },
+    listByCategory(category: string): MemoryFactRow[] {
+      return (db.prepare('SELECT * FROM memory_facts WHERE deleted_at IS NULL AND category=? ORDER BY updated_at DESC, rowid DESC').all(category) as Raw[]).map(toRow);
+    },
+    /** G5: update an existing fact's text in place (near-duplicate merge). */
+    updateText(id: string, fact: string): MemoryFactRow | null {
+      db.prepare('UPDATE memory_facts SET fact=?, updated_at=? WHERE id=? AND deleted_at IS NULL').run(fact, nowMs(), id);
+      return get(id);
+    },
     /** Newest facts first, budgeted by characters (≈4 chars/token; C8 caps digest at 600 tokens). */
     digest(maxChars = 2400): string {
       const lines: string[] = [];

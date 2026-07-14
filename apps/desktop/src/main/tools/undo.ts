@@ -41,6 +41,12 @@ const INVERSES: Record<string, InverseFn> = {
     r.memory.restore(String(d['id']));
     return 'restored the remembered fact';
   },
+  'memory.replace': (r, d) => {
+    // G5 contradiction handling: undo removes the new fact and restores the old.
+    r.memory.delete(String(d['newId']));
+    r.memory.restore(String(d['oldId']));
+    return 'restored what I knew before';
+  },
   'reminder.create': (r, d) => {
     r.reminders.softDelete(String(d['id']));
     return 'removed the reminder';
