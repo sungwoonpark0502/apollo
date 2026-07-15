@@ -49,6 +49,22 @@ describe('fast path full matches', () => {
   });
 });
 
+describe('H5 repeat + new-conversation fast path', () => {
+  it('matches repeat-that phrasings', () => {
+    expect(matchFastPath('repeat that')).toEqual({ kind: 'repeat' });
+    expect(matchFastPath('say that again')).toEqual({ kind: 'repeat' });
+    expect(matchFastPath('repeat')).toEqual({ kind: 'repeat' });
+    expect(matchFastPath('what did you say?')).toEqual({ kind: 'repeat' });
+  });
+  it('matches new-conversation phrasings', () => {
+    expect(matchFastPath('new conversation')).toEqual({ kind: 'newConversation' });
+    expect(matchFastPath('start a new chat')).toEqual({ kind: 'newConversation' });
+  });
+  it('does NOT match "repeat after me" (reaches the LLM)', () => {
+    expect(matchFastPath('repeat after me')).toBeNull();
+  });
+});
+
 describe('fast path residue routes to LLM (returns null)', () => {
   const nearMisses = [
     'set a timer for 5 minutes and remind me to stretch', // residue after timer
@@ -64,6 +80,8 @@ describe('fast path residue routes to LLM (returns null)', () => {
     "what's the weather going to be like",  // residue
     'is it going to rain tomorrow',         // not the exact template
     "what's the weather next week",         // unsupported horizon
+    'repeat after me the following words',  // H5: must NOT hit the repeat fast path
+    'new conversation starter ideas',       // H5: residue after "new conversation"
   ];
   for (const utt of nearMisses) {
     it(`"${utt}"`, () => {

@@ -33,6 +33,8 @@ export interface OrchestratorDeps {
   onAction?: (e: { tool: string; summary: string; outcome: 'executed' | 'canceled' | 'denied' | 'expired'; convId: string }) => void;
   /** H4 usage metering: Anthropic input/output tokens per turn. */
   onUsage?: (e: { inputTokens: number; outputTokens: number }) => void;
+  /** H5 "new conversation" fast path. */
+  onNewConversation?: () => void;
   buildContext?: () => Record<string, string | number>;
   now?: () => number;
   confirmTtlMs?: number;
@@ -63,6 +65,7 @@ export function createOrchestrator(deps: OrchestratorDeps) {
   const emit = deps.emit;
   const conversationTaint = new Map<string, boolean>();
   const utterancesByConv = new Map<string, string[]>();
+  const lastReplyByConv = new Map<string, string>(); // H5 "repeat that"
   const activeTurns = new Map<string, TurnHandle>();
   const cancelWindowAborts = new Map<string, AbortController>();
 
@@ -100,6 +103,7 @@ export function createOrchestrator(deps: OrchestratorDeps) {
   }
 
   function persist(convId: string, role: 'user' | 'assistant' | 'tool', content: string): void {
+    if (role === 'assistant' && content.trim()) lastReplyByConv.set(convId, content); // H5 repeat-that (independent of history)
     if (!deps.historyEnabled() || !content) return;
     deps.repos.conversations.ensure(convId);
     const row = deps.repos.conversations.addMessage({ convId, role, content });
@@ -482,6 +486,17 @@ export function createOrchestrator(deps: OrchestratorDeps) {
         const res = await deps.registry.execute('brief.daily', {}, ctx);
         if (res.card) emit({ type: 'card', card: res.card });
         finish(res.llmText);
+        return true;
+      }
+      case 'repeat': {
+        // H5: replay the last assistant reply (stored per conversation) through TTS.
+        const last = lastReplyByConv.get(state.convId);
+        finish(last && last.trim() ? last : STRINGS.spoken.nothingToRepeat);
+        return true;
+      }
+      case 'newConversation': {
+        deps.onNewConversation?.();
+        finish(STRINGS.spoken.newConversation);
         return true;
       }
     }

@@ -138,6 +138,14 @@ export function createChunksRepo(db: Db) {
       db.prepare('DELETE FROM chunks WHERE kind=?').run(kind);
     },
 
+    /** H5: purge message chunks (+vectors) of one conversation (Chats delete). */
+    purgeConversation(convId: string): number {
+      const ids = (db.prepare("SELECT id FROM chunks WHERE kind='message' AND conv_id=?").all(convId) as Array<{ id: string }>).map((r) => r.id);
+      removeVectors(ids);
+      db.prepare("DELETE FROM chunks WHERE kind='message' AND conv_id=?").run(convId);
+      return ids.length;
+    },
+
     purgeAll(): void {
       if (vecDelete) db.exec('DELETE FROM vec_chunks');
       db.exec('DELETE FROM chunks');

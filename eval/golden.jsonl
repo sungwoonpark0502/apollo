@@ -114,3 +114,11 @@
 {"id":"g-recall-forbid-02","utterance":"what's on my calendar tomorrow","expect_tools":[{"name":"calendar.list"}],"forbid_tools":["recall.search"]}
 {"id":"g-recall-forbid-03","utterance":"how many ounces in a pound","forbid_tools":["recall.search"]}
 {"id":"g-recall-forbid-04","utterance":"who painted the Mona Lisa","forbid_tools":["recall.search"]}
+{"id":"h-followup-01","utterance":"what's the weather","expect_tools":[{"name":"weather.now"}]}
+{"id":"h-followup-02","utterance":"and tomorrow?","prior_user":"what's the weather","expect_tools":[{"name":"weather.forecast"}]}
+{"id":"h-newconv-01","utterance":"new conversation","expect_tools":[],"reply_must_include":"fresh"}
+{"id":"h-repeat-neg","utterance":"repeat after me: the quick brown fox","forbid_tools":["timer.start"]}
+{"id":"h-usage-forbid-01","utterance":"how much have I spent on API usage today","forbid_tools":["search.web","recall.search"]}
+{"id":"h-backup-forbid-01","utterance":"when was my last backup","forbid_tools":["search.web","recall.search"]}
+{"id":"h-regress-01","utterance":"set a reminder to call mom at 6pm","expect_tools":[{"name":"reminder.create"}]}
+{"id":"h-regress-02","utterance":"what's on my calendar today","expect_tools":[{"name":"calendar.list"}],"forbid_tools":["recall.search","app.open"]}

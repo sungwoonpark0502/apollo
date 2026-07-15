@@ -34,6 +34,31 @@ export function createConversationsRepo(db: Db) {
         id: r.id, convId: r.conv_id, role: r.role, content: r.content, ts: r.ts,
       }));
     },
+
+    /** H5 Chats view: conversation summaries (title from first user message), newest activity first. */
+    listSummaries(limit = 50): Array<{ id: string; title: string; startedAt: number; lastTs: number; messageCount: number }> {
+      const convs = db.prepare('SELECT id, started_at FROM conversations ORDER BY started_at DESC LIMIT ?').all(limit) as Array<{ id: string; started_at: number }>;
+      const out: Array<{ id: string; title: string; startedAt: number; lastTs: number; messageCount: number }> = [];
+      for (const c of convs) {
+        const agg = db.prepare("SELECT COUNT(*) AS n, MAX(ts) AS last FROM messages WHERE conv_id=? AND role IN ('user','assistant')").get(c.id) as { n: number; last: number | null };
+        if (agg.n === 0) continue;
+        const firstUser = db.prepare("SELECT content FROM messages WHERE conv_id=? AND role='user' ORDER BY ts LIMIT 1").get(c.id) as { content: string } | undefined;
+        const title = (firstUser?.content ?? 'Conversation').replace(/\s+/g, ' ').trim().slice(0, 60) || 'Conversation';
+        out.push({ id: c.id, title, startedAt: c.started_at, lastTs: agg.last ?? c.started_at, messageCount: agg.n });
+      }
+      return out.sort((a, b) => b.lastTs - a.lastTs);
+    },
+
+    /** All user/assistant messages of one conversation, chronological (Chats transcript). */
+    messagesOf(convId: string): Array<{ role: MessageRole; content: string; ts: number }> {
+      return (db.prepare("SELECT role, content, ts FROM messages WHERE conv_id=? AND role IN ('user','assistant') ORDER BY ts").all(convId) as Array<{ role: MessageRole; content: string; ts: number }>);
+    },
+
+    /** H5 delete: remove a conversation and its messages (chunk purge handled by the caller). */
+    deleteConversation(convId: string): void {
+      db.prepare('DELETE FROM messages WHERE conv_id=?').run(convId);
+      db.prepare('DELETE FROM conversations WHERE id=?').run(convId);
+    },
   };
 }
 

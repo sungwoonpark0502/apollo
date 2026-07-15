@@ -13,7 +13,9 @@ export type FastPathIntent =
   | { kind: 'media'; op: 'playpause' | 'next' | 'prev' }
   | { kind: 'weatherNow' }
   | { kind: 'weatherForecast'; when: 'tomorrow' | 'weekend' }
-  | { kind: 'brief' };
+  | { kind: 'brief' }
+  | { kind: 'repeat' }            // H5 "say that again"
+  | { kind: 'newConversation' };  // H5 "new conversation"
 
 export function normalizeUtterance(text: string): string {
   return text
@@ -55,6 +57,13 @@ export function matchFastPath(text: string): FastPathIntent | null {
 
   // C19: "good morning" triggers the daily brief (also fired on schedule)
   if (/^good morning(?:,? apollo)?$/.test(t)) return { kind: 'brief' };
+
+  // H5 "repeat that" — replays the last assistant reply. "repeat after me" must
+  // NOT match (it reaches the LLM); the anchored pattern guarantees that.
+  if (/^(?:say that again|repeat(?: that)?|what did you say)$/.test(t)) return { kind: 'repeat' };
+
+  // H5 "new conversation" — starts a fresh conversation.
+  if (/^(?:new|start a new) (?:conversation|chat)$/.test(t)) return { kind: 'newConversation' };
 
   if (/^what time is it(?: now)?$/.test(t) || /^what'?s the time$/.test(t)) return { kind: 'timeNow' };
 

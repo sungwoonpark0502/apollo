@@ -74,6 +74,8 @@ export const STRINGS = {
     stoppedTalking: 'Okay.',
     undone: (what: string) => `Undone: ${what}.`,
     nothingToUndo: 'There is nothing to undo in this conversation.',
+    nothingToRepeat: "I haven't said anything yet.",
+    newConversation: 'Starting fresh.',
     whileAway: (n: number) => `While you were away: ${n} ${n === 1 ? 'item' : 'items'}.`,
     briefIntro: 'Here is your brief.',
     weatherNow: (place: string, temp: number, condition: string) => `It's ${temp} degrees and ${condition.toLowerCase()} in ${place}.`,
@@ -287,7 +289,15 @@ export const STRINGS = {
   },
 
   workspace: {
-    nav: { today: 'Today', calendar: 'Calendar', notes: 'Notes', settings: 'Settings' },
+    nav: { today: 'Today', calendar: 'Calendar', notes: 'Notes', chats: 'Chats', settings: 'Settings' },
+    chats: {
+      filter: 'Filter conversations…',
+      empty: 'No conversations yet.',
+      selectHint: 'Select a conversation to read it.',
+      continue: 'Continue',
+      delete: 'Delete',
+      deleteConfirm: 'Delete this conversation and its indexed messages?',
+    },
     greeting: (name: string, partOfDay: string) => (name ? `Good ${partOfDay}, ${name}.` : `Good ${partOfDay}.`),
     today: {
       upNext: 'Up next',

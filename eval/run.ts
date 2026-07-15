@@ -22,6 +22,7 @@ import { buildEvalTools, type RecordedCall } from './toolCatalog';
 interface GoldenRow {
   id: string;
   utterance: string;
+  prior_user?: string; // H5: a preceding user turn in the SAME conversation (follow-up continuity)
   expect_tools?: Array<{ name: string; args_like?: Record<string, unknown> }>;
   forbid_tools?: string[];
   reply_must_include?: string;
@@ -77,7 +78,16 @@ async function runRow(row: GoldenRow, apiKey: string, model: string): Promise<{ 
     cancelWindowMs: 10,
   });
 
-  const { completion } = orch.handleUserMessage({ text: row.utterance, source: 'text', convId: `eval-${row.id}` });
+  const convId = `eval-${row.id}`;
+  // H5: play a prior user turn first so the graded utterance resolves via context.
+  if (row.prior_user) {
+    const pre = orch.handleUserMessage({ text: row.prior_user, source: 'text', convId });
+    await pre.completion;
+    await new Promise((r) => setTimeout(r, 50));
+    calls.length = 0; // only grade tools from the follow-up turn
+    events.length = 0;
+  }
+  const { completion } = orch.handleUserMessage({ text: row.utterance, source: 'text', convId });
   await completion;
   await new Promise((r) => setTimeout(r, 300)); // allow confirm resume to finish
   await new Promise((r) => setTimeout(r, 0));

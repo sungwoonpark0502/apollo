@@ -7,7 +7,7 @@ import { isStageCard } from '../../lib/stage';
 import { CancelWindowBar } from '../../components/ConfirmBar';
 import { enqueueTtsChunk, playEarcon, stopPlayback } from '../../lib/audioPlayer';
 
-type OrbState = Extract<VoiceState, 'idle' | 'thinking' | 'speaking' | 'listening' | 'muted' | 'error'>;
+type OrbState = Extract<VoiceState, 'idle' | 'thinking' | 'speaking' | 'listening' | 'followup' | 'muted' | 'error'>;
 
 interface PanelCard {
   id: string;
@@ -177,10 +177,12 @@ export function OrbApp(): React.JSX.Element {
                     ? 'apollo-pulse 1.2s ease-in-out infinite'
                     : state === 'speaking'
                       ? 'apollo-spin 2.4s linear infinite'
-                      : nudgeDot && state === 'idle' && nudges.length === 0
-                        ? 'apollo-pulse 1.6s ease-in-out infinite'
-                        : 'none',
-                border: state === 'speaking' ? '3px solid var(--accent-soft)' : 'none',
+                      : state === 'followup'
+                        ? 'apollo-pulse 2.2s ease-in-out infinite' // H5 thin breathing ring
+                        : nudgeDot && state === 'idle' && nudges.length === 0
+                          ? 'apollo-pulse 1.6s ease-in-out infinite'
+                          : 'none',
+                border: state === 'speaking' ? '3px solid var(--accent-soft)' : state === 'followup' ? '2px solid var(--accent-soft)' : 'none',
                 borderTopColor: state === 'speaking' ? 'var(--surface)' : undefined,
               }}
             />

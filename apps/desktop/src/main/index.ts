@@ -16,7 +16,7 @@ import { createDeepgramStt } from './voice/sttDeepgram';
 import { FakeStt, type FakeSttFixture } from './voice/sttFake';
 import { wavToFrames } from './voice/wav';
 import { readFileSync, rmSync } from 'node:fs';
-import { AUDIO_PORT_CHANNEL, newId, type VoiceState } from '@apollo/shared';
+import { AUDIO_PORT_CHANNEL, type VoiceState } from '@apollo/shared';
 import { createLogger, readLogTail } from './logger';
 import { loadConfig } from './config';
 import { openDb } from './db/connection';
@@ -60,6 +60,7 @@ import { initUpdater } from './updater';
 import { createEmailService } from './security/emailService';
 import { createDailyBrief } from './scheduler/dailyBrief';
 import { createOrchestrator, type Orchestrator } from './agent/orchestrator';
+import { createConversationManager } from './agent/conversationManager';
 import { buildSystemPrompt } from './agent/systemPrompt';
 import { createAnthropicLlm } from './agent/llmAnthropic';
 import { createScheduler } from './scheduler/scheduler';
@@ -365,6 +366,7 @@ function boot(): void {
     emit: emitToAll,
     tz: () => Intl.DateTimeFormat().resolvedOptions().timeZone,
     historyEnabled: () => settings.get().history.enabled,
+    onNewConversation: () => conversationManager.startNew(), // H5
     onMessagePersisted: (m) => indexer.onMessagePersisted(m),
     onAction: (e) => repos.actionLog.record(e), // H3 audit trail
     onUsage: (e) => {
@@ -446,15 +448,17 @@ function boot(): void {
   });
   let voiceTurnActive = false;
 
-  const voiceConvId = newId(); // voice turns share one conversation per app session
+  // H5 one-brain conversation lifecycle (main owns the active id).
+  const conversationManager = createConversationManager({ onRotate: (id) => log(`conversation rotated → ${id}`) });
   const voiceController = createVoiceController({
     stt: sttAdapter,
     workerSend: (m) => workerHost.send(m),
     onAudioSeconds: (s) => repos.usageLog.add('deepgram', 'seconds', s), // H4
+    getFollowupWindowSec: () => settings.get().voice.followupWindowSec, // H5
     dispatch: (text) => {
       voiceTurnActive = true;
       ttsPipeline.beginTurn();
-      orchestrator.handleUserMessage({ text, source: 'voice', convId: voiceConvId });
+      orchestrator.handleUserMessage({ text, source: 'voice', convId: conversationManager.forTurn() });
     },
     pushState: pushVoiceState,
     pushPartial: (transcript, rms) => {
@@ -509,6 +513,12 @@ function boot(): void {
     secrets,
     testKey,
     setMuted: (on) => voiceController.setMuted(on),
+    activeConvId: () => conversationManager.forTurn(), // H5 one-brain
+    setActiveConversation: (id) => {
+      conversationManager.setActive(id);
+      togglePalette(); // "Continue": open the palette on the active conversation
+    },
+    newConversation: () => conversationManager.startNew(),
     onUserActivity: () => {
       lastActivityMs = Date.now();
       dailyBrief.noteActivity();
@@ -692,7 +702,7 @@ function boot(): void {
     tz: () => Intl.DateTimeFormat().resolvedOptions().timeZone,
     isUserActive: () => Date.now() - lastActivityMs < 10 * 60_000,
     runBrief: () => {
-      orchestrator.handleUserMessage({ text: 'good morning', source: 'voice', convId: voiceConvId });
+      orchestrator.handleUserMessage({ text: 'good morning', source: 'voice', convId: conversationManager.forTurn() });
     },
     log,
   });

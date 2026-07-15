@@ -23,7 +23,7 @@ const TIMER_FIXTURE: FakeSttFixture = {
   ],
 };
 
-function harness(fixtures: FakeSttFixture[] = [TIMER_FIXTURE, TIMER_FIXTURE], adapter?: SttAdapter): Harness {
+function harness(fixtures: FakeSttFixture[] = [TIMER_FIXTURE, TIMER_FIXTURE], adapter?: SttAdapter, followupSec = 0): Harness {
   const h = {
     states: [] as VoiceState[],
     partials: [] as Array<{ transcript: string; rms: number }>,
@@ -46,6 +46,7 @@ function harness(fixtures: FakeSttFixture[] = [TIMER_FIXTURE, TIMER_FIXTURE], ad
     stopTts: () => {
       h.ttsStops.push(1);
     },
+    getFollowupWindowSec: () => followupSec,
   };
   return { vc: createVoiceController(deps), stt, ...h };
 }
@@ -228,5 +229,58 @@ describe('C12.3 FSM table', () => {
     h.vc.onWake();
     await flush();
     expect(h.vc.state()).toBe('error'); // stays disabled
+  });
+});
+
+describe('H5 follow-up mode', () => {
+  async function toSpeaking(followupSec: number): Promise<Harness> {
+    const h = harness([TIMER_FIXTURE, TIMER_FIXTURE], undefined, followupSec);
+    h.vc.onWake();
+    await flush();
+    await vi.advanceTimersByTimeAsync(800); // endpoint → thinking
+    h.vc.ttsStarted(); // → speaking
+    return h;
+  }
+
+  it('speaking → followup on queue drain when the window is > 0', async () => {
+    const h = await toSpeaking(6);
+    h.vc.ttsFinished();
+    expect(h.vc.state()).toBe('followup');
+    expect(h.modes.at(-1)).toBe('stream'); // VAD active
+  });
+
+  it('speech within the window resumes listening in the same conversation (no wake word)', async () => {
+    const h = await toSpeaking(6);
+    h.vc.ttsFinished();
+    expect(h.vc.state()).toBe('followup');
+    h.vc.onWorkerMessage({ t: 'vad', speech: true });
+    await flush();
+    expect(h.vc.state()).toBe('listening');
+    expect(h.stt.openCount).toBe(2); // reopened STT for the continuation
+  });
+
+  it('timeout ends follow-up back to idle/passive with no end earcon', async () => {
+    const h = await toSpeaking(6);
+    const earconsBefore = h.earcons.length;
+    h.vc.ttsFinished();
+    await vi.advanceTimersByTimeAsync(6001);
+    expect(h.vc.state()).toBe('idle');
+    expect(h.modes.at(-1)).toBe('passive');
+    expect(h.earcons.length).toBe(earconsBefore); // no 'done' earcon on follow-up timeout
+  });
+
+  it('follow-up disabled (window 0) goes straight to idle', async () => {
+    const h = await toSpeaking(0);
+    h.vc.ttsFinished();
+    expect(h.vc.state()).toBe('idle');
+  });
+
+  it('mute during follow-up parks in muted and unmute returns to idle', async () => {
+    const h = await toSpeaking(6);
+    h.vc.ttsFinished();
+    h.vc.setMuted(true);
+    expect(h.vc.state()).toBe('muted');
+    h.vc.setMuted(false);
+    expect(h.vc.state()).toBe('idle');
   });
 });

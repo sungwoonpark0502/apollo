@@ -222,6 +222,18 @@ export const invokeChannels = {
       month: z.array(z.object({ provider: z.string(), metric: z.string(), amount: z.number() })),
     }),
   },
+  // ---- H5 conversation lifecycle ----
+  'conversations.list': {
+    req: z.object({ limit: z.number().int().min(1).max(200).default(50) }),
+    res: z.array(z.object({ id: z.string(), title: z.string(), startedAt: z.number(), lastTs: z.number(), messageCount: z.number() })),
+  },
+  'conversations.get': {
+    req: z.object({ id: z.string() }),
+    res: z.object({ messages: z.array(z.object({ role: z.enum(['user', 'assistant']), content: z.string(), ts: z.number() })) }),
+  },
+  'conversations.delete': { req: z.object({ id: z.string() }), res: ackSchema },
+  'conversations.setActive': { req: z.object({ id: z.string() }), res: ackSchema },
+  'conversations.new': { req: z.object({}), res: ackSchema }, // Cmd/Ctrl+N
   // H3 key metadata (write-only keys; this returns non-secret metadata only)
   'keys.info': {
     req: z.object({}),

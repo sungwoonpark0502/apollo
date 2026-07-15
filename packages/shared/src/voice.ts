@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
-export type VoiceState = 'idle' | 'waking' | 'listening' | 'thinking' | 'speaking' | 'muted' | 'error';
+export type VoiceState = 'idle' | 'waking' | 'listening' | 'thinking' | 'speaking' | 'followup' | 'muted' | 'error';
 
-export const voiceStateSchema = z.enum(['idle', 'waking', 'listening', 'thinking', 'speaking', 'muted', 'error']);
+export const voiceStateSchema = z.enum(['idle', 'waking', 'listening', 'thinking', 'speaking', 'followup', 'muted', 'error']);
 
 export type WorkerToMain =
   | { t: 'wake' }

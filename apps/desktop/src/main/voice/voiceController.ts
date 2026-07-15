@@ -15,6 +15,7 @@ export interface VoiceControllerDeps {
   stopTts: () => void;                                     // must take effect <100ms (C12.3 barge-in)
   notify?: (copy: string) => void;
   onAudioSeconds?: (seconds: number) => void;              // H4 usage metering (Deepgram seconds)
+  getFollowupWindowSec?: () => number;                     // H5 follow-up window (0 disables)
   log?: (msg: string) => void;
 }
 
@@ -36,6 +37,7 @@ export function createVoiceController(deps: VoiceControllerDeps) {
   let silenceTimer: ReturnType<typeof setTimeout> | null = null;
   let noSpeechTimer: ReturnType<typeof setTimeout> | null = null;
   let hardCapTimer: ReturnType<typeof setTimeout> | null = null;
+  let followupTimer: ReturnType<typeof setTimeout> | null = null;
 
   function setState(next: VoiceState): void {
     state = next;
@@ -43,13 +45,25 @@ export function createVoiceController(deps: VoiceControllerDeps) {
   }
 
   function clearTimers(): void {
-    for (const t of [silenceTimer, noSpeechTimer, hardCapTimer]) if (t) clearTimeout(t);
-    silenceTimer = noSpeechTimer = hardCapTimer = null;
+    for (const t of [silenceTimer, noSpeechTimer, hardCapTimer, followupTimer]) if (t) clearTimeout(t);
+    silenceTimer = noSpeechTimer = hardCapTimer = followupTimer = null;
   }
 
   function closeSession(): void {
     session?.close();
     session = null;
+  }
+
+  /** H5 follow-up: keep the mic warm (VAD on, STT closed) for windowSec so the
+   *  user can continue without the wake word. Speech → listening (same convo). */
+  function enterFollowup(windowSec: number): void {
+    clearTimers();
+    closeSession();
+    setState('followup');
+    deps.workerSend({ t: 'mode', mode: 'stream' }); // VAD active, frames flow for detection
+    followupTimer = setTimeout(() => {
+      if (state === 'followup') toIdle(); // timeout: no end earcon, back to passive
+    }, windowSec * 1000);
   }
 
   async function enterListening(): Promise<void> {
@@ -173,6 +187,9 @@ export function createVoiceController(deps: VoiceControllerDeps) {
             // barge-in: stop TTS <100ms, reopen STT, mode stream (C12.3)
             deps.stopTts();
             void enterListening();
+          } else if (state === 'followup' && msg.speech) {
+            // H5 follow-up continuation: open STT, same conversation, no wake word
+            void enterListening();
           }
           return;
         case 'fatal':
@@ -189,10 +206,13 @@ export function createVoiceController(deps: VoiceControllerDeps) {
       }
     },
 
-    /** Playback queue drained. */
+    /** Playback queue drained → follow-up window (H5) or idle. Echo-safe: only
+     *  after the queue fully drains do we open the mic again. */
     ttsFinished(): void {
       if (state === 'speaking') {
-        toIdle(); // card lingers in the orb (C12.3)
+        const win = deps.getFollowupWindowSec?.() ?? 0;
+        if (win > 0) enterFollowup(win);
+        else toIdle(); // card lingers in the orb (C12.3)
       }
     },
 
@@ -203,7 +223,7 @@ export function createVoiceController(deps: VoiceControllerDeps) {
 
     setMuted(on: boolean): void {
       if (on) {
-        if (state !== 'muted') stateBeforeMute = state === 'listening' || state === 'speaking' ? 'idle' : state;
+        if (state !== 'muted') stateBeforeMute = state === 'listening' || state === 'speaking' || state === 'followup' ? 'idle' : state;
         clearTimers();
         closeSession();
         deps.stopTts();

@@ -50,6 +50,12 @@ export function App(): React.JSX.Element {
       setInput('');
       s.reset();
       e.preventDefault();
+    } else if (e.key === 'n' && (e.metaKey || e.ctrlKey)) {
+      // H5: start a new conversation (backend rotates; palette clears its thread)
+      setInput('');
+      s.reset();
+      void window.apollo.call('conversations.new', {}).catch(() => undefined);
+      e.preventDefault();
     }
   };
 
@@ -74,9 +80,19 @@ export function App(): React.JSX.Element {
       />
 
       {s.reply || s.streaming ? (
-        <div style={{ padding: '0 var(--sp-2)', fontSize: 'var(--fs-body)', color: 'var(--text-1)', whiteSpace: 'pre-wrap' }}>
+        <div style={{ padding: '0 var(--sp-2)', fontSize: 'var(--fs-body)', color: 'var(--text-1)', whiteSpace: 'pre-wrap', position: 'relative' }}>
           {s.reply}
           {s.streaming ? <span style={{ color: 'var(--text-3)' }}> ▌</span> : null}
+          {s.reply && !s.streaming ? (
+            <button
+              aria-label="Copy reply"
+              title="Copy"
+              onClick={() => void navigator.clipboard.writeText(s.reply)}
+              style={{ marginLeft: 'var(--sp-2)', fontSize: 'var(--fs-caption)', color: 'var(--text-3)', background: 'transparent', border: 'none', cursor: 'pointer' }}
+            >
+              ⧉
+            </button>
+          ) : null}
         </div>
       ) : null}
 

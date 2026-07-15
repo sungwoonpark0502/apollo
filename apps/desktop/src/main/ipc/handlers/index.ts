@@ -35,6 +35,9 @@ export interface HandlerDeps {
   geocode?: (query: string) => Promise<InvokeRes<'geocode.search'>>;
   checkForUpdates?: () => Promise<InvokeRes<'update.check'>>;
   // F1 proactive + quick capture (wired in 6.2/6.3/6.5)
+  activeConvId?: () => string; // H5 main-owned conversation id
+  setActiveConversation?: (id: string) => void;
+  newConversation?: () => void;
   suggestionAction?: (suggestionId: string, actionId: string) => void;
   openCapture?: () => void;
   captureSubmit?: (req: InvokeReq<'capture.submit'>) => InvokeRes<'capture.submit'>;
@@ -103,7 +106,9 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
     },
     'agent.userMessage': (req) => {
       deps.onUserActivity?.();
-      const { turnId } = deps.orchestrator().handleUserMessage(req);
+      // H5 one-brain: main owns the active conversation id (shared with voice).
+      const convId = deps.activeConvId ? deps.activeConvId() : req.convId;
+      const { turnId } = deps.orchestrator().handleUserMessage({ ...req, convId });
       return { turnId };
     },
     'agent.cancel': (req) => {
@@ -198,6 +203,21 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
       today: deps.repos.usageLog.today().map((u) => ({ provider: u.provider, metric: u.metric, amount: u.amount })),
       month: deps.repos.usageLog.month().map((u) => ({ provider: u.provider, metric: u.metric, amount: u.amount })),
     }),
+    'conversations.list': (req) => deps.repos.conversations.listSummaries(req.limit),
+    'conversations.get': (req) => ({ messages: deps.repos.conversations.messagesOf(req.id) as Array<{ role: 'user' | 'assistant'; content: string; ts: number }> }),
+    'conversations.delete': (req) => {
+      deps.repos.chunks.purgeConversation(req.id); // H5: purge indexed message chunks + vectors
+      deps.repos.conversations.deleteConversation(req.id);
+      return { ok: true as const };
+    },
+    'conversations.setActive': (req) => {
+      deps.setActiveConversation?.(req.id);
+      return { ok: true as const };
+    },
+    'conversations.new': () => {
+      deps.newConversation?.();
+      return { ok: true as const };
+    },
     'oauth.google.start': async () => (deps.oauthConnect ? await deps.oauthConnect() : { ok: false }),
     'oauth.google.revoke': () => {
       deps.oauthRevoke?.();

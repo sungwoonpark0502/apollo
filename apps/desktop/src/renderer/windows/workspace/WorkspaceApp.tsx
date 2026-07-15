@@ -4,9 +4,10 @@ import { useNavigate, useSettings } from '../../lib/useLive';
 import { TodayView } from './TodayView';
 import { CalendarView } from './CalendarView';
 import { NotesView } from './NotesView';
+import { ChatsView } from './ChatsView';
 import { OmniSearch } from './OmniSearch';
 
-type View = 'today' | 'calendar' | 'notes';
+type View = 'today' | 'calendar' | 'notes' | 'chats';
 
 const RAIL_W = 64;
 
@@ -59,6 +60,9 @@ export function WorkspaceApp(): React.JSX.Element {
         <RailButton label={STRINGS.workspace.nav.today} active={view === 'today'} onClick={() => go('today')} glyph="◉" />
         <RailButton label={STRINGS.workspace.nav.calendar} active={view === 'calendar'} onClick={() => go('calendar')} glyph="▦" />
         <RailButton label={STRINGS.workspace.nav.notes} active={view === 'notes'} onClick={() => go('notes')} glyph="≡" />
+        {settings?.history.enabled ? (
+          <RailButton label={STRINGS.workspace.nav.chats} active={view === 'chats'} onClick={() => go('chats')} glyph="✻" />
+        ) : null}
         <div style={{ flex: 1 }} />
         <RailButton
           label={STRINGS.workspace.nav.settings}
@@ -72,6 +76,8 @@ export function WorkspaceApp(): React.JSX.Element {
           <TodayView settings={settings} onOpenCalendar={(dateIso) => { setView('calendar'); setNavDateIso(dateIso); }} />
         ) : view === 'calendar' ? (
           <CalendarView settings={settings} initialDateIso={navDateIso} />
+        ) : view === 'chats' ? (
+          <ChatsView />
         ) : (
           <NotesView initialNoteId={navNoteId} />
         )}
