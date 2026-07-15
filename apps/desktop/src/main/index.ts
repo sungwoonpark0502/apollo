@@ -673,18 +673,25 @@ function boot(): void {
     openWorkspace: (target) => openWorkspace(target),
     openSettings: () => openSettingsWindow(),
     todayData: () => todayProvider.get(),
-    geocode: async (query) => {
+    geocode: async (query, countryCode) => {
       // E6/E7 geocoding autocomplete through the egress-checked http client.
+      // When a country is chosen, over-fetch then filter to that country_code.
       try {
+        const count = countryCode ? 20 : 5;
         const data = (await http.getJson(
-          `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=5&language=en`,
-        )) as { results?: Array<{ name: string; latitude: number; longitude: number; admin1?: string; country?: string; timezone?: string }> };
-        return (data.results ?? []).map((r) => ({
-          label: [r.name, r.admin1, r.country].filter(Boolean).join(', '),
-          lat: r.latitude,
-          lon: r.longitude,
-          tz: r.timezone ?? 'auto',
-        }));
+          `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=${count}&language=en`,
+        )) as { results?: Array<{ name: string; latitude: number; longitude: number; admin1?: string; country?: string; country_code?: string; timezone?: string }> };
+        return (data.results ?? [])
+          .filter((r) => !countryCode || (r.country_code ?? '').toUpperCase() === countryCode.toUpperCase())
+          .slice(0, 8)
+          .map((r) => ({
+            label: [r.name, r.admin1, r.country].filter(Boolean).join(', '),
+            city: r.name,
+            lat: r.latitude,
+            lon: r.longitude,
+            tz: r.timezone ?? 'auto',
+            countryCode: (r.country_code ?? '').toUpperCase(),
+          }));
       } catch {
         return [];
       }

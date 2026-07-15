@@ -32,7 +32,7 @@ export interface HandlerDeps {
   openWorkspace?: (target: InvokeReq<'workspace.open'>) => void;
   openSettings?: () => void;
   todayData?: () => Promise<InvokeRes<'workspace.today'>>;
-  geocode?: (query: string) => Promise<InvokeRes<'geocode.search'>>;
+  geocode?: (query: string, countryCode?: string) => Promise<InvokeRes<'geocode.search'>>;
   checkForUpdates?: () => Promise<InvokeRes<'update.check'>>;
   installUpdate?: () => void;
   resourceReport?: () => InvokeRes<'resources.get'>;
@@ -72,7 +72,7 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
       return { ok: true as const };
     },
     'workspace.today': async () => (deps.todayData ? deps.todayData() : { weather: null, brief: null }),
-    'geocode.search': async (req) => (deps.geocode ? deps.geocode(req.query) : []),
+    'geocode.search': async (req) => (deps.geocode ? deps.geocode(req.query, req.countryCode) : []),
     'update.check': async () => (deps.checkForUpdates ? deps.checkForUpdates() : { status: 'disabled' as const }),
     'update.install': () => {
       deps.installUpdate?.();

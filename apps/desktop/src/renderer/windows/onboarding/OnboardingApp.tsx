@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { STRINGS, type KeyProvider } from '@apollo/shared';
-import { PlaceSearch } from '../../components/PlaceSearch';
-import { type GeoResult } from '../../lib/geocode';
+import { LocationPicker } from '../../components/LocationPicker';
 
 const KEY_PROVIDERS: Array<{ id: KeyProvider; required: boolean }> = [
   { id: 'anthropic', required: true },
@@ -10,16 +9,26 @@ const KEY_PROVIDERS: Array<{ id: KeyProvider; required: boolean }> = [
   { id: 'picovoice', required: false },
 ];
 
+const PROFILE_STEP = 1;
+
 export function OnboardingApp(): React.JSX.Element {
   const [step, setStep] = useState(0);
+  const [profileName, setProfileName] = useState('');
+
+  useEffect(() => {
+    void window.apollo.call('settings.get', {}).then((s) => setProfileName(s.profile.name));
+  }, []);
 
   const finish = (): void => {
     void window.apollo.call('onboarding.finish', {}).then(() => window.close());
   };
 
+  // H/E6 override: name is required to move past the Profile step; location is optional.
+  const nameMissing = step === PROFILE_STEP && !profileName.trim();
+
   const steps = [
     <Welcome key="w" />,
-    <Profile key="pr" />,
+    <Profile key="pr" onNameChange={setProfileName} />,
     <Permissions key="p" />,
     <Keys key="k" />,
     <WakeWord key="wa" />,
@@ -42,9 +51,12 @@ export function OnboardingApp(): React.JSX.Element {
             </button>
           ) : null}
           {step < steps.length - 1 ? (
-            <button onClick={() => setStep(step + 1)} style={primaryButton}>
-              {STRINGS.onboarding.next}
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+              <button onClick={() => setStep(step + 1)} disabled={nameMissing} style={{ ...primaryButton, ...(nameMissing ? { opacity: 0.5, cursor: 'not-allowed' } : {}) }}>
+                {STRINGS.onboarding.next}
+              </button>
+              {nameMissing ? <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--danger)' }}>{STRINGS.onboarding.profileNameMissing}</span> : null}
+            </div>
           ) : (
             <button onClick={finish} style={primaryButton}>
               {STRINGS.onboarding.done}
@@ -125,22 +137,29 @@ function Keys(): React.JSX.Element {
   );
 }
 
-function Profile(): React.JSX.Element {
+function Profile({ onNameChange }: { onNameChange: (name: string) => void }): React.JSX.Element {
   const [name, setName] = useState('');
-  const [home, setHome] = useState<GeoResult | null>(null);
+  const [home, setHome] = useState<{ label: string } | null>(null);
 
   // Load current profile so re-running onboarding shows existing values.
   useEffect(() => {
     void window.apollo.call('settings.get', {}).then((s) => {
       setName(s.profile.name);
+      onNameChange(s.profile.name);
       setHome(s.profile.homePlace);
     });
-  }, []);
+  }, [onNameChange]);
 
-  const persist = (partial: { name?: string; homePlace?: GeoResult | null }): void => {
+  const persist = (partial: { name?: string; homePlace?: { label: string; lat: number; lon: number; tz: string } | null }): void => {
     void window.apollo.call('settings.get', {}).then((s) => {
       void window.apollo.call('settings.set', { ...s, profile: { ...s.profile, ...partial } });
     });
+  };
+
+  const onNameEdit = (v: string): void => {
+    const next = v.slice(0, 60);
+    setName(next);
+    onNameChange(next); // live-gates the Next button
   };
 
   return (
@@ -149,13 +168,19 @@ function Profile(): React.JSX.Element {
       <label style={{ display: 'block', fontSize: 'var(--fs-caption)', color: 'var(--text-2)', margin: 'var(--sp-3) 0 var(--sp-1)' }}>{STRINGS.onboarding.profileName}</label>
       <input
         value={name}
-        onChange={(e) => setName(e.target.value.slice(0, 60))}
+        onChange={(e) => onNameEdit(e.target.value)}
         onBlur={() => persist({ name })}
         placeholder={STRINGS.onboarding.profileNamePlaceholder}
-        style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' }}
+        style={{ ...inputStyle, width: '100%', boxSizing: 'border-box', ...(name.trim() ? {} : { borderColor: 'var(--danger)' }) }}
       />
       <label style={{ display: 'block', fontSize: 'var(--fs-caption)', color: 'var(--text-2)', margin: 'var(--sp-3) 0 var(--sp-1)' }}>{STRINGS.onboarding.profileHome}</label>
-      <PlaceSearch value={home} onSelect={(p) => { setHome(p); persist({ homePlace: p }); }} />
+      {home ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', marginBottom: 'var(--sp-2)' }}>
+          <span style={{ fontSize: 'var(--fs-body)', color: 'var(--text-1)' }}>{home.label}</span>
+          <button onClick={() => { setHome(null); persist({ homePlace: null }); }} style={{ border: 'none', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontSize: 'var(--fs-caption)' }}>{STRINGS.settings.profile.clearHome}</button>
+        </div>
+      ) : null}
+      <LocationPicker onSelect={(place) => { const hp = { label: place.label, lat: place.lat, lon: place.lon, tz: place.tz }; setHome(hp); persist({ homePlace: hp }); }} />
     </Panel>
   );
 }

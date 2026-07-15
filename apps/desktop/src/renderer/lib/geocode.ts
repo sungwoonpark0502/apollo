@@ -1,8 +1,10 @@
 export interface GeoResult {
   label: string;
+  city: string;
   lat: number;
   lon: number;
   tz: string;
+  countryCode: string;
 }
 
 /**
@@ -10,22 +12,22 @@ export interface GeoResult {
  * normalized-key cache so repeated/prefix-identical lookups don't re-hit the
  * network. Pure aside from the injected fetcher; unit-tested.
  */
-export function createGeocodeCache(fetcher: (q: string) => Promise<GeoResult[]>) {
+export function createGeocodeCache(fetcher: (q: string, countryCode?: string) => Promise<GeoResult[]>) {
   const cache = new Map<string, GeoResult[]>();
-  const norm = (q: string): string => q.trim().toLowerCase();
+  const keyOf = (q: string, cc?: string): string => `${(cc ?? '').toLowerCase()}|${q.trim().toLowerCase()}`;
 
   return {
-    async search(query: string): Promise<GeoResult[]> {
-      const key = norm(query);
-      if (!key) return [];
+    async search(query: string, countryCode?: string): Promise<GeoResult[]> {
+      if (!query.trim()) return [];
+      const key = keyOf(query, countryCode);
       const hit = cache.get(key);
       if (hit) return hit;
-      const results = await fetcher(query);
+      const results = await fetcher(query, countryCode);
       cache.set(key, results);
       return results;
     },
-    has(query: string): boolean {
-      return cache.has(norm(query));
+    has(query: string, countryCode?: string): boolean {
+      return cache.has(keyOf(query, countryCode));
     },
     size(): number {
       return cache.size;

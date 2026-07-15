@@ -255,8 +255,8 @@ export const invokeChannels = {
   'keys.remove': { req: z.object({ provider: keyProviderSchema }), res: ackSchema },
   'settings.open': { req: z.object({}), res: ackSchema }, // rail gear → settings window
   'geocode.search': {
-    req: z.object({ query: z.string().min(1) }),
-    res: z.array(z.object({ label: z.string(), lat: z.number(), lon: z.number(), tz: z.string() })),
+    req: z.object({ query: z.string().min(1), countryCode: z.string().length(2).optional() }),
+    res: z.array(z.object({ label: z.string(), city: z.string(), lat: z.number(), lon: z.number(), tz: z.string(), countryCode: z.string() })),
   },
   'update.check': { req: z.object({}), res: z.object({ status: z.enum(['checking', 'available', 'none', 'disabled']), version: z.string().optional() }) },
   'update.install': { req: z.object({}), res: ackSchema }, // H7 quit + install (only when ready)

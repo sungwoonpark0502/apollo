@@ -123,7 +123,7 @@ const invokeFixtures: Record<InvokeChannelName, { req: unknown; res: unknown }> 
   'keys.info': { req: {}, res: [{ provider: 'anthropic', configured: true, last4: 'x123', setAt: 1 }] },
   'keys.remove': { req: { provider: 'anthropic' }, res: { ok: true } },
   'settings.open': { req: {}, res: { ok: true } },
-  'geocode.search': { req: { query: 'columbus' }, res: [{ label: 'Columbus, Ohio', lat: 39.96, lon: -83, tz: 'America/New_York' }] },
+  'geocode.search': { req: { query: 'columbus', countryCode: 'US' }, res: [{ label: 'Columbus, Ohio, United States', city: 'Columbus', lat: 39.96, lon: -83, tz: 'America/New_York', countryCode: 'US' }] },
   'update.check': { req: {}, res: { status: 'none' } },
   'update.install': { req: {}, res: { ok: true } },
   'resources.get': { req: {}, res: [{ type: 'Browser', rssMB: 120 }, { type: 'Tab', rssMB: 80 }] },

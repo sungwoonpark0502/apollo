@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { STRINGS, type Settings } from '@apollo/shared';
-import { PlaceSearch } from '../../components/PlaceSearch';
+import { LocationPicker } from '../../components/LocationPicker';
 
 /** E7 Profile tab: name, home location (autocomplete), units, time format, week start. */
 export function ProfileTab(): React.JSX.Element {
@@ -25,26 +25,23 @@ export function ProfileTab(): React.JSX.Element {
     <div style={{ maxWidth: 460 }}>
       <h2 style={{ fontSize: 'var(--fs-display)', margin: '0 0 var(--sp-4)' }}>{p.title}</h2>
 
-      <Field label={p.name}>
+      <Field label={p.nameRequired}>
         <input
           value={prof.name}
           onChange={(e) => patch({ name: e.target.value.slice(0, 60) })}
           placeholder={p.namePlaceholder}
-          style={input}
+          style={{ ...input, ...(prof.name.trim() ? {} : { borderColor: 'var(--danger)' }) }}
         />
       </Field>
 
-      <Field label={p.homeLocation}>
-        <PlaceSearch
-          value={prof.homePlace}
-          onSelect={(place) => patch({ homePlace: place })}
-        />
+      <Field label={p.locationOptional}>
         {prof.homePlace ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', marginTop: 'var(--sp-1)' }}>
-            <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-3)' }}>{prof.homePlace.label} · {prof.homePlace.tz}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', marginBottom: 'var(--sp-2)' }}>
+            <span style={{ fontSize: 'var(--fs-body)', color: 'var(--text-1)' }}>{prof.homePlace.label}</span>
             <button onClick={() => patch({ homePlace: null })} style={linkBtn}>{p.clearHome}</button>
           </div>
         ) : null}
+        <LocationPicker onSelect={(place) => patch({ homePlace: { label: place.label, lat: place.lat, lon: place.lon, tz: place.tz } })} />
       </Field>
 
       <Field label={p.units}>
