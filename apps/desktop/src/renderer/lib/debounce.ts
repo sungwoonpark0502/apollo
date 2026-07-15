@@ -13,7 +13,13 @@ export interface Debounced<A extends unknown[]> {
 export function debounce<A extends unknown[]>(
   fn: (...args: A) => void,
   waitMs: number,
-  timers: { set: typeof setTimeout; clear: typeof clearTimeout } = { set: setTimeout, clear: clearTimeout },
+  // Timer functions are injectable (tests use a fake clock). The defaults wrap the
+  // native timers in arrows so they keep `this === window` in the Chromium renderer
+  // — passing bare `setTimeout`/`clearTimeout` detaches them and throws "Illegal invocation".
+  timers: { set: typeof setTimeout; clear: typeof clearTimeout } = {
+    set: (handler: TimerHandler, ms?: number) => setTimeout(handler, ms),
+    clear: (id?: number) => clearTimeout(id),
+  } as { set: typeof setTimeout; clear: typeof clearTimeout },
 ): Debounced<A> {
   let handle: ReturnType<typeof setTimeout> | null = null;
   let lastArgs: A | null = null;

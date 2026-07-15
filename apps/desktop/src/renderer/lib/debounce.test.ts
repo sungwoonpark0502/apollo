@@ -59,6 +59,21 @@ describe('debounce (E9 autosave logic)', () => {
   });
 });
 
+describe('default timers (renderer safety)', () => {
+  // The default timers must wrap the native functions so they keep this===window
+  // in Chromium; bare setTimeout/clearTimeout refs throw "Illegal invocation".
+  it('schedules + fires through the real default timers without throwing', async () => {
+    vi.useRealTimers();
+    const fn = vi.fn();
+    const d = debounce(fn, 10); // default timers, no injection
+    expect(() => d('x')).not.toThrow(); // calling must not throw (the bug threw here in Chromium)
+    await new Promise((r) => setTimeout(r, 40));
+    expect(fn).toHaveBeenCalledWith('x');
+    expect(() => d.cancel()).not.toThrow();
+    vi.useFakeTimers();
+  });
+});
+
 describe('wordCount', () => {
   it('counts whitespace-separated words; empty is 0', () => {
     expect(wordCount('')).toBe(0);

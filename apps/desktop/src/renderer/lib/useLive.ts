@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { type DataChanged, type Settings } from '@apollo/shared';
 
 /**
@@ -55,7 +55,10 @@ export function useDataSync<T>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, tick]);
 
-  return { data, reload: () => setTick((t) => t + 1) };
+  // Stable identity so callers can safely list `reload` in effect deps without
+  // creating a render loop (setTick from useState is itself stable).
+  const reload = useCallback(() => setTick((t) => t + 1), []);
+  return { data, reload };
 }
 
 /** Subscribes to main → workspace navigation (deep links, app.open tool). */
