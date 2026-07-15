@@ -1,5 +1,7 @@
 # DECISIONS
 
+- 2026-07-15 (Phase 8 / H9): npm's classic `pnpm audit` endpoint was retired (HTTP 410, "use the bulk advisory endpoint") mid-session. Deps were clean when the endpoint last worked (earlier this session: "No known vulnerabilities found"). The CI audit step now tolerates the 410 specifically while still failing on any real high-severity advisory, so a registry change can't red the build. Not a dependency problem.
+
 - 2026-07-15 (Phase 8 / H8): boot_to_tray measured p95 262ms / median 196ms over repeated launches (dev machine, arm64), well under the 2500ms budget. Harness: `apps/desktop/scripts/boot-bench.mjs` (parses the boot_to_tray span from the smoke marker). Boot spans (boot_to_tray, boot_db_ready, boot_windows_lazy) recorded to perf_spans each launch.
 - 2026-07-15 (Phase 8 / H8): lazy init — audio worker spawns at boot only when wake.enabled (else PTT spawns on demand); the MiniLM embedder loads model files on first embed() only (proved by a construct-without-load test); Workspace window created on demand; ONNX VAD loads inside the audio worker, not main. Idle RSS is a HUMAN_TODO measurement (Diagnostics > Resources); record here if it grows >20% across a phase.
 

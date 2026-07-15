@@ -279,6 +279,13 @@ export const STRINGS = {
     empty: 'No matches in your notes, chats, or memory.',
   },
 
+  a11y: {
+    voiceState: {
+      idle: '', waking: 'Waking', listening: 'Listening', thinking: 'Thinking',
+      speaking: 'Speaking', followup: 'Listening for a follow-up', muted: 'Muted', error: 'Voice error',
+    } as Record<string, string>,
+  },
+
   alerts: {
     timer: 'Timer',
     alarm: 'Alarm',

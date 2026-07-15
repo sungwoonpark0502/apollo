@@ -77,6 +77,13 @@ model **once at build time** (it is never downloaded at runtime):
 ## Performance measurement (Phase 8 / H8 — measured, not a hard CI gate)
 - [ ] Idle RSS: open Settings > Diagnostics > Resources after ~1 min idle; note main/worker/renderer RSS. If it grows >20% across a phase, record it in DECISIONS.md. (Boot budget boot_to_tray p95 < 2500ms is machine-checked by `pnpm --filter @apollo/desktop boot-bench`; measured 262ms.)
 
+## Windows platform QA (Phase 8 / H9 — CI builds Windows but can't drive the UI)
+- [ ] Hotkey: default Alt+Space vs the system window menu — confirm the conflict advice appears and pick Ctrl+Alt+Space.
+- [ ] Acrylic: palette + Quick Capture windows show the acrylic backdrop.
+- [ ] Notifications: timer/alarm/reminder fire native Windows notifications; clicking routes correctly.
+- [ ] Ringing overlay appears above fullscreen apps; sound plays; snooze/dismiss work.
+- [ ] Single instance: launching a second copy focuses the existing window and exits.
+
 ## API keys (app runs with Fake adapters until provided)
 - [ ] Anthropic API key: create at https://console.anthropic.com/settings/keys, then either set `ANTHROPIC_API_KEY` in `apollo/.env` or paste into Settings > Keys and press Test.
   - [ ] After adding the key, run `pnpm eval` from the repo root — the 0.7 gate requires >= 90% pass rate (50 rows). The harness machinery is already self-verified; only the real-model run needs the key.

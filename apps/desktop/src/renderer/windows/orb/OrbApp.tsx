@@ -165,12 +165,25 @@ export function OrbApp(): React.JSX.Element {
   const active = state !== 'idle' || cards.length > 0 || nudges.length > 0;
   const orbSize = active ? 64 : 14;
 
+  // H9 a11y: announce state transitions + ringing to screen readers.
+  const announcement =
+    ringing.length > 0
+      ? STRINGS.alerts.ariaRinging(ringing[ringing.length - 1]!.label ?? ringing[ringing.length - 1]!.kind)
+      : STRINGS.a11y.voiceState[state] ?? '';
+
   return (
     <div
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
       style={{ display: 'flex', flexDirection: 'row-reverse', alignItems: 'flex-start', height: '100vh', padding: 'var(--sp-2)' }}
     >
+      <div
+        aria-live="polite"
+        role="status"
+        style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', border: 0 }}
+      >
+        {announcement}
+      </div>
       {/* orb, docked toward the screen edge (right) */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
         {state === 'listening' ? (
