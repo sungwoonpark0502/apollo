@@ -180,17 +180,25 @@ function boot(): void {
   // preserving the httpClient interface, breaker, and egress allowlist.
   const http = createHttpClient({ egress, breaker: createBreaker(), fetchFn: (url, init) => net.fetch(url as string, init), log });
 
+  // H6 ringing overlay: push to the orb + OS notification. DND suppresses sound only.
+  function ringAlert(kind: 'timer' | 'alarm', id: string, label: string | null, body: string): void {
+    const silent = isDNDNow(settings.get(), Intl.DateTimeFormat().resolvedOptions().timeZone, Date.now());
+    if (!orbWindow.isDestroyed()) pushTo(orbWindow.webContents, 'alert.ringing', { kind, id, label, firedAt: Date.now(), silent });
+    const n = new Notification({ title: STRINGS.app.name, body });
+    n.on('click', () => { if (!orbWindow.isDestroyed()) orbWindow.showInactive(); });
+    n.show();
+  }
+
   const scheduler = createScheduler({
     repos,
-    onTimerFire: (t) => {
-      new Notification({ title: STRINGS.app.name, body: STRINGS.spoken.timerDone(t.label) }).show();
-    },
+    onTimerFire: (t) => ringAlert('timer', t.id, t.label, STRINGS.spoken.timerDone(t.label)),
     onReminderFire: (r) => {
-      new Notification({ title: STRINGS.app.name, body: STRINGS.spoken.reminderFired(r.text) }).show();
+      // Reminders route to Workspace Today on click (not a ringing overlay).
+      const n = new Notification({ title: STRINGS.app.name, body: STRINGS.spoken.reminderFired(r.text) });
+      n.on('click', () => openWorkspace({ view: 'today' }));
+      n.show();
     },
-    onAlarmFire: (a) => {
-      new Notification({ title: STRINGS.app.name, body: STRINGS.spoken.alarmFired(a.label) }).show();
-    },
+    onAlarmFire: (a) => ringAlert('alarm', a.id, a.label, STRINGS.spoken.alarmFired(a.label)),
     log,
   });
 
@@ -519,6 +527,17 @@ function boot(): void {
       togglePalette(); // "Continue": open the palette on the active conversation
     },
     newConversation: () => conversationManager.startNew(),
+    alertAction: (kind, id, action, snoozeMin) => {
+      if (action === 'snooze') {
+        const min = snoozeMin ?? (kind === 'alarm' ? 10 : 5);
+        const at = Date.now() + min * 60_000;
+        // Snooze a one-shot alert; a recurring alarm keeps its own schedule (C19/H6).
+        if (kind === 'timer') { const t = repos.timers.start({ label: repos.timers.get(id)?.label ?? null, endsAt: at }); void t; }
+        else repos.alarms.set({ label: repos.alarms.get(id)?.label ?? null, atTs: at });
+        scheduler.rearm();
+      }
+      if (!orbWindow.isDestroyed()) pushTo(orbWindow.webContents, 'alert.stop', { id });
+    },
     onUserActivity: () => {
       lastActivityMs = Date.now();
       dailyBrief.noteActivity();

@@ -3,6 +3,7 @@ import { newId, STRINGS, type AgentEvent, type CardPayload, type SuggestionDTO, 
 import { CardShell, CardView } from '../../components/cards/CardView';
 import { StageCard } from '../../components/StageCard';
 import { NudgeCard, NudgeGroupCard } from '../../components/NudgeCard';
+import { RingingCard, type RingingAlert } from '../../components/RingingCard';
 import { isStageCard } from '../../lib/stage';
 import { CancelWindowBar } from '../../components/ConfirmBar';
 import { enqueueTtsChunk, playEarcon, stopPlayback } from '../../lib/audioPlayer';
@@ -49,6 +50,8 @@ export function OrbApp(): React.JSX.Element {
   const [cancelWindow, setCancelWindow] = useState<{ endsAt: number } | null>(null);
   const [spokenIndex, setSpokenIndex] = useState(-1);
   const [nudges, setNudges] = useState<NudgePanel[]>([]);
+  const [ringing, setRinging] = useState<RingingAlert[]>([]);
+  const [earconVolume, setEarconVolume] = useState(0.7);
   const [nudgeDot, setNudgeDot] = useState(false); // F3: small accent dot on the idle orb
   const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hoveringRef = useRef(false);
@@ -124,6 +127,14 @@ export function OrbApp(): React.JSX.Element {
         if (!hoveringRef.current) setNudges((ns) => ns.slice(1));
       }, 20_000);
     });
+    const offRing = window.apollo.on('alert.ringing', (a) => {
+      setRinging((rs) => [...rs.filter((r) => r.id !== a.id), a]);
+    });
+    const offRingStop = window.apollo.on('alert.stop', ({ id }) => {
+      setRinging((rs) => rs.filter((r) => r.id !== id));
+    });
+    void window.apollo.call('settings.get', {}).then((s) => setEarconVolume(s.voice.earconVolume));
+    const offSettings = window.apollo.on('settings.changed', (s) => setEarconVolume(s.voice.earconVolume));
     return () => {
       offAgent();
       offVoice();
@@ -132,6 +143,9 @@ export function OrbApp(): React.JSX.Element {
       offStop();
       offSpoken();
       offNudge();
+      offRing();
+      offRingStop();
+      offSettings();
       if (dismissTimer.current) clearTimeout(dismissTimer.current);
     };
   }, []);
@@ -226,6 +240,24 @@ export function OrbApp(): React.JSX.Element {
           * { animation: none !important; transition: none !important; }
         }
       `}</style>
+
+      {/* H6 ringing overlays (Stage width): timers + alarms, above everything else */}
+      {ringing.length > 0 ? (
+        <div style={{ width: 480, display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)', marginRight: 'var(--sp-3)' }}>
+          {ringing.map((a) => (
+            <CardShell key={a.id}>
+              <RingingCard
+                alert={a}
+                earconVolume={earconVolume}
+                onAction={(id, action, snoozeMin) => {
+                  setRinging((rs) => rs.filter((r) => r.id !== id));
+                  void window.apollo.call('alert.action', { kind: a.kind, id, action, ...(snoozeMin ? { snoozeMin } : {}) });
+                }}
+              />
+            </CardShell>
+          ))}
+        </div>
+      ) : null}
 
       {/* proactive nudge panels (F3): quiet, dismissible, above the reply cards */}
       {nudges.length > 0 ? (

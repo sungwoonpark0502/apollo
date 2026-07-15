@@ -118,6 +118,7 @@ const invokeFixtures: Record<InvokeChannelName, { req: unknown; res: unknown }> 
   'conversations.delete': { req: { id: 'c1' }, res: { ok: true } },
   'conversations.setActive': { req: { id: 'c1' }, res: { ok: true } },
   'conversations.new': { req: {}, res: { ok: true } },
+  'alert.action': { req: { kind: 'alarm', id: 'a1', action: 'snooze', snoozeMin: 10 }, res: { ok: true } },
   'keys.info': { req: {}, res: [{ provider: 'anthropic', configured: true, last4: 'x123', setAt: 1 }] },
   'keys.remove': { req: { provider: 'anthropic' }, res: { ok: true } },
   'settings.open': { req: {}, res: { ok: true } },
@@ -155,6 +156,8 @@ const pushFixtures: Record<PushChannelName, unknown> = {
     silent: false,
   },
   'capture.result': { ok: true },
+  'alert.ringing': { kind: 'timer', id: 't1', label: 'pasta', firedAt: 1_800_000_000_000, silent: false },
+  'alert.stop': { id: 't1' },
 };
 
 describe('invoke channel round-trips', () => {

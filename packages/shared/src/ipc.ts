@@ -234,6 +234,11 @@ export const invokeChannels = {
   'conversations.delete': { req: z.object({ id: z.string() }), res: ackSchema },
   'conversations.setActive': { req: z.object({ id: z.string() }), res: ackSchema },
   'conversations.new': { req: z.object({}), res: ackSchema }, // Cmd/Ctrl+N
+  // ---- H6 alerts ----
+  'alert.action': {
+    req: z.object({ kind: z.enum(['timer', 'alarm']), id: z.string(), action: z.enum(['dismiss', 'snooze']), snoozeMin: z.number().int().min(1).max(120).optional() }),
+    res: ackSchema,
+  },
   // H3 key metadata (write-only keys; this returns non-secret metadata only)
   'keys.info': {
     req: z.object({}),
@@ -299,6 +304,9 @@ export const pushChannels = {
     silent: z.boolean().default(false),
   }),
   'capture.result': z.object({ ok: z.boolean() }), // main → capture window: morph + close, or shake
+  // H6: main → orb ringing overlay
+  'alert.ringing': z.object({ kind: z.enum(['timer', 'alarm']), id: z.string(), label: z.string().nullable(), firedAt: z.number(), silent: z.boolean().default(false) }),
+  'alert.stop': z.object({ id: z.string() }), // main → orb: stop ringing (snoozed/dismissed elsewhere)
 } as const satisfies Record<string, z.ZodType>;
 
 export type InvokeChannelName = keyof typeof invokeChannels;

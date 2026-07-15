@@ -60,6 +60,12 @@ model **once at build time** (it is never downloaded at runtime):
   populate, arrow keys move the highlight across groups, Enter opens the selected item (note → Notes view,
   event → Calendar at its date, fact → Settings > Privacy), and Esc closes. (IPC round-trips are unit-tested.)
 
+## Alerts manual QA (Phase 8 / H6 — needs a real firing timer + speakers)
+- [ ] Set a 1-minute timer; when it fires, the orb shows a ringing card (large label, elapsed counter), ring.wav loops, and the loop auto-stops after 60s while the card stays. Dismiss and Snooze (1/5/10m) both work; snooze re-fires after the chosen minutes.
+- [ ] Set an alarm; it rings until dismissed/snoozed, with the volume audibly stepping down every minute.
+- [ ] During the DND window, a fired timer/alarm shows the card + OS notification but plays no sound ("Silenced" note visible).
+- [ ] Clicking the OS notification focuses the ringing card (reminders open Workspace Today).
+
 ## API keys (app runs with Fake adapters until provided)
 - [ ] Anthropic API key: create at https://console.anthropic.com/settings/keys, then either set `ANTHROPIC_API_KEY` in `apollo/.env` or paste into Settings > Keys and press Test.
   - [ ] After adding the key, run `pnpm eval` from the repo root — the 0.7 gate requires >= 90% pass rate (50 rows). The harness machinery is already self-verified; only the real-model run needs the key.

@@ -38,6 +38,7 @@ export interface HandlerDeps {
   activeConvId?: () => string; // H5 main-owned conversation id
   setActiveConversation?: (id: string) => void;
   newConversation?: () => void;
+  alertAction?: (kind: 'timer' | 'alarm', id: string, action: 'dismiss' | 'snooze', snoozeMin?: number) => void;
   suggestionAction?: (suggestionId: string, actionId: string) => void;
   openCapture?: () => void;
   captureSubmit?: (req: InvokeReq<'capture.submit'>) => InvokeRes<'capture.submit'>;
@@ -216,6 +217,10 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
     },
     'conversations.new': () => {
       deps.newConversation?.();
+      return { ok: true as const };
+    },
+    'alert.action': (req) => {
+      deps.alertAction?.(req.kind, req.id, req.action, req.snoozeMin);
       return { ok: true as const };
     },
     'oauth.google.start': async () => (deps.oauthConnect ? await deps.oauthConnect() : { ok: false }),

@@ -1,4 +1,4 @@
-APOLLO Master Build Specification v3.0 (Implementation Grade)
+APOLLO Master Build Specification v3.4 (Implementation Grade)
 Status: normative. This document is the single source of truth. If code and spec disagree, the spec wins. If the spec is silent, choose the simplest option consistent with Part B invariants and record it in DECISIONS.md.
 PART A: Agent operating protocol
 You are the sole principal engineer on this project. You own architecture, implementation, tests, security, and quality. Work autonomously through the milestone plan in Part D. Do not wait for permission between milestones. Do not ask questions this document answers.

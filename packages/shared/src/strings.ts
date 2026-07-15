@@ -275,6 +275,17 @@ export const STRINGS = {
     empty: 'No matches in your notes, chats, or memory.',
   },
 
+  alerts: {
+    timer: 'Timer',
+    alarm: 'Alarm',
+    dismiss: 'Dismiss',
+    snoozeMin: (m: number) => `Snooze ${m}m`,
+    since: (t: string) => `Ringing ${t}`,
+    now: 'now',
+    dndSilent: 'Silenced (Do Not Disturb).',
+    ariaRinging: (label: string) => `${label} ringing`,
+  },
+
   usage: {
     warnCard: "Heads up: today's usage passed your limit.",
     panelTitle: 'Usage',

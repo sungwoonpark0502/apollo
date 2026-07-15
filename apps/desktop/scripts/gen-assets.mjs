@@ -118,6 +118,8 @@ const earcons = {
   'error.wav': tone(220, 150),
   // F1 nudge: single soft note, 90ms, quieter than wake (~-18 LUFS vs -14).
   'nudge.wav': toneAmp(720, 90, 0.18),
+  // H6 ring: a gentle two-note loop (~1s) for timer/alarm alerts.
+  'ring.wav': concat([toneAmp(660, 220, 0.3), toneAmp(880, 220, 0.3), tone(0, 60), toneAmp(660, 220, 0.3), toneAmp(880, 220, 0.3), tone(0, 60)]),
 };
 const publicEarcons = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'src/renderer/public/earcons');
 mkdirSync(publicEarcons, { recursive: true });
