@@ -234,6 +234,14 @@ export const invokeChannels = {
   'conversations.delete': { req: z.object({ id: z.string() }), res: ackSchema },
   'conversations.setActive': { req: z.object({ id: z.string() }), res: ackSchema },
   'conversations.new': { req: z.object({}), res: ackSchema }, // Cmd/Ctrl+N
+  // H7 audio device pickers (labels available via the audio window's mic session)
+  'devices.list': {
+    req: z.object({}),
+    res: z.object({
+      inputs: z.array(z.object({ deviceId: z.string(), label: z.string() })),
+      outputs: z.array(z.object({ deviceId: z.string(), label: z.string() })),
+    }),
+  },
   // ---- H6 alerts ----
   'alert.action': {
     req: z.object({ kind: z.enum(['timer', 'alarm']), id: z.string(), action: z.enum(['dismiss', 'snooze']), snoozeMin: z.number().int().min(1).max(120).optional() }),
@@ -251,6 +259,7 @@ export const invokeChannels = {
     res: z.array(z.object({ label: z.string(), lat: z.number(), lon: z.number(), tz: z.string() })),
   },
   'update.check': { req: z.object({}), res: z.object({ status: z.enum(['checking', 'available', 'none', 'disabled']), version: z.string().optional() }) },
+  'update.install': { req: z.object({}), res: ackSchema }, // H7 quit + install (only when ready)
   // Today view data that has no repo: weather strip (profile home, next 6h) + latest brief
   'workspace.today': {
     req: z.object({}),
@@ -307,6 +316,7 @@ export const pushChannels = {
   // H6: main → orb ringing overlay
   'alert.ringing': z.object({ kind: z.enum(['timer', 'alarm']), id: z.string(), label: z.string().nullable(), firedAt: z.number(), silent: z.boolean().default(false) }),
   'alert.stop': z.object({ id: z.string() }), // main → orb: stop ringing (snoozed/dismissed elsewhere)
+  'update.state': z.object({ status: z.enum(['idle', 'checking', 'downloading', 'ready']), version: z.string().optional() }), // H7
 } as const satisfies Record<string, z.ZodType>;
 
 export type InvokeChannelName = keyof typeof invokeChannels;

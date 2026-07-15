@@ -66,6 +66,14 @@ model **once at build time** (it is never downloaded at runtime):
 - [ ] During the DND window, a fired timer/alarm shows the card + OS notification but plays no sound ("Silenced" note visible).
 - [ ] Clicking the OS notification focuses the ringing card (reminders open Workspace Today).
 
+## Voice/system manual QA (Phase 8 / H7 — device + OS behaviors)
+- [ ] Settings > Voice: pick a non-default microphone and speaker; confirm capture/playback follow the choice; unplug the device and confirm Apollo falls back to system default with a one-time notice.
+- [ ] Speech rate slider changes TTS speed; Sound volume slider changes earcon loudness (0 mutes).
+- [ ] Bind the hotkey to a combo already in use → inline conflict error names the conflict and suggests an alternative; app keeps working.
+- [ ] Launch a second instance → the existing Workspace/palette focuses and the second process exits.
+- [ ] Enable "Pause wake word on battery", unplug AC → wake word stops (PTT still works), orb shows the badge; replug → wake resumes.
+- [ ] (Packaged only) When an update finishes downloading, About + tray show "Restart to update {version}"; it never auto-restarts.
+
 ## API keys (app runs with Fake adapters until provided)
 - [ ] Anthropic API key: create at https://console.anthropic.com/settings/keys, then either set `ANTHROPIC_API_KEY` in `apollo/.env` or paste into Settings > Keys and press Test.
   - [ ] After adding the key, run `pnpm eval` from the repo root — the 0.7 gate requires >= 90% pass rate (50 rows). The harness machinery is already self-verified; only the real-model run needs the key.

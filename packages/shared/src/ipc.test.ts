@@ -118,12 +118,14 @@ const invokeFixtures: Record<InvokeChannelName, { req: unknown; res: unknown }> 
   'conversations.delete': { req: { id: 'c1' }, res: { ok: true } },
   'conversations.setActive': { req: { id: 'c1' }, res: { ok: true } },
   'conversations.new': { req: {}, res: { ok: true } },
+  'devices.list': { req: {}, res: { inputs: [{ deviceId: 'default', label: 'Built-in Mic' }], outputs: [{ deviceId: 'default', label: 'Built-in Speakers' }] } },
   'alert.action': { req: { kind: 'alarm', id: 'a1', action: 'snooze', snoozeMin: 10 }, res: { ok: true } },
   'keys.info': { req: {}, res: [{ provider: 'anthropic', configured: true, last4: 'x123', setAt: 1 }] },
   'keys.remove': { req: { provider: 'anthropic' }, res: { ok: true } },
   'settings.open': { req: {}, res: { ok: true } },
   'geocode.search': { req: { query: 'columbus' }, res: [{ label: 'Columbus, Ohio', lat: 39.96, lon: -83, tz: 'America/New_York' }] },
   'update.check': { req: {}, res: { status: 'none' } },
+  'update.install': { req: {}, res: { ok: true } },
   'workspace.today': {
     req: {},
     res: {
@@ -158,6 +160,7 @@ const pushFixtures: Record<PushChannelName, unknown> = {
   'capture.result': { ok: true },
   'alert.ringing': { kind: 'timer', id: 't1', label: 'pasta', firedAt: 1_800_000_000_000, silent: false },
   'alert.stop': { id: 't1' },
+  'update.state': { status: 'ready', version: '1.2.3' },
 };
 
 describe('invoke channel round-trips', () => {

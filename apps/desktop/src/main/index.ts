@@ -69,13 +69,19 @@ import { createThrottle } from './ipc/throttle';
 import { shouldWarnUsage } from './net/usageWarn';
 import { buildHandlers } from './ipc/handlers/index';
 import { registerHotkey, unregisterAll } from './shortcuts';
+import { hotkeyConflictAdvice } from './hotkeyAdvice';
 import { userInfo } from 'node:os';
 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
 } else {
-  app.on('second-instance', () => togglePalette());
+  // H7 single instance: a second launch focuses the Workspace (or palette), then exits.
+  app.on('second-instance', () => {
+    const ws = getWorkspaceWindow();
+    if (ws && !ws.isDestroyed()) { ws.show(); ws.focus(); }
+    else togglePalette();
+  });
   void app.whenReady().then(boot);
   app.on('window-all-closed', () => {
     /* tray app: keep running */
@@ -436,7 +442,7 @@ function boot(): void {
   }
 
   // TTS pipeline (C12.5): edge is keyless, so 'auto' means real unless forced fake
-  const ttsAdapter = settings.get().adapters.tts === 'fake' ? new FakeTts() : createEdgeTts({ voice: () => settings.get().tts.voice, log });
+  const ttsAdapter = settings.get().adapters.tts === 'fake' ? new FakeTts() : createEdgeTts({ voice: () => settings.get().tts.voice, rate: () => settings.get().voice.ttsRate, log });
   const ttsPipeline = createTtsPipeline({
     adapter: ttsAdapter,
     pushAudio: (p) => {
@@ -527,6 +533,20 @@ function boot(): void {
       togglePalette(); // "Continue": open the palette on the active conversation
     },
     newConversation: () => conversationManager.startNew(),
+    listDevices: async () => {
+      // H7: the audio window holds mic permission, so enumerateDevices returns labels.
+      const audio = createAudioWindow();
+      try {
+        const raw = (await audio.webContents.executeJavaScript(
+          `navigator.mediaDevices.enumerateDevices().then(ds => ds.map(d => ({ kind: d.kind, deviceId: d.deviceId, label: d.label })))`,
+        )) as Array<{ kind: string; deviceId: string; label: string }>;
+        const map = (k: string): Array<{ deviceId: string; label: string }> =>
+          raw.filter((d) => d.kind === k).map((d) => ({ deviceId: d.deviceId, label: d.label || 'Device' }));
+        return { inputs: map('audioinput'), outputs: map('audiooutput') };
+      } catch {
+        return { inputs: [], outputs: [] };
+      }
+    },
     alertAction: (kind, id, action, snoozeMin) => {
       if (action === 'snooze') {
         const min = snoozeMin ?? (kind === 'alarm' ? 10 : 5);
@@ -662,6 +682,7 @@ function boot(): void {
       }
     },
     checkForUpdates: async () => (app.isPackaged ? { status: 'checking' as const } : { status: 'disabled' as const }),
+    installUpdate: () => updaterHandle?.install(),
     suggestionAction: (suggestionId, actionId) => proactiveRef?.handleAction(suggestionId, actionId),
     openCapture: () => openCaptureWindow(),
     captureSubmit: (req) => {
@@ -694,7 +715,10 @@ function boot(): void {
   createTray({ onOpenSettings: () => openSettingsWindow(), onOpenWorkspace: () => openWorkspace({ view: 'today' }), onQuickCapture: () => openCaptureWindow() });
   const palette = createPaletteWindow();
   // B1: the hotkey activates Apollo — palette for typing, and (PTT) listening when voice is up
-  registerHotkey(settings.get().hotkey, onHotkeyPress, log);
+  // H7: the app never silently loses its hotkey — on conflict, notify with advice.
+  if (!registerHotkey(settings.get().hotkey, onHotkeyPress, log)) {
+    new Notification({ title: STRINGS.app.name, body: hotkeyConflictAdvice(settings.get().hotkey, process.platform) }).show();
+  }
 
   // First run (C18): show the 4-step onboarding until completed.
   if (!settings.get().onboarded && process.env['APOLLO_SMOKE'] !== '1') {
@@ -702,11 +726,17 @@ function boot(): void {
   }
 
   // C14.8 auto-updates (packaged builds only).
+  let updaterHandle: Awaited<ReturnType<typeof initUpdater>> | null = null;
   void initUpdater({
     isPackaged: app.isPackaged,
     notify: (title, body) => new Notification({ title, body }).show(),
+    onState: (status, version) => {
+      for (const win of BrowserWindow.getAllWindows()) {
+        if (!win.isDestroyed()) pushTo(win.webContents, 'update.state', { status, ...(version ? { version } : {}) });
+      }
+    },
     log,
-  });
+  }).then((h) => { updaterHandle = h; });
 
   const missed = scheduler.start();
   const missedCount = missed.timers.length + missed.reminders.length + missed.alarms.length;
@@ -779,6 +809,19 @@ function boot(): void {
   proactiveRef = proactive;
   indexer.start(); // G3: boot rescan + DataBus-driven note indexing
   powerMonitor.on('resume', () => proactive.onResume());
+
+  // H7 battery pause: when on battery and pauseWakeOnBattery, disable wake
+  // detection (sensitivity 0); PTT still works. Restore on AC.
+  const applyBatteryWakePolicy = (): void => {
+    const paused = settings.get().voice.pauseWakeOnBattery && powerMonitor.isOnBatteryPower();
+    workerHost.send({ t: 'setSensitivity', v: paused ? 0 : settings.get().wake.sensitivity });
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (!win.isDestroyed()) pushTo(win.webContents, 'voice.state', { state: voiceController.state() });
+    }
+  };
+  powerMonitor.on('on-battery', applyBatteryWakePolicy);
+  powerMonitor.on('on-ac', applyBatteryWakePolicy);
+  applyBatteryWakePolicy();
 
   // F4 Quick Capture: global-hotkey micro-window; classify + save through the repos.
   const quickCapture = createQuickCaptureService({

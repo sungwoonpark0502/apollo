@@ -76,8 +76,14 @@ export function stopPlayback(): void {
 }
 
 const earconCache = new Map<string, AudioBuffer>();
+let earconVolume = 0.7; // H7 earcon volume; 0 = implicit mute
+
+export function setEarconVolume(v: number): void {
+  earconVolume = Math.max(0, Math.min(1, v));
+}
 
 export async function playEarcon(name: 'wake' | 'done' | 'error' | 'nudge'): Promise<void> {
+  if (earconVolume <= 0) return; // implicit mute at 0
   const ac = audioCtx();
   let buf = earconCache.get(name);
   if (!buf) {
@@ -86,7 +92,9 @@ export async function playEarcon(name: 'wake' | 'done' | 'error' | 'nudge'): Pro
     earconCache.set(name, buf);
   }
   const src = ac.createBufferSource();
+  const gain = ac.createGain();
+  gain.gain.value = earconVolume;
   src.buffer = buf;
-  src.connect(ac.destination);
+  src.connect(gain).connect(ac.destination);
   src.start();
 }

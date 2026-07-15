@@ -154,7 +154,11 @@ export const STRINGS = {
       licenses: 'Open-source licenses',
       openLogs: 'Open logs folder',
     },
-    voice: { wake: 'Wake word', sensitivity: 'Sensitivity', ptt: 'Push to talk', voice: 'Voice', preview: 'Preview', dnd: 'Do not disturb' },
+    voice: {
+      wake: 'Wake word', sensitivity: 'Sensitivity', ptt: 'Push to talk', voice: 'Voice', preview: 'Preview', dnd: 'Do not disturb',
+      inputDevice: 'Microphone', outputDevice: 'Speaker', systemDefault: 'System default',
+      ttsRate: 'Speech rate', earconVolume: 'Sound volume', followup: 'Follow-up window', off: 'Off', pauseWakeOnBattery: 'Pause wake word on battery',
+    },
     accounts: { gmail: 'Gmail', connect: 'Connect', disconnect: 'Disconnect', reconnect: 'Reconnect', reauthBadge: 'Reconnect needed', connectedAs: (a: string) => `Connected as ${a}` },
     keys: {
       title: 'API keys',

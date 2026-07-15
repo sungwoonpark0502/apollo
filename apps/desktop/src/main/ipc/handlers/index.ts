@@ -34,11 +34,13 @@ export interface HandlerDeps {
   todayData?: () => Promise<InvokeRes<'workspace.today'>>;
   geocode?: (query: string) => Promise<InvokeRes<'geocode.search'>>;
   checkForUpdates?: () => Promise<InvokeRes<'update.check'>>;
+  installUpdate?: () => void;
   // F1 proactive + quick capture (wired in 6.2/6.3/6.5)
   activeConvId?: () => string; // H5 main-owned conversation id
   setActiveConversation?: (id: string) => void;
   newConversation?: () => void;
   alertAction?: (kind: 'timer' | 'alarm', id: string, action: 'dismiss' | 'snooze', snoozeMin?: number) => void;
+  listDevices?: () => Promise<InvokeRes<'devices.list'>>;
   suggestionAction?: (suggestionId: string, actionId: string) => void;
   openCapture?: () => void;
   captureSubmit?: (req: InvokeReq<'capture.submit'>) => InvokeRes<'capture.submit'>;
@@ -71,6 +73,10 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
     'workspace.today': async () => (deps.todayData ? deps.todayData() : { weather: null, brief: null }),
     'geocode.search': async (req) => (deps.geocode ? deps.geocode(req.query) : []),
     'update.check': async () => (deps.checkForUpdates ? deps.checkForUpdates() : { status: 'disabled' as const }),
+    'update.install': () => {
+      deps.installUpdate?.();
+      return { ok: true as const };
+    },
     'suggestion.action': (req) => {
       deps.suggestionAction?.(req.suggestionId, req.actionId);
       return { ok: true as const };
@@ -223,6 +229,7 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
       deps.alertAction?.(req.kind, req.id, req.action, req.snoozeMin);
       return { ok: true as const };
     },
+    'devices.list': async () => (deps.listDevices ? deps.listDevices() : { inputs: [], outputs: [] }),
     'oauth.google.start': async () => (deps.oauthConnect ? await deps.oauthConnect() : { ok: false }),
     'oauth.google.revoke': () => {
       deps.oauthRevoke?.();

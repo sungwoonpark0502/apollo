@@ -6,7 +6,7 @@ import { NudgeCard, NudgeGroupCard } from '../../components/NudgeCard';
 import { RingingCard, type RingingAlert } from '../../components/RingingCard';
 import { isStageCard } from '../../lib/stage';
 import { CancelWindowBar } from '../../components/ConfirmBar';
-import { enqueueTtsChunk, playEarcon, stopPlayback } from '../../lib/audioPlayer';
+import { enqueueTtsChunk, playEarcon, setEarconVolume, stopPlayback } from '../../lib/audioPlayer';
 
 type OrbState = Extract<VoiceState, 'idle' | 'thinking' | 'speaking' | 'listening' | 'followup' | 'muted' | 'error'>;
 
@@ -51,7 +51,7 @@ export function OrbApp(): React.JSX.Element {
   const [spokenIndex, setSpokenIndex] = useState(-1);
   const [nudges, setNudges] = useState<NudgePanel[]>([]);
   const [ringing, setRinging] = useState<RingingAlert[]>([]);
-  const [earconVolume, setEarconVolume] = useState(0.7);
+  const [earconVol, setEarconVol] = useState(0.7);
   const [nudgeDot, setNudgeDot] = useState(false); // F3: small accent dot on the idle orb
   const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hoveringRef = useRef(false);
@@ -133,8 +133,8 @@ export function OrbApp(): React.JSX.Element {
     const offRingStop = window.apollo.on('alert.stop', ({ id }) => {
       setRinging((rs) => rs.filter((r) => r.id !== id));
     });
-    void window.apollo.call('settings.get', {}).then((s) => setEarconVolume(s.voice.earconVolume));
-    const offSettings = window.apollo.on('settings.changed', (s) => setEarconVolume(s.voice.earconVolume));
+    void window.apollo.call('settings.get', {}).then((s) => { setEarconVolume(s.voice.earconVolume); setEarconVol(s.voice.earconVolume); });
+    const offSettings = window.apollo.on('settings.changed', (s) => { setEarconVolume(s.voice.earconVolume); setEarconVol(s.voice.earconVolume); });
     return () => {
       offAgent();
       offVoice();
@@ -248,7 +248,7 @@ export function OrbApp(): React.JSX.Element {
             <CardShell key={a.id}>
               <RingingCard
                 alert={a}
-                earconVolume={earconVolume}
+                earconVolume={earconVol}
                 onAction={(id, action, snoozeMin) => {
                   setRinging((rs) => rs.filter((r) => r.id !== id));
                   void window.apollo.call('alert.action', { kind: a.kind, id, action, ...(snoozeMin ? { snoozeMin } : {}) });
