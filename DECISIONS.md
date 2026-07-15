@@ -1,5 +1,8 @@
 # DECISIONS
 
+- 2026-07-15 (Phase 8 / H8): boot_to_tray measured p95 262ms / median 196ms over repeated launches (dev machine, arm64), well under the 2500ms budget. Harness: `apps/desktop/scripts/boot-bench.mjs` (parses the boot_to_tray span from the smoke marker). Boot spans (boot_to_tray, boot_db_ready, boot_windows_lazy) recorded to perf_spans each launch.
+- 2026-07-15 (Phase 8 / H8): lazy init — audio worker spawns at boot only when wake.enabled (else PTT spawns on demand); the MiniLM embedder loads model files on first embed() only (proved by a construct-without-load test); Workspace window created on demand; ONNX VAD loads inside the audio worker, not main. Idle RSS is a HUMAN_TODO measurement (Diagnostics > Resources); record here if it grows >20% across a phase.
+
 - 2026-07-13 (Phase 7): embedding model Xenova/all-MiniLM-L6-v2 (quantized, 384 dims) fetched at build time by scripts/fetch-models.ts into apps/desktop/resources/models/minilm/. SHA-256 (verify after fetch):
   - config.json: 7135149f7cffa1a573466c6e4d8423ed73b62fd2332c575bf738a0d033f70df7
   - tokenizer.json: da0e79933b9ed51798a3ae27893d3c5fa4a201126cef75586296df9b4d2c62a0

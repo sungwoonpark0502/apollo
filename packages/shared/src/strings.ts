@@ -201,7 +201,7 @@ export const STRINGS = {
       actionLog: 'Action log',
       actionLogEmpty: 'Nothing yet.',
     },
-    diagnostics: { perf: 'Latency (ms)', adapters: 'Adapters', logs: 'Recent log', copy: 'Copy diagnostics' },
+    diagnostics: { perf: 'Latency (ms)', adapters: 'Adapters', logs: 'Recent log', copy: 'Copy diagnostics', resources: 'Resources (RSS)' },
   },
 
   notifications: {

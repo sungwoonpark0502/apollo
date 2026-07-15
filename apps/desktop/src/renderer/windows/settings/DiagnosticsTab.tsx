@@ -12,11 +12,13 @@ interface Usage { today: Array<{ provider: string; metric: string; amount: numbe
 export function DiagnosticsTab(): React.JSX.Element {
   const [diag, setDiag] = useState<Diag | null>(null);
   const [usage, setUsage] = useState<Usage | null>(null);
+  const [resources, setResources] = useState<Array<{ type: string; rssMB: number }>>([]);
   const [copied, setCopied] = useState(false);
 
   const refresh = useCallback(() => {
     void window.apollo.call('diagnostics.get', {}).then(setDiag);
     void window.apollo.call('usage.summary', {}).then(setUsage);
+    void window.apollo.call('resources.get', {}).then(setResources);
   }, []);
 
   useEffect(() => {
@@ -102,6 +104,15 @@ export function DiagnosticsTab(): React.JSX.Element {
         </div>
         <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-3)', marginTop: 'var(--sp-2)' }}>
           index queue: {diag?.indexQueueDepth ?? 0}
+        </div>
+      </section>
+
+      <section style={{ marginBottom: 'var(--sp-5)' }}>
+        <h3 style={sectionTitle}>{STRINGS.settings.diagnostics.resources}</h3>
+        <div style={{ display: 'flex', gap: 'var(--sp-4)', flexWrap: 'wrap', fontSize: 'var(--fs-caption)', color: 'var(--text-2)' }}>
+          {resources.length === 0 ? <span style={{ color: 'var(--text-3)' }}>—</span> : resources.map((r, i) => (
+            <span key={i}><span style={{ color: 'var(--text-3)' }}>{r.type}:</span> {r.rssMB} MB</span>
+          ))}
         </div>
       </section>
 

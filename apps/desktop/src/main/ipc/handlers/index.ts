@@ -35,6 +35,7 @@ export interface HandlerDeps {
   geocode?: (query: string) => Promise<InvokeRes<'geocode.search'>>;
   checkForUpdates?: () => Promise<InvokeRes<'update.check'>>;
   installUpdate?: () => void;
+  resourceReport?: () => InvokeRes<'resources.get'>;
   // F1 proactive + quick capture (wired in 6.2/6.3/6.5)
   activeConvId?: () => string; // H5 main-owned conversation id
   setActiveConversation?: (id: string) => void;
@@ -77,6 +78,7 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
       deps.installUpdate?.();
       return { ok: true as const };
     },
+    'resources.get': () => deps.resourceReport?.() ?? [],
     'suggestion.action': (req) => {
       deps.suggestionAction?.(req.suggestionId, req.actionId);
       return { ok: true as const };

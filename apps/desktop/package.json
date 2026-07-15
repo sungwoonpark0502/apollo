@@ -17,7 +17,8 @@
     "pretest": "node scripts/native-abi.mjs node",
     "test": "vitest run",
     "postinstall": "node scripts/postinstall.mjs",
-    "fetch-models": "vite-node scripts/fetch-models.ts"
+    "fetch-models": "vite-node scripts/fetch-models.ts",
+    "boot-bench": "node scripts/boot-bench.mjs"
   },
   "devDependencies": {
     "@electron/fuses": "^2.1.3",

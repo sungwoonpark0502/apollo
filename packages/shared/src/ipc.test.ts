@@ -126,6 +126,7 @@ const invokeFixtures: Record<InvokeChannelName, { req: unknown; res: unknown }> 
   'geocode.search': { req: { query: 'columbus' }, res: [{ label: 'Columbus, Ohio', lat: 39.96, lon: -83, tz: 'America/New_York' }] },
   'update.check': { req: {}, res: { status: 'none' } },
   'update.install': { req: {}, res: { ok: true } },
+  'resources.get': { req: {}, res: [{ type: 'Browser', rssMB: 120 }, { type: 'Tab', rssMB: 80 }] },
   'workspace.today': {
     req: {},
     res: {

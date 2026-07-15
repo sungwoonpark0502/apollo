@@ -74,6 +74,9 @@ model **once at build time** (it is never downloaded at runtime):
 - [ ] Enable "Pause wake word on battery", unplug AC → wake word stops (PTT still works), orb shows the badge; replug → wake resumes.
 - [ ] (Packaged only) When an update finishes downloading, About + tray show "Restart to update {version}"; it never auto-restarts.
 
+## Performance measurement (Phase 8 / H8 — measured, not a hard CI gate)
+- [ ] Idle RSS: open Settings > Diagnostics > Resources after ~1 min idle; note main/worker/renderer RSS. If it grows >20% across a phase, record it in DECISIONS.md. (Boot budget boot_to_tray p95 < 2500ms is machine-checked by `pnpm --filter @apollo/desktop boot-bench`; measured 262ms.)
+
 ## API keys (app runs with Fake adapters until provided)
 - [ ] Anthropic API key: create at https://console.anthropic.com/settings/keys, then either set `ANTHROPIC_API_KEY` in `apollo/.env` or paste into Settings > Keys and press Test.
   - [ ] After adding the key, run `pnpm eval` from the repo root — the 0.7 gate requires >= 90% pass rate (50 rows). The harness machinery is already self-verified; only the real-model run needs the key.

@@ -260,6 +260,10 @@ export const invokeChannels = {
   },
   'update.check': { req: z.object({}), res: z.object({ status: z.enum(['checking', 'available', 'none', 'disabled']), version: z.string().optional() }) },
   'update.install': { req: z.object({}), res: ackSchema }, // H7 quit + install (only when ready)
+  'resources.get': {
+    req: z.object({}),
+    res: z.array(z.object({ type: z.string(), rssMB: z.number() })), // H8 idle RSS per process
+  },
   // Today view data that has no repo: weather strip (profile home, next 6h) + latest brief
   'workspace.today': {
     req: z.object({}),

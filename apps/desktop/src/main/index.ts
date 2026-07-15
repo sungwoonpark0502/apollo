@@ -93,6 +93,7 @@ if (!gotLock) {
 }
 
 function boot(): void {
+  const bootStart = Date.now(); // H8 boot spans
   if (process.platform === 'darwin') app.dock?.hide();
 
   const dev = !app.isPackaged;
@@ -127,6 +128,7 @@ function boot(): void {
     onBeforeMigrate: inMemory ? undefined : () => { try { createBackup(dbPath, userData, 'pre-migrate'); } catch { /* best effort */ } },
   });
   logger.info({ schemaVersion }, 'db ready');
+  const bootDbReadyMs = Date.now() - bootStart; // recorded to perf_spans once repos exist
 
   if (corruptRecovery) {
     void app.whenReady().then(() => {
@@ -152,7 +154,10 @@ function boot(): void {
   let reRegisterHotkeys: (() => void) | null = null;
   const onHotkeyPress = (): void => {
     togglePalette();
-    if (settings.get().ptt.enabled && !voiceController.isVoiceDisabled()) voiceController.onHotkey();
+    if (settings.get().ptt.enabled && !voiceController.isVoiceDisabled()) {
+      ensureWorker(); // H8: PTT spawns the audio worker on demand
+      voiceController.onHotkey();
+    }
   };
   const settings = createSettingsService(repos.settings, {
     onChange: (next, prev) => {
@@ -486,7 +491,10 @@ function boot(): void {
     log,
   });
 
-  workerHost.start();
+  // H8 lazy init: spawn the audio worker only when wake is enabled at boot; PTT
+  // (onHotkey) starts it on demand otherwise, so a text-only user pays no worker cost.
+  const ensureWorker = (): void => { if (!workerHost.isRunning()) workerHost.start(); };
+  if (settings.get().wake.enabled) workerHost.start();
 
   ipcMain.on(AUDIO_PORT_CHANNEL, (event) => {
     const trusted = makeTrustedUrlCheck(process.env['ELECTRON_RENDERER_URL']);
@@ -683,6 +691,11 @@ function boot(): void {
     },
     checkForUpdates: async () => (app.isPackaged ? { status: 'checking' as const } : { status: 'disabled' as const }),
     installUpdate: () => updaterHandle?.install(),
+    resourceReport: () =>
+      app.getAppMetrics().map((m) => ({
+        type: m.type + (m.serviceName ? `:${m.serviceName}` : ''),
+        rssMB: Math.round((m.memory?.workingSetSize ?? 0) / 1024), // KB → MB
+      })),
     suggestionAction: (suggestionId, actionId) => proactiveRef?.handleAction(suggestionId, actionId),
     openCapture: () => openCaptureWindow(),
     captureSubmit: (req) => {
@@ -713,7 +726,12 @@ function boot(): void {
   });
 
   createTray({ onOpenSettings: () => openSettingsWindow(), onOpenWorkspace: () => openWorkspace({ view: 'today' }), onQuickCapture: () => openCaptureWindow() });
+  // H8 boot spans: tray + db-ready + windows recorded to perf_spans (budget: boot_to_tray p95 < 2500ms).
+  repos.perf.record('boot', 'boot_db_ready', bootDbReadyMs);
+  const trayMs = Date.now() - bootStart;
+  repos.perf.record('boot', 'boot_to_tray', trayMs);
   const palette = createPaletteWindow();
+  repos.perf.record('boot', 'boot_windows_lazy', Date.now() - bootStart);
   // B1: the hotkey activates Apollo — palette for typing, and (PTT) listening when voice is up
   // H7: the app never silently loses its hotkey — on conflict, notify with advice.
   if (!registerHotkey(settings.get().hotkey, onHotkeyPress, log)) {
@@ -885,7 +903,7 @@ function boot(): void {
             .then((rendered: boolean) => {
               // eslint-disable-next-line no-console
               console.log(
-                `SMOKE_OK tray=${getTray() !== null} palette=${!palette.isDestroyed()} e2e=${result} orb=${orbOk} clickThroughIdle=${idleClickThrough} interactiveActive=${activeInteractive} workspace=${wsOk} wsRendered=${rendered}`,
+                `SMOKE_OK tray=${getTray() !== null} palette=${!palette.isDestroyed()} e2e=${result} orb=${orbOk} clickThroughIdle=${idleClickThrough} interactiveActive=${activeInteractive} workspace=${wsOk} wsRendered=${rendered} boot_to_tray=${trayMs}`,
               );
               app.exit(result === 'turn-ok' && orbOk && idleClickThrough && activeInteractive && wsOk && rendered ? 0 : 1);
             });
