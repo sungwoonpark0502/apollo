@@ -51,6 +51,7 @@ export function OrbApp(): React.JSX.Element {
   const [turnId, setTurnId] = useState<string | null>(null);
   const [cancelWindow, setCancelWindow] = useState<{ endsAt: number } | null>(null);
   const [spokenIndex, setSpokenIndex] = useState(-1);
+  const [activity, setActivity] = useState<string | null>(null); // I5 tool-activity line
   const [nudges, setNudges] = useState<NudgePanel[]>([]);
   const [ringing, setRinging] = useState<RingingAlert[]>([]);
   const [earconVol, setEarconVol] = useState(0.7);
@@ -87,6 +88,13 @@ export function OrbApp(): React.JSX.Element {
           setTurnId(e.turnId);
           voiceTurnRef.current = false; // reset; voice.state will flip it if this is a voice turn
           setSpokenIndex(-1);
+          setActivity(null);
+          break;
+        case 'toolStart':
+          setActivity(STRINGS.toolActivity(e.tool)); // friendly label, never the raw tool name
+          break;
+        case 'toolResult':
+          setActivity(null);
           break;
         case 'card':
           setCards((cs) => [...cs, { id: newId(), card: e.card, pinned: false, stage: isStageCard(e.card, voiceTurnRef.current ? 'voice' : 'text') }].slice(-6));
@@ -98,6 +106,7 @@ export function OrbApp(): React.JSX.Element {
         case 'error':
           setState('idle');
           setCancelWindow(null);
+          setActivity(null);
           armDismiss();
           break;
         default:
@@ -240,6 +249,22 @@ export function OrbApp(): React.JSX.Element {
             {caption}
           </div>
         ) : null}
+        {/* I5 tool-activity + interruptible thinking */}
+        {state === 'thinking' ? (
+          <div style={pillBar}>
+            <span style={{ color: 'var(--text-2)' }}>{activity ?? STRINGS.a11y.voiceState.thinking}</span>
+            <button onClick={() => { if (turnId) void window.apollo.call('agent.cancel', { turnId }); setState('idle'); }} style={pillBtn}>
+              {STRINGS.orbControls.cancel}
+            </button>
+          </div>
+        ) : null}
+        {/* I5 streaming TTS controls */}
+        {state === 'speaking' ? (
+          <div style={pillBar}>
+            <button onClick={() => { stopPlayback(); void window.apollo.call('tts.drained', {}); }} style={pillBtn}>{STRINGS.orbControls.stop}</button>
+            <button onClick={() => { stopPlayback(); void window.apollo.call('agent.userMessage', { text: 'repeat that', source: 'text', convId: 'orb' }); }} style={pillBtn}>{STRINGS.orbControls.replay}</button>
+          </div>
+        ) : null}
       </div>
       <style>{`
         @keyframes apollo-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
@@ -343,3 +368,26 @@ export function OrbApp(): React.JSX.Element {
     </div>
   );
 }
+
+const pillBar: React.CSSProperties = {
+  marginTop: 'var(--sp-2)',
+  display: 'flex',
+  alignItems: 'center',
+  gap: 'var(--sp-2)',
+  maxWidth: 220,
+  fontSize: 'var(--fs-caption)',
+  background: 'var(--surface)',
+  border: '1px solid var(--border)',
+  borderRadius: 'var(--radius-ctl)',
+  padding: 'var(--sp-1) var(--sp-2)',
+};
+const pillBtn: React.CSSProperties = {
+  border: '1px solid var(--border)',
+  background: 'var(--bg)',
+  color: 'var(--text-1)',
+  borderRadius: 'var(--radius-ctl)',
+  padding: '1px var(--sp-2)',
+  cursor: 'pointer',
+  fontSize: 'var(--fs-caption)',
+  fontFamily: 'var(--font-sans)',
+};

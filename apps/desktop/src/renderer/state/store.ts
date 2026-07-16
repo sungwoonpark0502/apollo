@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { newId, type AgentEvent, type CardPayload } from '@apollo/shared';
+import { newId, STRINGS, type AgentEvent, type CardPayload } from '@apollo/shared';
 
 export interface ShownCard {
   id: string;
@@ -21,6 +21,7 @@ export interface ConversationState {
   cards: ShownCard[];
   errorCopy: string | null;
   cancelWindow: CancelWindow | null;
+  activity: string | null; // I5 tool-activity line while a tool runs
   inputHistory: string[];
 }
 
@@ -33,8 +34,8 @@ interface Actions {
   reset(): void;
 }
 
-function freshConv(): Pick<ConversationState, 'convId' | 'turnId' | 'streaming' | 'reply' | 'cards' | 'errorCopy' | 'cancelWindow'> {
-  return { convId: newId(), turnId: null, streaming: false, reply: '', cards: [], errorCopy: null, cancelWindow: null };
+function freshConv(): Pick<ConversationState, 'convId' | 'turnId' | 'streaming' | 'reply' | 'cards' | 'errorCopy' | 'cancelWindow' | 'activity'> {
+  return { convId: newId(), turnId: null, streaming: false, reply: '', cards: [], errorCopy: null, cancelWindow: null, activity: null };
 }
 
 export const useStore = create<ConversationState & Actions>((set) => ({
@@ -47,9 +48,13 @@ export const useStore = create<ConversationState & Actions>((set) => ({
     set((s) => {
       switch (e.type) {
         case 'turnStart':
-          return { turnId: e.turnId, streaming: true, reply: '', errorCopy: null };
+          return { turnId: e.turnId, streaming: true, reply: '', errorCopy: null, activity: null };
         case 'token':
           return { reply: s.reply + e.text };
+        case 'toolStart':
+          return { activity: STRINGS.toolActivity(e.tool) };
+        case 'toolResult':
+          return { activity: null };
         case 'card':
           return { cards: [...s.cards, { id: newId(), card: e.card, pinned: false }] };
         case 'confirmRequest':
@@ -57,9 +62,9 @@ export const useStore = create<ConversationState & Actions>((set) => ({
         case 'cancelWindow':
           return { cancelWindow: { confirmationId: e.confirmationId, turnId: s.turnId, endsAt: Date.now() + e.ms } };
         case 'done':
-          return { streaming: false, cancelWindow: null };
+          return { streaming: false, cancelWindow: null, activity: null };
         case 'error':
-          return { streaming: false, errorCopy: e.userMessage || null };
+          return { streaming: false, errorCopy: e.userMessage || null, activity: null };
         default:
           return {};
       }

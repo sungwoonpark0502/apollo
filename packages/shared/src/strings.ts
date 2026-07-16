@@ -9,6 +9,48 @@ export const STRINGS = {
     palettePlaceholder: 'Ask Apollo…',
   },
 
+  // I5 tool-activity affordance: a friendly line shown while a tool runs. Never
+  // exposes raw tool names; falls back to a generic "Working…".
+  toolActivityGeneric: 'Working…',
+  toolActivity: (name: string): string => {
+    const exact: Record<string, string> = {
+      'search.web': 'Searching the web…',
+      'link.read': 'Reading that page…',
+      'recall.search': 'Looking through your notes…',
+      'news.brief': 'Catching up on the news…',
+      'files.find': 'Searching your files…',
+      'brief.daily': 'Putting together your briefing…',
+      'screen.context': 'Looking at your screen…',
+      'app.open': 'Opening that…',
+      'undo.last': 'Undoing that…',
+      'contact.find': 'Looking up a contact…',
+      'contact.add': 'Saving a contact…',
+      'email.send': 'Sending your email…',
+      'email.draft': 'Drafting your email…',
+      'system.media': 'Controlling playback…',
+      'system.volume': 'Adjusting the volume…',
+      'system.lock': 'Locking your screen…',
+      'system.screenshot': 'Taking a screenshot…',
+    };
+    if (exact[name]) return exact[name];
+    const family: Record<string, string> = {
+      timer: 'Setting a timer…',
+      alarm: 'Setting an alarm…',
+      calendar: 'Checking your calendar…',
+      reminder: 'Working on your reminders…',
+      note: 'Working on your notes…',
+      todo: 'Updating your to-dos…',
+      memory: 'Updating what I remember…',
+      weather: 'Checking the weather…',
+      email: 'Checking your email…',
+      proactive: 'Updating your nudges…',
+      contact: 'Looking up a contact…',
+      system: 'Working on that…',
+    };
+    const prefix = name.split('.')[0] ?? '';
+    return family[prefix] ?? 'Working…';
+  },
+
   errors: {
     KEY_MISSING: (provider: string) => `There's a problem with your ${provider} key. Check Settings > Keys.`,
     KEY_INVALID: (provider: string) => `There's a problem with your ${provider} key. Check Settings > Keys.`,
@@ -44,11 +86,22 @@ export const STRINGS = {
     taintWarning: (arg: string) => `The ${arg} did not come from you — double-check it.`,
   },
 
+  orbControls: {
+    cancel: 'Cancel',
+    stop: 'Stop',
+    skip: 'Skip',
+    replay: 'Replay',
+    progress: (i: number, n: number) => `${i} of ${n}`,
+  },
+
   cards: {
     pin: 'Pin',
     unpin: 'Unpin',
     open: 'Open',
     preview: 'Preview',
+    copy: 'Copy',
+    copyIcs: 'Copy as ICS',
+    copied: 'Copied',
     delete: 'Delete',
     edit: 'Edit',
     cancel: 'Cancel',

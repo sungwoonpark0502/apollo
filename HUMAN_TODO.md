@@ -3,6 +3,21 @@
 Items below are truly human-only (account logins, payments, certificates, physical acoustics).
 Everything else has been done or self-verified by the agent.
 
+## Phase 9 / I5 conversation polish — visual QA
+Implemented and unit-covered where testable (tool-activity label map, retry-with-memory).
+The following are wired but need a human eye on a running app (open the orb + palette, run a
+few turns):
+- Tool-activity line: while a tool runs, the orb and palette show a friendly line
+  ("Checking your calendar…", "Reading that page…"), never a raw tool name; it clears on result.
+- Interruptible thinking: a visible **Cancel** appears during the thinking state (orb + palette)
+  and stops the generation for text-mode users.
+- Streaming TTS controls (orb speaking state): **Stop** and **Replay-from-start** are wired.
+  NOT yet implemented (deferred): **Skip sentence** and the "sentence i of n" progress line for
+  long (>6 sentence) replies — these need per-sentence buffering in the audio player.
+- Copy/share: palette reply copy (existing), Notes "Copy" (text), event card "Copy as ICS".
+  A generic copy affordance on Stage/orb cards other than events is NOT yet added (deferred).
+Confirm these read well and the deferred items are acceptable or file follow-ups.
+
 ## Manual verification script — palette & keys (0.6)
 The agent already smoke-verified boot + an end-to-end turn programmatically
 (`APOLLO_SMOKE=1 pnpm dev` prints `SMOKE_OK … e2e=turn-ok`). What remains human

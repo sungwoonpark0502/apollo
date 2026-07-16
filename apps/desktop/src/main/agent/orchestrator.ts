@@ -14,7 +14,7 @@ import {
 import { type Registry } from '../tools/registry';
 import { type Repos } from '../db/repos/index';
 import { LlmAbortError, type LlmClient, type LlmMessage, type LlmToolUse } from './llm';
-import { matchFastPath } from './fastPath';
+import { matchFastPath, normalizeUtterance } from './fastPath';
 import { applyUndoEntry } from '../tools/undo';
 import { computeTaintFlags } from './taint';
 import { createConfirmationStore, matchConfirmReply, type PendingConfirmation } from './confirmations';
@@ -70,6 +70,7 @@ export function createOrchestrator(deps: OrchestratorDeps) {
   const conversationTaint = new Map<string, boolean>();
   const utterancesByConv = new Map<string, string[]>();
   const lastReplyByConv = new Map<string, string>(); // H5 "repeat that"
+  const failedToolByConv = new Map<string, LlmToolUse>(); // I5 retry-with-memory (one per conv)
   const activeTurns = new Map<string, TurnHandle>();
   const cancelWindowAborts = new Map<string, AbortController>();
 
@@ -154,6 +155,9 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     emit({ type: 'toolResult', tool: tu.name, ok });
     if (res.card) emit({ type: 'card', card: res.card });
     if (res.untrusted) conversationTaint.set(turn.convId, true);
+    // I5 retry-with-memory: remember the last failed tool call; clear on any success.
+    if (ok) failedToolByConv.delete(turn.convId);
+    else failedToolByConv.set(turn.convId, tu);
     return { content: wrapResult(tu.name, res.llmText, res.untrusted), isError: !ok, card: res.card, untrusted: res.untrusted };
   }
 
@@ -588,6 +592,31 @@ export function createOrchestrator(deps: OrchestratorDeps) {
             }
             return;
           }
+        }
+
+        // I5 retry-with-memory: an affirmative or "try again" after a tool failed
+        // re-invokes exactly that call rather than re-reasoning from scratch.
+        const failed = failedToolByConv.get(input.convId);
+        if (failed && (/^(try again|retry)$/.test(normalizeUtterance(input.text)) || matchConfirmReply(input.text) === 'approve')) {
+          const retryState: TurnState = {
+            turnId,
+            convId: input.convId,
+            source: input.source,
+            utterance: input.text,
+            messages: [
+              ...history,
+              { role: 'user', content: [{ type: 'text', text: input.text }] },
+              { role: 'assistant', content: [{ type: 'tool_use', id: failed.id, name: failed.name, input: failed.input }] },
+            ],
+            iterations: 0,
+            toolsRan: 0,
+            signal: abort.signal,
+          };
+          const r = await executeToolUse(failed, retryState);
+          retryState.toolsRan += 1;
+          retryState.messages.push({ role: 'user', content: [{ type: 'tool_result', tool_use_id: failed.id, content: r.content, is_error: r.isError || undefined }] });
+          await runLoop(retryState);
+          return;
         }
 
         const state: TurnState = {

@@ -81,6 +81,20 @@ export function App(): React.JSX.Element {
         }}
       />
 
+      {s.streaming && (s.activity || !s.reply) ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', padding: '0 var(--sp-2)', fontSize: 'var(--fs-caption)', color: 'var(--text-2)' }}>
+          <span>{s.activity ?? STRINGS.a11y.voiceState.thinking}</span>
+          {s.turnId ? (
+            <button
+              onClick={() => { if (s.turnId) void window.apollo.call('agent.cancel', { turnId: s.turnId }); }}
+              style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-1)', borderRadius: 'var(--radius-ctl)', padding: '0 var(--sp-2)', cursor: 'pointer', fontSize: 'var(--fs-caption)', fontFamily: 'var(--font-sans)' }}
+            >
+              {STRINGS.orbControls.cancel}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
       {s.reply || s.streaming ? (
         <div style={{ padding: '0 var(--sp-2)', fontSize: 'var(--fs-body)', color: 'var(--text-1)', whiteSpace: 'pre-wrap', position: 'relative' }}>
           {s.reply}

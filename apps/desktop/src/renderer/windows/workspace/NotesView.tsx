@@ -184,6 +184,7 @@ function NoteEditor({ noteId, onChanged, onDeleted }: { noteId: string; onChange
         <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-3)', marginRight: 'auto' }}>
           {saveState === 'saving' ? n.saving : saveState === 'saved' ? n.saved : ''}
         </span>
+        <button onClick={() => void navigator.clipboard.writeText(content)} style={toolBtn}>{STRINGS.cards.copy}</button>
         <button onClick={togglePin} style={toolBtn}>{pinned ? n.unpin : n.pin}</button>
         <button onClick={del} style={{ ...toolBtn, color: 'var(--danger)' }}>{n.delete}</button>
       </div>

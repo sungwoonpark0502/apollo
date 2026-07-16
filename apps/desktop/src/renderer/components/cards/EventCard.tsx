@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { fmtDate, fmtRange, STRINGS, type EventDTO } from '@apollo/shared';
 import { buttonStyle } from './TimerCard';
+import { eventToIcs } from '../../lib/ics';
 
 function timeRange(e: EventDTO): string {
   const day = fmtDate(e.startTs, 'weekday-date', { tz: e.tz });
@@ -10,9 +11,16 @@ function timeRange(e: EventDTO): string {
 
 export function EventCard({ event }: { event: EventDTO }): React.JSX.Element {
   const [deleted, setDeleted] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const del = (): void => {
     void window.apollo.call('data.mutate', { op: 'deleteEvent', id: event.id }).then(() => setDeleted(true));
+  };
+  const copyIcs = (): void => {
+    void navigator.clipboard.writeText(eventToIcs(event)).then(() => {
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    });
   };
 
   return (
@@ -28,9 +36,10 @@ export function EventCard({ event }: { event: EventDTO }): React.JSX.Element {
         ) : null}
       </div>
       {!deleted ? (
-        <button onClick={del} style={buttonStyle}>
-          {STRINGS.cards.delete}
-        </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-1)', flexShrink: 0 }}>
+          <button onClick={copyIcs} style={buttonStyle}>{copied ? STRINGS.cards.copied : STRINGS.cards.copyIcs}</button>
+          <button onClick={del} style={buttonStyle}>{STRINGS.cards.delete}</button>
+        </div>
       ) : null}
     </div>
   );
