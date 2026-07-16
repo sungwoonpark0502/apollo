@@ -48,7 +48,7 @@ const invokeFixtures: Record<InvokeChannelName, { req: unknown; res: unknown }> 
       {
         eventId: 'e1', occStartTs: 1_800_000_000_000, occEndTs: 1_800_003_600_000,
         title: 'Dentist', allDay: false, tz: 'America/Los_Angeles', isRecurring: false,
-        location: null, notes: null, dateIso: '2027-01-15', rrule: null,
+        location: null, notes: null, dateIso: '2027-01-15', rrule: null, calendarId: 'default',
       },
     ],
   },
@@ -56,28 +56,29 @@ const invokeFixtures: Record<InvokeChannelName, { req: unknown; res: unknown }> 
     req: { id: 'e1' },
     res: {
       id: 'e1', title: 'Dentist', startTs: 1_800_000_000_000, endTs: null, tz: 'America/Los_Angeles',
-      allDay: false, rrule: null, location: null, notes: null,
+      allDay: false, rrule: null, location: null, notes: null, calendarId: 'default', color: '#D97757',
     },
   },
   'events.search': {
     req: { query: 'dentist' },
-    res: [{ id: 'e1', title: 'Dentist', startTs: 1_800_000_000_000, endTs: null, tz: 'America/Los_Angeles', allDay: false, rrule: null, location: null, notes: null }],
+    res: [{ id: 'e1', title: 'Dentist', startTs: 1_800_000_000_000, endTs: null, tz: 'America/Los_Angeles', allDay: false, rrule: null, location: null, notes: null, calendarId: 'default', color: '#D97757' }],
   },
   'events.create': {
     req: { title: 'Standup', startIso: '2026-07-14T09:00:00', tz: 'LOCAL' },
     res: {
       id: 'e2', title: 'Standup', startTs: 1_800_000_000_000, endTs: 1_800_003_600_000,
-      tz: 'America/Los_Angeles', allDay: false, rrule: null, location: null, notes: null,
+      tz: 'America/Los_Angeles', allDay: false, rrule: null, location: null, notes: null, calendarId: 'default', color: '#D97757',
     },
   },
   'events.update': {
     req: { id: 'e1', patch: { title: 'Dentist (moved)' }, scope: 'all' },
     res: {
       id: 'e1', title: 'Dentist (moved)', startTs: 1_800_000_000_000, endTs: null,
-      tz: 'America/Los_Angeles', allDay: false, rrule: null, location: null, notes: null,
+      tz: 'America/Los_Angeles', allDay: false, rrule: null, location: null, notes: null, calendarId: 'default', color: '#D97757',
     },
   },
   'events.delete': { req: { id: 'e1', scope: 'single', occStartTs: 1_800_000_000_000 }, res: { ok: true } },
+  'calendars.crud': { req: { op: 'create', name: 'Work', color: '#4C8BF5' }, res: { ok: true } },
   'notes.list': {
     req: { query: 'groceries', limit: 50 },
     res: [{ id: 'n1', title: 'Groceries', snippet: 'milk, eggs', updatedAt: 1_800_000_000_000, pinned: false }],

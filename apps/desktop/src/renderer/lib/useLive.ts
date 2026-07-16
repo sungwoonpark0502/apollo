@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { configureFormat, type DataChanged, type Settings } from '@apollo/shared';
+import { configureCalendars, configureFormat, type DataChanged, type Settings } from '@apollo/shared';
 
 /**
  * I2: keep format.ts's process-wide context in step with the user's locale,
@@ -9,12 +9,14 @@ import { configureFormat, type DataChanged, type Settings } from '@apollo/shared
  */
 export function useFormatInit(): void {
   useEffect(() => {
-    const apply = (s: Settings): void =>
+    const apply = (s: Settings): void => {
       configureFormat({
         locale: s.locale.region ?? navigator.language,
         timeFormat: s.profile.timeFormat,
         weekStart: s.profile.weekStart,
       });
+      configureCalendars(s.calendars.active);
+    };
     void window.apollo.call('settings.get', {}).then(apply);
     return window.apollo.on('settings.changed', apply);
   }, []);

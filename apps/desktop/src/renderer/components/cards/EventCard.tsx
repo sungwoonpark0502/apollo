@@ -18,7 +18,10 @@ export function EventCard({ event }: { event: EventDTO }): React.JSX.Element {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--sp-3)', opacity: deleted ? 0.5 : 1 }}>
       <div>
-        <div style={{ fontSize: 'var(--fs-title)', fontWeight: 500, textDecoration: deleted ? 'line-through' : 'none' }}>{event.title}</div>
+        <div style={{ fontSize: 'var(--fs-title)', fontWeight: 500, textDecoration: deleted ? 'line-through' : 'none', display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
+          <span style={{ width: 9, height: 9, borderRadius: '50%', background: event.color, flexShrink: 0 }} />
+          {event.title}
+        </div>
         <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-2)', marginTop: 'var(--sp-1)' }}>{timeRange(event)}</div>
         {event.location ? (
           <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-3)', marginTop: 'var(--sp-1)' }}>{event.location}</div>

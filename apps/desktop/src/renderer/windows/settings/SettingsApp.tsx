@@ -6,13 +6,14 @@ import { DiagnosticsTab } from './DiagnosticsTab';
 import { AccountsTab } from './AccountsTab';
 import { PrivacyTab } from './PrivacyTab';
 import { GeneralTab } from './GeneralTab';
+import { CalendarsTab } from './CalendarsTab';
 import { ProfileTab } from './ProfileTab';
 import { AboutTab } from './AboutTab';
 import { ProactiveTab } from './ProactiveTab';
 import { useFormatInit } from '../../lib/useLive';
 
 type TabId = keyof typeof STRINGS.settings.tabs;
-const TAB_ORDER: TabId[] = ['profile', 'general', 'voice', 'proactive', 'accounts', 'keys', 'privacy', 'diagnostics', 'about'];
+const TAB_ORDER: TabId[] = ['profile', 'general', 'calendars', 'voice', 'proactive', 'accounts', 'keys', 'privacy', 'diagnostics', 'about'];
 
 export function SettingsApp(): React.JSX.Element {
   useFormatInit();
@@ -63,6 +64,8 @@ export function SettingsApp(): React.JSX.Element {
           <PrivacyTab />
         ) : tab === 'general' ? (
           <GeneralTab />
+        ) : tab === 'calendars' ? (
+          <CalendarsTab />
         ) : (
           <Placeholder tab={STRINGS.settings.tabs[tab]} />
         )}

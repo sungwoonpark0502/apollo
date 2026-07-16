@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { DateTime } from 'luxon';
-import { fmtDateIso, fmtTime, STRINGS, type OccurrenceDTO } from '@apollo/shared';
+import { calendarColor, fmtDateIso, fmtTime, STRINGS, type OccurrenceDTO } from '@apollo/shared';
 import { useDataSync } from '../../lib/useLive';
 import { EventEditorModal, type EditorInitial } from './EventEditorModal';
 import { ScopeDialog } from './ScopeDialog';
@@ -39,7 +39,7 @@ export function AgendaView({ anchor, localTz: _localTz }: { anchor: DateTime; lo
           endIso: DateTime.fromMillis(o.occEndTs, { zone: o.tz }).toISO({ includeOffset: false }) ?? '',
           allDay: full.allDay, tz: full.tz, rrule: full.rrule,
           location: full.location ?? '', notes: full.notes ?? '', reminderMin: null,
-          isRecurring: o.isRecurring, occStartTs: o.occStartTs,
+          isRecurring: o.isRecurring, occStartTs: o.occStartTs, calendarId: full.calendarId,
         },
       });
     });
@@ -56,7 +56,7 @@ export function AgendaView({ anchor, localTz: _localTz }: { anchor: DateTime; lo
               {fmtDateIso(dateIso, 'full')}
             </div>
             {events.map((o) => (
-              <div key={`${o.eventId}-${o.occStartTs}`} onClick={() => openEditor(o)} style={row}>
+              <div key={`${o.eventId}-${o.occStartTs}`} onClick={() => openEditor(o)} style={{ ...row, borderLeft: `3px solid ${calendarColor(o.calendarId)}` }}>
                 <span style={{ minWidth: 96, color: 'var(--text-2)', fontSize: 'var(--fs-caption)' }}>
                   {o.allDay ? STRINGS.cards.allDay : fmtTime(o.occStartTs, { tz: o.tz })}
                 </span>
@@ -76,7 +76,7 @@ export function AgendaView({ anchor, localTz: _localTz }: { anchor: DateTime; lo
             void window.apollo
               .call('events.update', {
                 id: r.id as string,
-                patch: { title: r.title, startIso: r.startIso, endIso: r.endIso, tz: r.tz, allDay: r.allDay, rrule: r.rrule, location: r.location || null, notes: r.notes || null, reminderMin: r.reminderMin },
+                patch: { title: r.title, startIso: r.startIso, endIso: r.endIso, tz: r.tz, allDay: r.allDay, rrule: r.rrule, location: r.location || null, notes: r.notes || null, reminderMin: r.reminderMin, calendarId: r.calendarId },
                 scope: editor.initial.isRecurring ? 'single' : 'all',
                 ...(editor.initial.occStartTs !== undefined ? { occStartTs: editor.initial.occStartTs } : {}),
               })

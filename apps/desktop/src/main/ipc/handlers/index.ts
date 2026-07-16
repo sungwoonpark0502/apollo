@@ -2,7 +2,8 @@ import { type Handlers } from '../router';
 import { type Orchestrator } from '../../agent/orchestrator';
 import { type Repos } from '../../db/repos/index';
 import { buildWorkspaceHandlers } from './workspace';
-import { type InvokeReq, type InvokeRes } from '@apollo/shared';
+import { applyCalendarCrud } from '../../calendars/service';
+import { newId, type InvokeReq, type InvokeRes } from '@apollo/shared';
 import { type SettingsService } from '../../settingsService';
 import { type Secrets } from '../../security/secrets';
 import { type KeyProvider } from '@apollo/shared';
@@ -192,6 +193,22 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
       }
       for (const gone of existing) deps.repos.feeds.remove(gone);
       return { ok: true as const };
+    },
+    'calendars.crud': (req) => {
+      const cur = deps.settings.get();
+      const { state, result } = applyCalendarCrud(
+        { active: cur.calendars.active, defaultCalendarId: cur.calendars.defaultCalendarId },
+        req,
+        {
+          eventCount: (id) => deps.repos.events.countByCalendar(id),
+          reassign: (from, to) => deps.repos.events.reassignCalendar(from, to),
+          newId: () => `cal-${newId()}`,
+        },
+      );
+      if (result.ok) {
+        deps.settings.set({ ...cur, feeds: [], calendars: state });
+      }
+      return result;
     },
     'keys.set': (req) => {
       const ok = deps.secrets.set(req.provider, req.value);

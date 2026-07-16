@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { DateTime } from 'luxon';
-import { fmtDate, fmtHour, fmtTime, STRINGS, type OccurrenceDTO } from '@apollo/shared';
+import { calendarColor, fmtDate, fmtHour, fmtTime, STRINGS, type OccurrenceDTO } from '@apollo/shared';
 import { useDataSync } from '../../lib/useLive';
 import { layoutOverlaps, snap15 } from '../../lib/calendarLayout';
 import { EventEditorModal, type EditorInitial } from './EventEditorModal';
@@ -63,7 +63,7 @@ export function WeekView({ anchor, localTz }: { anchor: DateTime; localTz: strin
           <div key={d.toISODate()} style={{ borderLeft: '0.5px solid var(--border)', padding: 2, minHeight: 24 }}>
             <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-3)', textAlign: 'center' }}>{fmtDate(d.toMillis(), 'weekday-day')}</div>
             {(allDayByDay[i] ?? []).map((o) => (
-              <div key={`${o.eventId}-${o.occStartTs}`} style={allDayChip} onClick={() => openEditor(o, setEditor)} title={o.title}>{o.title}</div>
+              <div key={`${o.eventId}-${o.occStartTs}`} style={{ ...allDayChip, borderLeft: `3px solid ${calendarColor(o.calendarId)}` }} onClick={() => openEditor(o, setEditor)} title={o.title}>{o.title}</div>
             ))}
           </div>
         ))}
@@ -110,7 +110,7 @@ export function WeekView({ anchor, localTz }: { anchor: DateTime; localTz: strin
               void window.apollo
                 .call('events.update', {
                   id: r.id as string,
-                  patch: { title: r.title, startIso: r.startIso, endIso: r.endIso, tz: r.tz, allDay: r.allDay, rrule: r.rrule, location: r.location || null, notes: r.notes || null, reminderMin: r.reminderMin },
+                  patch: { title: r.title, startIso: r.startIso, endIso: r.endIso, tz: r.tz, allDay: r.allDay, rrule: r.rrule, location: r.location || null, notes: r.notes || null, reminderMin: r.reminderMin, calendarId: r.calendarId },
                   scope: scope ?? 'all',
                   ...(editor.initial.occStartTs !== undefined ? { occStartTs: editor.initial.occStartTs } : {}),
                 })
@@ -333,7 +333,7 @@ function TimedChip({
         left,
         width,
         background: 'var(--accent-soft)',
-        borderLeft: '2px solid var(--accent)',
+        borderLeft: `3px solid ${calendarColor(o.calendarId)}`,
         borderRadius: 4,
         padding: '1px 4px',
         fontSize: 'var(--fs-caption)',
@@ -369,6 +369,7 @@ function openEditor(o: OccurrenceDTO, setEditor: (s: { initial: EditorInitial })
         reminderMin: null,
         isRecurring: o.isRecurring,
         occStartTs: o.occStartTs,
+        calendarId: full.calendarId,
       },
     });
   });

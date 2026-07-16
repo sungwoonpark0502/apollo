@@ -76,7 +76,8 @@ export function parseIcs(ics: string): EventRow[] {
     out.push({
       id, title, startTs, endTs, tz, allDay, rrule: rrule ? `RRULE:${rrule}`.replace(/^RRULE:RRULE:/, 'RRULE:') : null,
       exdates, location: icsUnescape(get(/LOCATION:(.+)/) ?? '') || null, notes: icsUnescape(get(/DESCRIPTION:(.+)/) ?? '') || null,
-      reminderMin: null, createdAt: 0, updatedAt: 0, deletedAt: null,
+      reminderMin: null, calendarId: 'default', remoteId: null, etag: null, syncStatus: null,
+      createdAt: 0, updatedAt: 0, deletedAt: null,
     });
   }
   return out;

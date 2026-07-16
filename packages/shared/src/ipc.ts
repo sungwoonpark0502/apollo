@@ -103,6 +103,7 @@ export const invokeChannels = {
       location: z.string().optional(),
       notes: z.string().optional(),
       reminderMin: z.number().int().min(0).optional(),
+      calendarId: z.string().optional(),
     }),
     res: eventDTOSchema,
   },
@@ -120,6 +121,7 @@ export const invokeChannels = {
           location: z.string().nullable(),
           notes: z.string().nullable(),
           reminderMin: z.number().int().min(0).nullable(),
+          calendarId: z.string(),
         })
         .partial(),
       scope: z.enum(['single', 'all']).default('all'),
@@ -130,6 +132,17 @@ export const invokeChannels = {
   'events.delete': {
     req: z.object({ id: z.string(), scope: z.enum(['single', 'all']).default('all'), occStartTs: z.number().optional() }),
     res: ackSchema,
+  },
+  // I1 local calendar collections CRUD. delete blocks if events exist unless reassignTo is given.
+  'calendars.crud': {
+    req: z.discriminatedUnion('op', [
+      z.object({ op: z.literal('create'), name: z.string().min(1), color: z.string() }),
+      z.object({ op: z.literal('rename'), id: z.string(), name: z.string().min(1) }),
+      z.object({ op: z.literal('recolor'), id: z.string(), color: z.string() }),
+      z.object({ op: z.literal('delete'), id: z.string(), reassignTo: z.string().optional() }),
+      z.object({ op: z.literal('setDefault'), id: z.string() }),
+    ]),
+    res: z.object({ ok: z.boolean(), error: z.string().optional(), eventCount: z.number().optional() }),
   },
   'notes.list': {
     req: z.object({ query: z.string().optional(), limit: z.number().int().positive().max(200).default(50) }),

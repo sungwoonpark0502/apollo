@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { DateTime } from 'luxon';
-import { fmtDateIso, STRINGS } from '@apollo/shared';
+import { calendarsSnapshot, fmtDateIso, STRINGS } from '@apollo/shared';
 import { Modal } from './Modal';
 import { buildRRule, detectPreset, isValidRRule, type RecurrencePreset } from '../../lib/recurrence';
 
@@ -17,6 +17,8 @@ export interface EditorInitial {
   reminderMin: number | null;
   isRecurring: boolean;     // whether editing touches a recurring series
   occStartTs?: number;      // for scope=single edits
+  calendarId?: string;      // I1 calendar membership
+  readOnly?: boolean;       // I7: synced read-only calendars reject local edits
 }
 
 export interface EditorResult {
@@ -30,6 +32,7 @@ export interface EditorResult {
   location: string;
   notes: string;
   reminderMin: number | null;
+  calendarId: string;
 }
 
 const COMMON_TZS = [
@@ -59,6 +62,8 @@ export function EventEditorModal({
   const [location, setLocation] = useState(initial.location);
   const [notes, setNotes] = useState(initial.notes);
   const [reminderMin, setReminderMin] = useState<string>(initial.reminderMin?.toString() ?? '');
+  const calendars = useMemo(() => calendarsSnapshot(), []);
+  const [calendarId, setCalendarId] = useState(initial.calendarId ?? calendars[0]?.id ?? 'default');
 
   const weekdayLabel = useMemo(() => fmtDateIso(startIso, 'weekday-long'), [startIso]);
   const dayOfMonth = useMemo(() => DateTime.fromISO(startIso).day, [startIso]);
@@ -85,6 +90,7 @@ export function EventEditorModal({
       location: location.trim(),
       notes: notes.trim(),
       reminderMin: reminderMin.trim() ? Math.max(0, parseInt(reminderMin, 10) || 0) : null,
+      calendarId,
     });
   };
 
@@ -110,6 +116,17 @@ export function EventEditorModal({
         </Field>
       </div>
       {!timesValid ? <ErrorLine text={e.invalidTime} /> : null}
+
+      <Field label={e.calendar}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
+          <span style={{ width: 12, height: 12, borderRadius: '50%', background: calendars.find((c) => c.id === calendarId)?.color ?? 'var(--accent)', flexShrink: 0 }} />
+          <select value={calendarId} onChange={(ev) => setCalendarId(ev.target.value)} style={input}>
+            {calendars.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}{c.readOnly ? ` (${e.readOnly})` : ''}</option>
+            ))}
+          </select>
+        </div>
+      </Field>
 
       <Field label={e.timezone}>
         <select value={tz} onChange={(ev) => setTz(ev.target.value)} style={input}>

@@ -10,7 +10,7 @@ const news: CardPayload = { kind: 'newsList', items: [
 const weather: CardPayload = { kind: 'weather', place: 'Columbus', now: { tempF: 80, feelsF: 82, condition: 'Sunny', precipPct: 0, windMph: 5 }, days: [] };
 const brief: CardPayload = { kind: 'brief', sections: [{ kind: 'text', body: 'one' }, { kind: 'text', body: 'two' }] };
 const eventList: CardPayload = { kind: 'eventList', title: 'Today', events: [
-  { id: 'e1', title: 'Standup', startTs: Date.parse('2026-07-14T09:00:00Z'), endTs: null, tz: 'UTC', allDay: false, rrule: null, location: null, notes: null },
+  { id: 'e1', title: 'Standup', startTs: Date.parse('2026-07-14T09:00:00Z'), endTs: null, tz: 'UTC', allDay: false, rrule: null, location: null, notes: null, calendarId: 'default', color: '#D97757' },
 ] };
 const textCard: CardPayload = { kind: 'text', body: 'hi' };
 

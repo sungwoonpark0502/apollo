@@ -6,24 +6,29 @@ const { RRule } = (rrulePkg as { default?: typeof rrulePkg }).default ?? rrulePk
 import { newId, nowMs, MS, type OccurrenceDTO } from '@apollo/shared';
 import { type Db } from '../connection';
 
+export type SyncStatus = 'synced' | 'local-dirty' | 'remote-deleted';
+
 export interface EventRow {
   id: string; title: string; startTs: number; endTs: number | null;
   tz: string; allDay: boolean; rrule: string | null; exdates: string[];
   location: string | null; notes: string | null; reminderMin: number | null;
+  calendarId: string; remoteId: string | null; etag: string | null; syncStatus: SyncStatus | null;
   createdAt: number; updatedAt: number; deletedAt: number | null;
 }
 
 export interface EventInput {
   title: string; startTs: number; endTs?: number | null; tz: string;
   allDay?: boolean; rrule?: string | null; location?: string | null;
-  notes?: string | null; reminderMin?: number | null;
+  notes?: string | null; reminderMin?: number | null; calendarId?: string;
+  remoteId?: string | null; etag?: string | null; syncStatus?: SyncStatus | null;
 }
 
 interface RawRow {
   id: string; title: string; start_ts: number; end_ts: number | null; tz: string;
   all_day: number; rrule: string | null; exdates: string | null; location: string | null;
   notes: string | null; reminder_min: number | null; created_at: number; updated_at: number;
-  deleted_at: number | null;
+  deleted_at: number | null; calendar_id: string; remote_id: string | null; etag: string | null;
+  sync_status: string | null;
 }
 
 function toRow(r: RawRow): EventRow {
@@ -31,6 +36,8 @@ function toRow(r: RawRow): EventRow {
     id: r.id, title: r.title, startTs: r.start_ts, endTs: r.end_ts, tz: r.tz,
     allDay: r.all_day === 1, rrule: r.rrule, exdates: r.exdates ? (JSON.parse(r.exdates) as string[]) : [],
     location: r.location, notes: r.notes, reminderMin: r.reminder_min,
+    calendarId: r.calendar_id ?? 'default', remoteId: r.remote_id, etag: r.etag,
+    syncStatus: (r.sync_status as SyncStatus | null) ?? null,
     createdAt: r.created_at, updatedAt: r.updated_at, deletedAt: r.deleted_at,
   };
 }
@@ -56,8 +63,8 @@ function durationOf(ev: EventRow): number {
 
 export function createEventsRepo(db: Db) {
   const insert = db.prepare(
-    `INSERT INTO events(id,title,start_ts,end_ts,tz,all_day,rrule,exdates,location,notes,reminder_min,created_at,updated_at)
-     VALUES (@id,@title,@start_ts,@end_ts,@tz,@all_day,@rrule,@exdates,@location,@notes,@reminder_min,@created_at,@updated_at)`,
+    `INSERT INTO events(id,title,start_ts,end_ts,tz,all_day,rrule,exdates,location,notes,reminder_min,calendar_id,remote_id,etag,sync_status,created_at,updated_at)
+     VALUES (@id,@title,@start_ts,@end_ts,@tz,@all_day,@rrule,@exdates,@location,@notes,@reminder_min,@calendar_id,@remote_id,@etag,@sync_status,@created_at,@updated_at)`,
   );
   const byId = db.prepare('SELECT * FROM events WHERE id = ?');
   const liveRange = db.prepare(
@@ -82,6 +89,7 @@ export function createEventsRepo(db: Db) {
         out.push({
           eventId: ev.id, occStartTs: ev.startTs, occEndTs: ev.startTs + dur, title: ev.title, tz: ev.tz,
           allDay: ev.allDay, isRecurring: false, location: ev.location, notes: ev.notes, dateIso, rrule: null,
+          calendarId: ev.calendarId,
         });
         continue;
       }
@@ -106,6 +114,7 @@ export function createEventsRepo(db: Db) {
         out.push({
           eventId: ev.id, occStartTs: startTs, occEndTs: startTs + dur, title: ev.title, tz: ev.tz,
           allDay: ev.allDay, isRecurring: true, location: ev.location, notes: ev.notes, dateIso, rrule: ev.rrule,
+          calendarId: ev.calendarId,
         });
       }
     }
@@ -120,6 +129,8 @@ export function createEventsRepo(db: Db) {
         id, title: input.title, start_ts: input.startTs, end_ts: input.endTs ?? null, tz: input.tz,
         all_day: input.allDay ? 1 : 0, rrule: input.rrule ?? null, exdates: JSON.stringify([]),
         location: input.location ?? null, notes: input.notes ?? null, reminder_min: input.reminderMin ?? null,
+        calendar_id: input.calendarId ?? 'default', remote_id: input.remoteId ?? null,
+        etag: input.etag ?? null, sync_status: input.syncStatus ?? null,
         created_at: ts, updated_at: ts,
       });
       const row = get(id);
@@ -135,11 +146,14 @@ export function createEventsRepo(db: Db) {
       const next = { ...cur, ...patch };
       db.prepare(
         `UPDATE events SET title=@title, start_ts=@start_ts, end_ts=@end_ts, tz=@tz, all_day=@all_day,
-         rrule=@rrule, location=@location, notes=@notes, reminder_min=@reminder_min, updated_at=@updated_at WHERE id=@id`,
+         rrule=@rrule, location=@location, notes=@notes, reminder_min=@reminder_min,
+         calendar_id=@calendar_id, remote_id=@remote_id, etag=@etag, sync_status=@sync_status, updated_at=@updated_at WHERE id=@id`,
       ).run({
         id, title: next.title, start_ts: next.startTs, end_ts: next.endTs ?? null, tz: next.tz,
         all_day: next.allDay ? 1 : 0, rrule: next.rrule ?? null, location: next.location ?? null,
-        notes: next.notes ?? null, reminder_min: next.reminderMin ?? null, updated_at: nowMs(),
+        notes: next.notes ?? null, reminder_min: next.reminderMin ?? null,
+        calendar_id: next.calendarId ?? 'default', remote_id: next.remoteId ?? null,
+        etag: next.etag ?? null, sync_status: next.syncStatus ?? null, updated_at: nowMs(),
       });
       return get(id);
     },
@@ -179,14 +193,32 @@ export function createEventsRepo(db: Db) {
       if (db.prepare('SELECT 1 FROM events WHERE id=?').get(ev.id)) return false;
       const ts = nowMs();
       db.prepare(
-        `INSERT INTO events(id,title,start_ts,end_ts,tz,all_day,rrule,exdates,location,notes,reminder_min,created_at,updated_at)
-         VALUES (@id,@title,@start_ts,@end_ts,@tz,@all_day,@rrule,@exdates,@location,@notes,@reminder_min,@created_at,@updated_at)`,
+        `INSERT INTO events(id,title,start_ts,end_ts,tz,all_day,rrule,exdates,location,notes,reminder_min,calendar_id,remote_id,etag,sync_status,created_at,updated_at)
+         VALUES (@id,@title,@start_ts,@end_ts,@tz,@all_day,@rrule,@exdates,@location,@notes,@reminder_min,@calendar_id,@remote_id,@etag,@sync_status,@created_at,@updated_at)`,
       ).run({
         id: ev.id, title: ev.title, start_ts: ev.startTs, end_ts: ev.endTs, tz: ev.tz, all_day: ev.allDay ? 1 : 0,
         rrule: ev.rrule, exdates: JSON.stringify(ev.exdates ?? []), location: ev.location, notes: ev.notes,
-        reminder_min: ev.reminderMin, created_at: ev.createdAt || ts, updated_at: ev.updatedAt || ts,
+        reminder_min: ev.reminderMin, calendar_id: ev.calendarId ?? 'default', remote_id: ev.remoteId ?? null,
+        etag: ev.etag ?? null, sync_status: ev.syncStatus ?? null,
+        created_at: ev.createdAt || ts, updated_at: ev.updatedAt || ts,
       });
       return true;
+    },
+
+    /** I2: count non-deleted events on a calendar (delete-with-events guard). */
+    countByCalendar(calendarId: string): number {
+      return (db.prepare('SELECT COUNT(*) AS n FROM events WHERE deleted_at IS NULL AND calendar_id=?').get(calendarId) as { n: number }).n;
+    },
+
+    /** I2: move every event from one calendar to another (delete-with-reassign). */
+    reassignCalendar(from: string, to: string): number {
+      return db.prepare('UPDATE events SET calendar_id=?, updated_at=? WHERE calendar_id=? AND deleted_at IS NULL').run(to, nowMs(), from).changes;
+    },
+
+    /** I7: events on a synced calendar, by remote id (sync engine). */
+    getByRemoteId(remoteId: string): EventRow | null {
+      const r = db.prepare('SELECT * FROM events WHERE remote_id=? AND deleted_at IS NULL').get(remoteId) as RawRow | undefined;
+      return r ? toRow(r) : null;
     },
 
     expandOccurrences,

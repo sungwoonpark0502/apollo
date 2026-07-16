@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { DateTime } from 'luxon';
-import { fmtDate, fmtDateTime, fmtHour, fmtTime, STRINGS, type InvokeRes, type OccurrenceDTO, type Settings } from '@apollo/shared';
+import { calendarColor, fmtDate, fmtDateTime, fmtHour, fmtTime, STRINGS, type InvokeRes, type OccurrenceDTO, type Settings } from '@apollo/shared';
 import { useDataSync } from '../../lib/useLive';
 import { WeatherGlyph } from '../../components/WeatherGlyph';
 
@@ -54,7 +54,10 @@ export function TodayView({ settings, onOpenCalendar }: { settings: Settings | n
       <Section title={STRINGS.workspace.today.todaysEvents} empty={(occ ?? []).length === 0 ? STRINGS.workspace.today.emptyEvents : null}>
         {(occ ?? []).map((o) => (
           <Row key={`${o.eventId}-${o.occStartTs}`} onClick={() => onOpenCalendar(o.dateIso)}>
-            <span>{o.title}</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: calendarColor(o.calendarId), flexShrink: 0 }} />
+              {o.title}
+            </span>
             <span style={{ color: 'var(--text-2)', fontSize: 'var(--fs-caption)' }}>
               {o.allDay ? STRINGS.cards.allDay : `${fmtTime(o.occStartTs, { tz: o.tz })}–${fmtTime(o.occEndTs, { tz: o.tz })}`}
             </span>

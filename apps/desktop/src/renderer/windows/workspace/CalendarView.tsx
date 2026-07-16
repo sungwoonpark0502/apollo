@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { DateTime } from 'luxon';
-import { fmtDate, fmtDateIso, fmtTime, STRINGS, type OccurrenceDTO, type Settings } from '@apollo/shared';
+import { calendarColor, fmtDate, fmtDateIso, fmtTime, STRINGS, type OccurrenceDTO, type Settings } from '@apollo/shared';
 import { useDataSync } from '../../lib/useLive';
 import { monthGrid, weekdayHeaders } from '../../lib/calendarLayout';
 import { EventEditorModal, type EditorInitial, type EditorResult } from './EventEditorModal';
@@ -131,7 +131,7 @@ function MonthView({
                   <div
                     key={`${o.eventId}-${o.occStartTs}`}
                     onClick={(ev) => { ev.stopPropagation(); openEditorFor(o, setEditor); }}
-                    style={chip}
+                    style={{ ...chip, borderLeft: `3px solid ${calendarColor(o.calendarId)}`, paddingLeft: 4 }}
                     title={o.title}
                   >
                     {o.allDay ? '' : `${fmtTime(o.occStartTs, { tz: o.tz })} `}
@@ -198,6 +198,7 @@ function openEditorFor(o: OccurrenceDTO, setEditor: (s: EditorState) => void): v
         reminderMin: null,
         isRecurring: o.isRecurring,
         occStartTs: o.occStartTs,
+        calendarId: full.calendarId,
       },
     });
   });
@@ -220,7 +221,7 @@ function EventEditorFlow({
       void window.apollo
         .call('events.create', {
           title: result.title, startIso: result.startIso, endIso: result.endIso, tz: result.tz,
-          allDay: result.allDay, ...(result.rrule ? { rrule: result.rrule } : {}),
+          allDay: result.allDay, calendarId: result.calendarId, ...(result.rrule ? { rrule: result.rrule } : {}),
           ...(result.location ? { location: result.location } : {}),
           ...(result.notes ? { notes: result.notes } : {}),
           ...(result.reminderMin !== null ? { reminderMin: result.reminderMin } : {}),
@@ -234,7 +235,7 @@ function EventEditorFlow({
         patch: {
           title: result.title, startIso: result.startIso, endIso: result.endIso, tz: result.tz,
           allDay: result.allDay, rrule: result.rrule, location: result.location || null,
-          notes: result.notes || null, reminderMin: result.reminderMin,
+          notes: result.notes || null, reminderMin: result.reminderMin, calendarId: result.calendarId,
         },
         scope: scope ?? 'all',
         ...(state.initial.occStartTs !== undefined ? { occStartTs: state.initial.occStartTs } : {}),
@@ -276,7 +277,7 @@ function EventEditorFlow({
 }
 
 const emptyResult: EditorResult = {
-  title: '', startIso: '', endIso: '', allDay: false, tz: 'UTC', rrule: null, location: '', notes: '', reminderMin: null,
+  title: '', startIso: '', endIso: '', allDay: false, tz: 'UTC', rrule: null, location: '', notes: '', reminderMin: null, calendarId: 'default',
 };
 
 function DayPanel({
@@ -307,8 +308,8 @@ function DayPanel({
         <div style={{ color: 'var(--text-3)', fontSize: 'var(--fs-body)' }}>{STRINGS.workspace.today.emptyEvents}</div>
       ) : (
         events.map((o) => (
-          <div key={`${o.eventId}-${o.occStartTs}`} onClick={() => onOpenEvent(o)} style={{ ...chip, whiteSpace: 'normal', padding: 'var(--sp-2)', marginBottom: 'var(--sp-2)' }}>
-            <div style={{ fontWeight: 500 }}>{o.title}</div>
+          <div key={`${o.eventId}-${o.occStartTs}`} onClick={() => onOpenEvent(o)} style={{ ...chip, whiteSpace: 'normal', padding: 'var(--sp-2)', marginBottom: 'var(--sp-2)', borderLeft: `3px solid ${calendarColor(o.calendarId)}` }}>
+            <div style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: calendarColor(o.calendarId), flexShrink: 0 }} />{o.title}</div>
             <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-2)' }}>
               {o.allDay ? STRINGS.cards.allDay : `${fmtTime(o.occStartTs, { tz: o.tz })}–${fmtTime(o.occEndTs, { tz: o.tz })}`}
             </div>

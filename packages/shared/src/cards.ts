@@ -9,6 +9,7 @@ import { type ConfirmAction, type SuggestionDTO } from './agent';
 export interface EventDTO {
   id: string; title: string; startTs: number; endTs: number | null;
   tz: string; allDay: boolean; rrule: string | null; location: string | null; notes: string | null;
+  calendarId: string; color: string; // I1: calendar membership + derived color
 }
 export interface WeatherNow { tempF: number; feelsF: number; condition: string; precipPct: number; windMph: number; }
 export interface WeatherDay { dateIso: string; hiF: number; loF: number; condition: string; precipPct: number; }
@@ -29,13 +30,14 @@ export interface OccurrenceDTO {
   notes: string | null;
   dateIso: string;        // local calendar date of this occurrence (exdate key)
   rrule: string | null;   // the parent event's rule, null for one-offs
+  calendarId: string;     // I1: calendar membership (renderer derives color)
 }
 
 export const occurrenceDTOSchema: z.ZodType<OccurrenceDTO> = z.object({
   eventId: z.string(), occStartTs: z.number(), occEndTs: z.number(),
   title: z.string(), allDay: z.boolean(), tz: z.string(), isRecurring: z.boolean(),
   location: z.string().nullable(), notes: z.string().nullable(),
-  dateIso: z.string(), rrule: z.string().nullable(),
+  dateIso: z.string(), rrule: z.string().nullable(), calendarId: z.string(),
 });
 
 /** E1: notes list row for the Workspace. */
@@ -78,6 +80,7 @@ export const eventDTOSchema: z.ZodType<EventDTO> = z.object({
   id: z.string(), title: z.string(), startTs: z.number(), endTs: z.number().nullable(),
   tz: z.string(), allDay: z.boolean(), rrule: z.string().nullable(),
   location: z.string().nullable(), notes: z.string().nullable(),
+  calendarId: z.string(), color: z.string(),
 });
 
 export const weatherNowSchema: z.ZodType<WeatherNow> = z.object({

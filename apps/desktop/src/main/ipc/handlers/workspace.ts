@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon';
-import { type EventDTO, type InvokeReq, type InvokeRes } from '@apollo/shared';
+import { calendarColor, type EventDTO, type InvokeReq, type InvokeRes } from '@apollo/shared';
 import { type Repos, type EventRow } from '../../db/repos/index';
 import { applyUndoEntry, registerInverse } from '../../tools/undo';
 
@@ -21,6 +21,7 @@ function evToDTO(ev: EventRow): EventDTO {
   return {
     id: ev.id, title: ev.title, startTs: ev.startTs, endTs: ev.endTs, tz: ev.tz,
     allDay: ev.allDay, rrule: ev.rrule, location: ev.location, notes: ev.notes,
+    calendarId: ev.calendarId, color: calendarColor(ev.calendarId),
   };
 }
 
@@ -57,6 +58,7 @@ export function buildWorkspaceHandlers(deps: WorkspaceHandlerDeps) {
     if (patch.location !== undefined) out.location = patch.location;
     if (patch.notes !== undefined) out.notes = patch.notes;
     if (patch.reminderMin !== undefined) out.reminderMin = patch.reminderMin;
+    if (patch.calendarId !== undefined) out.calendarId = patch.calendarId;
     if (patch.tz !== undefined) out.tz = patch.tz === 'LOCAL' ? deps.tz() : patch.tz;
     if (patch.startIso !== undefined) {
       const dt = DateTime.fromISO(patch.startIso, { zone: tz === 'LOCAL' ? deps.tz() : tz });
@@ -101,7 +103,7 @@ export function buildWorkspaceHandlers(deps: WorkspaceHandlerDeps) {
       const ev = repos.events.create({
         title: req.title, startTs: start.toMillis(), endTs: end.toMillis(), tz,
         allDay: req.allDay ?? false, rrule: req.rrule ?? null, location: req.location ?? null,
-        notes: req.notes ?? null, reminderMin: req.reminderMin ?? null,
+        notes: req.notes ?? null, reminderMin: req.reminderMin ?? null, calendarId: req.calendarId,
       });
       repos.undo.push({ turnId: UI_CONV, convId: UI_CONV, tool: 'calendar.create', data: { id: ev.id } });
       return evToDTO(ev);
@@ -130,6 +132,7 @@ export function buildWorkspaceHandlers(deps: WorkspaceHandlerDeps) {
           location: resolved.location !== undefined ? resolved.location : cur.location,
           notes: resolved.notes !== undefined ? resolved.notes : cur.notes,
           reminderMin: resolved.reminderMin !== undefined ? resolved.reminderMin : cur.reminderMin,
+          calendarId: resolved.calendarId ?? cur.calendarId,
         });
         repos.undo.push({
           turnId: UI_CONV, convId: UI_CONV, tool: 'workspace.event.detach',
@@ -140,7 +143,7 @@ export function buildWorkspaceHandlers(deps: WorkspaceHandlerDeps) {
 
       const prev: Partial<EventRow> = {
         title: cur.title, startTs: cur.startTs, endTs: cur.endTs, tz: cur.tz, allDay: cur.allDay,
-        rrule: cur.rrule, location: cur.location, notes: cur.notes, reminderMin: cur.reminderMin,
+        rrule: cur.rrule, location: cur.location, notes: cur.notes, reminderMin: cur.reminderMin, calendarId: cur.calendarId,
       };
       const next = repos.events.update(req.id, resolvePatch(cur, req.patch));
       if (!next) throw new Error('event not found');

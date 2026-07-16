@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { DateTime } from 'luxon';
-import { fmtDate, fmtDateTime, MS, type EventDTO, type OccurrenceDTO, type ToolDef } from '@apollo/shared';
+import { calendarColor, fmtDate, fmtDateTime, MS, type EventDTO, type OccurrenceDTO, type ToolDef } from '@apollo/shared';
 import { type EventRow, type EventsRepo } from '../db/repos/events';
 import { type UndoRepo } from '../db/repos/undo';
 import { registerInverse } from './undo';
@@ -14,6 +14,7 @@ export function toDTO(ev: EventRow): EventDTO {
   return {
     id: ev.id, title: ev.title, startTs: ev.startTs, endTs: ev.endTs, tz: ev.tz,
     allDay: ev.allDay, rrule: ev.rrule, location: ev.location, notes: ev.notes,
+    calendarId: ev.calendarId, color: calendarColor(ev.calendarId),
   };
 }
 
@@ -21,6 +22,7 @@ function occToDTO(o: OccurrenceDTO): EventDTO {
   return {
     id: o.eventId, title: o.title, startTs: o.occStartTs, endTs: o.occEndTs, tz: o.tz,
     allDay: o.allDay, rrule: o.rrule, location: o.location, notes: o.notes,
+    calendarId: o.calendarId, color: calendarColor(o.calendarId),
   };
 }
 

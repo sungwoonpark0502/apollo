@@ -114,7 +114,23 @@ export const STRINGS = {
   },
 
   settings: {
-    tabs: { profile: 'Profile', general: 'General', voice: 'Voice', proactive: 'Proactive', accounts: 'Accounts', keys: 'Keys', privacy: 'Privacy', diagnostics: 'Diagnostics', about: 'About' },
+    tabs: { profile: 'Profile', general: 'General', calendars: 'Calendars', voice: 'Voice', proactive: 'Proactive', accounts: 'Accounts', keys: 'Keys', privacy: 'Privacy', diagnostics: 'Diagnostics', about: 'About' },
+    calendars: {
+      title: 'Calendars',
+      subtitle: 'Organize events into color-coded calendars.',
+      addNew: 'Add calendar',
+      newNamePlaceholder: 'Calendar name',
+      makeDefault: 'Make default',
+      isDefault: 'Default',
+      rename: 'Rename',
+      delete: 'Delete',
+      googleBadge: 'Google',
+      readOnlyBadge: 'read-only',
+      deleteHasEvents: (n: number) => `This calendar has ${n} event${n === 1 ? '' : 's'}. Move them to:`,
+      reassignConfirm: 'Move and delete',
+      cancel: 'Cancel',
+      cannotDeleteLast: 'You need at least one calendar.',
+    },
     proactive: {
       title: 'Proactive nudges',
       master: 'Let Apollo nudge me',
@@ -386,6 +402,8 @@ export const STRINGS = {
       allDay: 'All day',
       start: 'Start',
       end: 'End',
+      calendar: 'Calendar',
+      readOnly: 'read-only',
       timezone: 'Time zone',
       recurrence: 'Repeat',
       recNone: 'None',

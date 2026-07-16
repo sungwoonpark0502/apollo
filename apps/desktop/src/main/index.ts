@@ -1,7 +1,7 @@
 import { app, BrowserWindow, dialog, globalShortcut, ipcMain, net, Notification, powerMonitor, safeStorage, session, shell, systemPreferences } from 'electron';
 import { lockDownSession, defaultSessionAllows, audioSessionAllows } from './security/permissions';
 import { join } from 'node:path';
-import { configureFormat, localDateKey, STRINGS, type AgentEvent, type Settings } from '@apollo/shared';
+import { configureCalendars, configureFormat, localDateKey, STRINGS, type AgentEvent, type Settings } from '@apollo/shared';
 import { createTray, getTray } from './tray';
 import { AUDIO_SESSION_PARTITION, createAudioWindow, createOnboardingWindow, closeOnboardingWindow, createOrbWindow, createPaletteWindow, openCaptureWindow, openSettingsWindow, openWorkspaceWindow, getWorkspaceWindow, togglePalette } from './windows';
 import { createTodayProvider } from './workspace/today';
@@ -161,12 +161,14 @@ function boot(): void {
   };
   // I2: keep format.ts's context in step with locale/timeFormat/weekStart so
   // every spoken template and tool string formats consistently.
-  const applyFormat = (s: Settings): void =>
+  const applyFormat = (s: Settings): void => {
     configureFormat({
       locale: s.locale.region ?? app.getLocale(),
       timeFormat: s.profile.timeFormat,
       weekStart: s.profile.weekStart,
     });
+    configureCalendars(s.calendars.active);
+  };
   const settings = createSettingsService(repos.settings, {
     onChange: (next, prev) => {
       applyFormat(next);

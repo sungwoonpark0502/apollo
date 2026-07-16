@@ -7,4 +7,5 @@ export * from './cards';
 export * from './agent';
 export * from './voice';
 export * from './settings';
+export * from './calendars';
 export * from './ipc';

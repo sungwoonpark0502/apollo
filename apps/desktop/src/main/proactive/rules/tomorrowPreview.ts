@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon';
-import { STRINGS, type EventDTO } from '@apollo/shared';
+import { calendarColor, STRINGS, type EventDTO } from '@apollo/shared';
 import { type ProactiveRule, ruleParam } from '../types';
 
 /**
@@ -29,6 +29,7 @@ export const tomorrowPreview: ProactiveRule = {
     const events: EventDTO[] = occ.slice(0, 5).map((o) => ({
       id: o.eventId, title: o.title, startTs: o.occStartTs, endTs: o.occEndTs, tz: o.tz,
       allDay: o.allDay, rrule: o.rrule, location: o.location, notes: o.notes,
+      calendarId: o.calendarId, color: calendarColor(o.calendarId),
     }));
     const dateIso = tomorrow.toISODate() ?? '';
     return [
