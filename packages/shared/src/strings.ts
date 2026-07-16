@@ -29,7 +29,10 @@ export const STRINGS = {
   confirm: {
     ask: (summary: string) => `${summary} — should I?`,
     askShort: 'Send it?',
+    askBatch: (n: number) => `That's ${n} actions. Approve all?`,
     approve: 'Approve',
+    approveAll: 'Approve all',
+    denyAll: 'Deny all',
     deny: 'Deny',
     canceled: 'Canceled.',
     denied: "Okay, I won't.",

@@ -28,6 +28,8 @@ interface GoldenRow {
   reply_must_include?: string;
   forbid_bare_refusal?: boolean;
   confirm?: 'approve' | 'deny';
+  expect_card?: { kind: string; count?: number }; // I3 batch-confirm assertions
+  forbid_card_kind?: string;
 }
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
@@ -114,6 +116,16 @@ async function runRow(row: GoldenRow, apiKey: string, model: string): Promise<{ 
   }
   if (row.forbid_bare_refusal && calls.length === 0 && REFUSAL_RE.test(reply) && reply.length < 220) {
     problems.push(`bare refusal: ${reply.slice(0, 120)}`);
+  }
+  const cardKinds = events.filter((e): e is Extract<AgentEvent, { type: 'card' }> => e.type === 'card').map((e) => e.card.kind);
+  if (row.expect_card) {
+    const n = cardKinds.filter((k) => k === row.expect_card!.kind).length;
+    if (row.expect_card.count !== undefined ? n !== row.expect_card.count : n < 1) {
+      problems.push(`expected ${row.expect_card.count ?? '≥1'} ${row.expect_card.kind} card(s), got ${n} (cards: ${cardKinds.join(', ') || 'none'})`);
+    }
+  }
+  if (row.forbid_card_kind && cardKinds.includes(row.forbid_card_kind)) {
+    problems.push(`forbidden card kind ${row.forbid_card_kind} appeared (cards: ${cardKinds.join(', ')})`);
   }
   return { pass: problems.length === 0, detail: problems.join(' | ') };
 }

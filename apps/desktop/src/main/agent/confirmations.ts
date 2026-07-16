@@ -13,15 +13,17 @@ export function matchConfirmReply(text: string): 'approve' | 'deny' | null {
 
 export interface PendingConfirmation<S> {
   confirmationId: string;
-  action: ConfirmAction;
+  /** I3: one pending action-SET (was a single action). Length 1 = single confirm. */
+  actions: ConfirmAction[];
   expiresAt: number;
   snapshot: S;
 }
 
 /**
- * Holds at most one pending confirmation (C8.8). Creating a new one
- * auto-resolves the old with reason 'superseded'; a TTL timer resolves with
- * 'expired'. take() is the only way to consume.
+ * Holds at most one pending confirmation SET (C8.8 generalized in I3). Creating
+ * a new one auto-resolves the old with reason 'superseded'; a TTL timer resolves
+ * with 'expired'. take() is the only way to consume. Still only one pending set
+ * at a time.
  */
 export function createConfirmationStore<S>(opts: {
   ttlMs: number;
@@ -40,7 +42,7 @@ export function createConfirmationStore<S>(opts: {
     get(): PendingConfirmation<S> | null {
       return pending;
     },
-    create(action: ConfirmAction, snapshot: S): PendingConfirmation<S> {
+    create(actions: ConfirmAction[], snapshot: S): PendingConfirmation<S> {
       if (pending) {
         const old = pending;
         pending = null;
@@ -49,7 +51,7 @@ export function createConfirmationStore<S>(opts: {
       }
       const p: PendingConfirmation<S> = {
         confirmationId: newId(),
-        action,
+        actions,
         expiresAt: opts.now() + opts.ttlMs,
         snapshot,
       };

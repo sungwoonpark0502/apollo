@@ -37,7 +37,11 @@ export const invokeChannels = {
     res: z.object({ turnId: z.string() }),
   },
   'agent.cancel': { req: z.object({ turnId: z.string() }), res: ackSchema },
-  'agent.confirm': { req: z.object({ confirmationId: z.string(), approved: z.boolean() }), res: ackSchema },
+  'agent.confirm': {
+    // I3 batch: deniedIndices lists rows the user unchecked in a batchConfirm card.
+    req: z.object({ confirmationId: z.string(), approved: z.boolean(), deniedIndices: z.array(z.number().int()).optional() }),
+    res: ackSchema,
+  },
   'voice.setMuted': { req: z.object({ muted: z.boolean() }), res: ackSchema },
   'data.mutate': { req: dataMutateSchema, res: ackSchema },
   'settings.get': { req: z.object({}), res: SettingsSchema },

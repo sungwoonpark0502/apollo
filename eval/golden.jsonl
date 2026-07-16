@@ -122,3 +122,5 @@
 {"id":"h-backup-forbid-01","utterance":"when was my last backup","forbid_tools":["search.web","recall.search"]}
 {"id":"h-regress-01","utterance":"set a reminder to call mom at 6pm","expect_tools":[{"name":"reminder.create"}]}
 {"id":"h-regress-02","utterance":"what's on my calendar today","expect_tools":[{"name":"calendar.list"}],"forbid_tools":["recall.search","app.open"]}
+{"id":"batch-01","utterance":"send separate emails to jane@x.com and bob@x.com letting each of them know I'll be ten minutes late","confirm":"deny","expect_card":{"kind":"batchConfirm","count":1},"forbid_card_kind":"confirm"}
+{"id":"batch-02","utterance":"email alice@x.com to confirm lunch and separately email carlos@x.com to reschedule our 1:1","confirm":"deny","expect_card":{"kind":"batchConfirm","count":1},"forbid_card_kind":"confirm"}

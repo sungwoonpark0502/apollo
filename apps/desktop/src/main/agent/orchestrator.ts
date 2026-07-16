@@ -56,9 +56,8 @@ interface LoopSnapshot {
   messages: LlmMessage[];
   iterations: number;
   toolsRan: number;
-  pendingToolUse: LlmToolUse;
+  pendingToolUses: LlmToolUse[]; // I3: the pending Tier-3 action-set (was a single use)
   batchResults: Array<{ toolUseId: string; content: string; isError?: boolean }>;
-  remainingToolUses: LlmToolUse[];
 }
 
 interface TurnHandle {
@@ -78,10 +77,12 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     ttlMs: deps.confirmTtlMs ?? 120_000,
     now,
     onAutoResolve: (pending, reason) => {
-      deps.onAction?.({
-        tool: pending.action.toolName, summary: pending.action.summary,
-        outcome: reason === 'superseded' ? 'denied' : 'expired', convId: pending.snapshot.convId,
-      });
+      for (const action of pending.actions) {
+        deps.onAction?.({
+          tool: action.toolName, summary: action.summary,
+          outcome: reason === 'superseded' ? 'denied' : 'expired', convId: pending.snapshot.convId,
+        });
+      }
       void resumeWithResult(pending, reason === 'superseded' ? 'superseded' : 'user declined');
     },
   });
@@ -253,10 +254,9 @@ export function createOrchestrator(deps: OrchestratorDeps) {
         }));
 
         if (tier3.length > 0) {
-          // Confirm the first Tier 3; any extra in the same batch is superseded immediately (C8.8)
-          const [first, ...rest] = tier3 as [LlmToolUse, ...LlmToolUse[]];
-          for (const extra of rest) batchResults.push({ toolUseId: extra.id, content: 'superseded', isError: false });
-          suspendForConfirmation(state, first, batchResults);
+          // I3: collect ALL Tier-3 actions into ONE pending action-set (batchConfirm
+          // when 2+); still only one pending set at a time (C8.8 generalized).
+          suspendForConfirmation(state, tier3, batchResults);
           return; // turn output ends; state retained in the confirmation store
         }
 
@@ -312,23 +312,24 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     return known;
   }
 
-  function suspendForConfirmation(state: TurnState, tu: LlmToolUse, batchResults: LoopSnapshot['batchResults']): void {
+  /** Per-action taint flags (C13): email recipients always checked; else only when tainted. */
+  function taintFlagsFor(state: TurnState, tu: LlmToolUse): string[] {
     const taint = conversationTaint.get(state.convId) ?? false;
     const args = (tu.input ?? {}) as Record<string, unknown>;
-    // C13: email.send recipients are checked even when taint is false; a saved
-    // contact whose email matches clears the flag.
     const isEmailSend = tu.name === 'email.send';
     const knownValues = isEmailSend ? recipientKnownValues(args) : [];
-    const flags =
-      taint || isEmailSend
-        ? computeTaintFlags(args, userUtterances(state.convId), {
-            taint,
-            knownValues,
-            alwaysCheckKeys: isEmailSend ? new Set(['to', 'cc', 'bcc']) : undefined,
-          })
-        : [];
-    const action = summarizeAction(tu, flags);
-    const pending = confirmations.create(action, {
+    return taint || isEmailSend
+      ? computeTaintFlags(args, userUtterances(state.convId), {
+          taint,
+          knownValues,
+          alwaysCheckKeys: isEmailSend ? new Set(['to', 'cc', 'bcc']) : undefined,
+        })
+      : [];
+  }
+
+  function suspendForConfirmation(state: TurnState, toolUses: LlmToolUse[], batchResults: LoopSnapshot['batchResults']): void {
+    const actions = toolUses.map((tu) => summarizeAction(tu, taintFlagsFor(state, tu)));
+    const pending = confirmations.create(actions, {
       turnId: state.turnId,
       convId: state.convId,
       source: state.source,
@@ -336,13 +337,20 @@ export function createOrchestrator(deps: OrchestratorDeps) {
       messages: state.messages,
       iterations: state.iterations,
       toolsRan: state.toolsRan,
-      pendingToolUse: tu,
+      pendingToolUses: toolUses,
       batchResults,
-      remainingToolUses: [],
     });
-    emit({ type: 'confirmRequest', confirmationId: pending.confirmationId, action, expiresAt: pending.expiresAt });
-    emit({ type: 'card', card: { kind: 'confirm', confirmationId: pending.confirmationId, action, expiresAt: pending.expiresAt } });
-    emit({ type: 'token', text: STRINGS.confirm.askShort });
+    const { confirmationId, expiresAt } = pending;
+    if (actions.length >= 2) {
+      // I3 batch: one card, one spoken question for the whole set.
+      emit({ type: 'confirmRequest', confirmationId, action: actions[0]!, expiresAt });
+      emit({ type: 'card', card: { kind: 'batchConfirm', confirmationId, actions, expiresAt } });
+      emit({ type: 'token', text: STRINGS.confirm.askBatch(actions.length) });
+    } else {
+      emit({ type: 'confirmRequest', confirmationId, action: actions[0]!, expiresAt });
+      emit({ type: 'card', card: { kind: 'confirm', confirmationId, action: actions[0]!, expiresAt } });
+      emit({ type: 'token', text: STRINGS.confirm.askShort });
+    }
     emit({ type: 'done', turnId: state.turnId });
     activeTurns.delete(state.turnId);
   }
@@ -355,18 +363,27 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     for (const r of s.batchResults) {
       state.messages.push({ role: 'user', content: [{ type: 'tool_result', tool_use_id: r.toolUseId, content: r.content, is_error: r.isError || undefined }] });
     }
-    state.messages.push({ role: 'user', content: [{ type: 'tool_result', tool_use_id: s.pendingToolUse.id, content: resultText }] });
+    // I3: the same declined/expired result for every action in the set.
+    for (const tu of s.pendingToolUses) {
+      state.messages.push({ role: 'user', content: [{ type: 'tool_result', tool_use_id: tu.id, content: resultText }] });
+    }
     await runLoop(state);
   }
 
-  async function resumeApproved(pending: PendingConfirmation<LoopSnapshot>): Promise<void> {
+  async function resumeApproved(pending: PendingConfirmation<LoopSnapshot>, deniedIndices: number[] = []): Promise<void> {
     const s = pending.snapshot;
     const abort = new AbortController();
     activeTurns.set(s.turnId, { abort });
     const state: TurnState = { ...s, signal: abort.signal };
+    const denied = new Set(deniedIndices);
 
-    // email.send 5s grace window (C8.9)
-    if (CANCEL_WINDOW_TOOLS.has(s.pendingToolUse.name)) {
+    const approved = s.pendingToolUses.map((tu, i) => ({ tu, action: pending.actions[i]!, i })).filter((x) => !denied.has(x.i));
+    const rejected = s.pendingToolUses.map((tu, i) => ({ tu, action: pending.actions[i]!, i })).filter((x) => denied.has(x.i));
+
+    // I3: the 5s cancel window applies to the batch as a whole when any approved
+    // action is a send. Canceling aborts every approved action.
+    const hasCancelWindow = approved.some((x) => CANCEL_WINDOW_TOOLS.has(x.tu.name));
+    if (hasCancelWindow) {
       const windowMs = deps.cancelWindowMs ?? 5000;
       emit({ type: 'cancelWindow', confirmationId: pending.confirmationId, ms: windowMs });
       const windowAbort = new AbortController();
@@ -380,24 +397,40 @@ export function createOrchestrator(deps: OrchestratorDeps) {
       });
       cancelWindowAborts.delete(s.turnId);
       if (canceled) {
-        deps.onAction?.({ tool: pending.action.toolName, summary: pending.action.summary, outcome: 'canceled', convId: s.convId });
-        state.messages.push({ role: 'user', content: [{ type: 'tool_result', tool_use_id: s.pendingToolUse.id, content: 'user canceled during grace period' }] });
-        for (const r of s.batchResults) {
-          state.messages.push({ role: 'user', content: [{ type: 'tool_result', tool_use_id: r.toolUseId, content: r.content, is_error: r.isError || undefined }] });
+        for (const x of approved) {
+          deps.onAction?.({ tool: x.action.toolName, summary: x.action.summary, outcome: 'canceled', convId: s.convId });
+          state.messages.push({ role: 'user', content: [{ type: 'tool_result', tool_use_id: x.tu.id, content: 'user canceled during grace period' }] });
         }
+        pushRejected(state, rejected, s.batchResults);
         await runLoop(state);
         return;
       }
     }
 
-    const r = await executeToolUse(s.pendingToolUse, state);
-    state.toolsRan += 1;
-    deps.onAction?.({ tool: pending.action.toolName, summary: pending.action.summary, outcome: r.isError ? 'denied' : 'executed', convId: s.convId });
-    for (const br of s.batchResults) {
+    // Execute the still-checked rows sequentially (C8.6 batch order).
+    for (const x of approved) {
+      const r = await executeToolUse(x.tu, state);
+      state.toolsRan += 1;
+      deps.onAction?.({ tool: x.action.toolName, summary: x.action.summary, outcome: r.isError ? 'denied' : 'executed', convId: s.convId });
+      state.messages.push({ role: 'user', content: [{ type: 'tool_result', tool_use_id: x.tu.id, content: r.content, is_error: r.isError || undefined }] });
+    }
+    pushRejected(state, rejected, s.batchResults);
+    await runLoop(state);
+  }
+
+  /** Feed the LLM the tier-1/2 results and a per-row 'user declined' for denied Tier-3 rows. */
+  function pushRejected(
+    state: TurnState,
+    rejected: Array<{ tu: LlmToolUse; action: ConfirmAction }>,
+    tier12: LoopSnapshot['batchResults'],
+  ): void {
+    for (const x of rejected) {
+      deps.onAction?.({ tool: x.action.toolName, summary: x.action.summary, outcome: 'denied', convId: state.convId });
+      state.messages.push({ role: 'user', content: [{ type: 'tool_result', tool_use_id: x.tu.id, content: 'user declined' }] });
+    }
+    for (const br of tier12) {
       state.messages.push({ role: 'user', content: [{ type: 'tool_result', tool_use_id: br.toolUseId, content: br.content, is_error: br.isError || undefined }] });
     }
-    state.messages.push({ role: 'user', content: [{ type: 'tool_result', tool_use_id: s.pendingToolUse.id, content: r.content, is_error: r.isError || undefined }] });
-    await runLoop(state);
   }
 
   /** Fast path (C9): executes without the LLM. Returns true when handled. */
@@ -546,7 +579,12 @@ export function createOrchestrator(deps: OrchestratorDeps) {
             activeTurns.delete(turnId);
             if (taken) {
               if (verdict === 'approve') await resumeApproved(taken);
-              else await resumeWithResult(taken, 'user declined');
+              else {
+                for (const action of taken.actions) {
+                  deps.onAction?.({ tool: action.toolName, summary: action.summary, outcome: 'denied', convId: taken.snapshot.convId });
+                }
+                await resumeWithResult(taken, 'user declined');
+              }
             }
             return;
           }
@@ -574,13 +612,15 @@ export function createOrchestrator(deps: OrchestratorDeps) {
       return { turnId, completion };
     },
 
-    /** C4 agent.confirm. */
-    async confirm(confirmationId: string, approved: boolean): Promise<void> {
+    /** C4 agent.confirm. deniedIndices lists batchConfirm rows the user unchecked. */
+    async confirm(confirmationId: string, approved: boolean, deniedIndices: number[] = []): Promise<void> {
       const pending = confirmations.take(confirmationId);
       if (!pending) return; // stale or unknown: silently ignored
-      if (approved) await resumeApproved(pending);
+      if (approved) await resumeApproved(pending, deniedIndices);
       else {
-        deps.onAction?.({ tool: pending.action.toolName, summary: pending.action.summary, outcome: 'denied', convId: pending.snapshot.convId });
+        for (const action of pending.actions) {
+          deps.onAction?.({ tool: action.toolName, summary: action.summary, outcome: 'denied', convId: pending.snapshot.convId });
+        }
         await resumeWithResult(pending, 'user declined');
       }
     },

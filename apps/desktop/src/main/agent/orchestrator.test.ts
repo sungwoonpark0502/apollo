@@ -283,6 +283,78 @@ describe('confirmations (C8.8/8.9)', () => {
   });
 });
 
+describe('batch confirmation (I3)', () => {
+  const threeSends = (): FakeStep[] => [
+    {
+      toolUses: [
+        { name: 'email.send', input: { to: ['a@x.com'], subject: 'one', body: '1' } },
+        { name: 'email.send', input: { to: ['b@x.com'], subject: 'two', body: '2' } },
+        { name: 'email.send', input: { to: ['c@x.com'], subject: 'three', body: '3' } },
+      ],
+    },
+    { text: 'Done.' },
+  ];
+
+  function cards(): Extract<AgentEvent, { type: 'card' }>['card'][] {
+    return events.filter((e): e is Extract<AgentEvent, { type: 'card' }> => e.type === 'card').map((e) => e.card);
+  }
+
+  it('collects 2+ Tier-3 actions into ONE batchConfirm card, not N confirms', async () => {
+    const { orch } = setup(threeSends(), { cancelWindowMs: 5 });
+    await say(orch, 'email a, b and c');
+    const batch = cards().filter((c) => c.kind === 'batchConfirm');
+    expect(batch).toHaveLength(1);
+    expect(cards().filter((c) => c.kind === 'confirm')).toHaveLength(0);
+    expect(batch[0]!.kind === 'batchConfirm' && batch[0]!.actions).toHaveLength(3);
+    expect(tokensText()).toContain("That's 3 actions. Approve all?");
+    expect(sentEmails).toHaveLength(0); // nothing runs before approval
+    expect(orch.hasPendingConfirmation()).toBe(true); // single pending set
+  });
+
+  it('approve-all executes every checked row sequentially', async () => {
+    const { orch } = setup(threeSends(), { cancelWindowMs: 5 });
+    await say(orch, 'email a, b and c');
+    const c = events.find((e): e is Extract<AgentEvent, { type: 'confirmRequest' }> => e.type === 'confirmRequest')!;
+    await orch.confirm(c.confirmationId, true);
+    expect(sentEmails.map((e) => (e.to as string[])[0])).toEqual(['a@x.com', 'b@x.com', 'c@x.com']);
+    // one batch-wide cancel window, not one per action
+    expect(events.filter((e) => e.type === 'cancelWindow')).toHaveLength(1);
+    expect(orch.hasPendingConfirmation()).toBe(false);
+  });
+
+  it('per-row deny: only the still-checked rows run; denied rows report "user declined"', async () => {
+    const { orch, llm } = setup(threeSends(), { cancelWindowMs: 5 });
+    await say(orch, 'email a, b and c');
+    const c = events.find((e): e is Extract<AgentEvent, { type: 'confirmRequest' }> => e.type === 'confirmRequest')!;
+    await orch.confirm(c.confirmationId, true, [1]); // uncheck row b
+    expect(sentEmails.map((e) => (e.to as string[])[0])).toEqual(['a@x.com', 'c@x.com']);
+    expect(JSON.stringify(llm.requests.at(-1)!.messages)).toContain('user declined');
+  });
+
+  it('deny-all rejects the whole set without executing anything', async () => {
+    const { orch, llm } = setup([threeSends()[0]!, { text: 'Okay, cancelled.' }], { cancelWindowMs: 5 });
+    await say(orch, 'email a, b and c');
+    const c = events.find((e): e is Extract<AgentEvent, { type: 'confirmRequest' }> => e.type === 'confirmRequest')!;
+    await orch.confirm(c.confirmationId, false);
+    expect(sentEmails).toHaveLength(0);
+    const flat = JSON.stringify(llm.requests.at(-1)!.messages);
+    expect(flat).toContain('user declined');
+    expect(orch.hasPendingConfirmation()).toBe(false);
+  });
+
+  it('canceling during the batch grace window aborts every approved send', async () => {
+    const { orch } = setup([threeSends()[0]!, { text: 'Cancelled.' }], { cancelWindowMs: 200 });
+    const { turnId } = orch.handleUserMessage({ text: 'email a, b and c', source: 'text', convId: 'c1' });
+    await new Promise((r) => setTimeout(r, 20));
+    const c = events.find((e): e is Extract<AgentEvent, { type: 'confirmRequest' }> => e.type === 'confirmRequest')!;
+    const resume = orch.confirm(c.confirmationId, true);
+    await new Promise((r) => setTimeout(r, 30));
+    orch.cancel(turnId);
+    await resume;
+    expect(sentEmails).toHaveLength(0);
+  });
+});
+
 describe('dead-end guard (C8.10)', () => {
   it('a bare refusal with zero tools forces search.web and logs a capability miss', async () => {
     const { orch } = setup([

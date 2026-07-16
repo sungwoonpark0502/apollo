@@ -4,6 +4,7 @@ import { TextCard } from './TextCard';
 import { TimerCard } from './TimerCard';
 import { WeatherCard } from './WeatherCard';
 import { ConfirmCard } from './ConfirmCard';
+import { BatchConfirmCard } from './BatchConfirmCard';
 import { EventCard, EventListCard } from './EventCard';
 import { EmailListCard, EmailDetailCard, DraftCard } from './EmailCard';
 import { BriefCard } from './BriefCard';
@@ -20,6 +21,8 @@ export function CardView({ card }: { card: CardPayload }): React.JSX.Element {
       return <WeatherCard place={card.place} now={card.now} days={card.days} />;
     case 'confirm':
       return <ConfirmCard confirmationId={card.confirmationId} action={card.action} expiresAt={card.expiresAt} />;
+    case 'batchConfirm':
+      return <BatchConfirmCard confirmationId={card.confirmationId} actions={card.actions} expiresAt={card.expiresAt} />;
     case 'event':
       return <EventCard event={card.event} />;
     case 'eventList':

@@ -126,7 +126,7 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
       return { ok: true as const };
     },
     'agent.confirm': async (req) => {
-      await deps.orchestrator().confirm(req.confirmationId, req.approved);
+      await deps.orchestrator().confirm(req.confirmationId, req.approved, req.deniedIndices);
       return { ok: true as const };
     },
     'voice.setMuted': (req) => {

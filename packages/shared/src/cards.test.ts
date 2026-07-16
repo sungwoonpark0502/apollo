@@ -33,6 +33,15 @@ const samples: CardPayload[] = [
     action: { toolName: 'email.send', summary: 'Send email to jane@x.com: "Re: lease"', args: { to: ['jane@x.com'] }, taintFlags: [] },
     expiresAt: 1_800_000_000_000,
   },
+  {
+    kind: 'batchConfirm',
+    confirmationId: 'cf2',
+    actions: [
+      { toolName: 'email.send', summary: 'Send email to jane@x.com', args: { to: ['jane@x.com'] }, taintFlags: [] },
+      { toolName: 'email.send', summary: 'Send email to bob@x.com', args: { to: ['bob@x.com'] }, taintFlags: ['value_not_user_stated:to'] },
+    ],
+    expiresAt: 1_800_000_000_000,
+  },
   { kind: 'brief', sections: [{ kind: 'text', body: 'Good morning' }] },
   {
     kind: 'nudge',
@@ -67,7 +76,7 @@ describe('card payload round-trips (every kind)', () => {
   it('covers every kind in the union', () => {
     const kinds = new Set(samples.map((s) => s.kind));
     expect([...kinds].sort()).toEqual(
-      ['brief', 'confirm', 'draft', 'emailDetail', 'emailList', 'event', 'eventList', 'newsList', 'nudge', 'nudgeGroup', 'recallList', 'text', 'timer', 'weather'].sort(),
+      ['batchConfirm', 'brief', 'confirm', 'draft', 'emailDetail', 'emailList', 'event', 'eventList', 'newsList', 'nudge', 'nudgeGroup', 'recallList', 'text', 'timer', 'weather'].sort(),
     );
   });
   it('rejects unknown kind', () => {
