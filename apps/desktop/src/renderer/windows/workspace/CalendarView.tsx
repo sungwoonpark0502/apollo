@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { DateTime } from 'luxon';
-import { STRINGS, type OccurrenceDTO, type Settings } from '@apollo/shared';
+import { fmtDate, fmtDateIso, fmtTime, STRINGS, type OccurrenceDTO, type Settings } from '@apollo/shared';
 import { useDataSync } from '../../lib/useLive';
 import { monthGrid, weekdayHeaders } from '../../lib/calendarLayout';
 import { EventEditorModal, type EditorInitial, type EditorResult } from './EventEditorModal';
@@ -14,7 +14,6 @@ export function CalendarView({ settings, initialDateIso }: { settings: Settings 
   const [sub, setSub] = useState<SubTab>('month');
   const [anchor, setAnchor] = useState(() => DateTime.fromISO(initialDateIso ?? DateTime.now().toISODate() ?? ''));
   const c = STRINGS.workspace.calendar;
-  const h12 = settings?.profile.timeFormat !== '24h';
   const weekStart = settings?.profile.weekStart ?? 'sunday';
   const localTz = DateTime.now().zoneName ?? 'local';
 
@@ -37,17 +36,17 @@ export function CalendarView({ settings, initialDateIso }: { settings: Settings 
         <button onClick={() => setAnchor(DateTime.now())} style={navBtn}>{c.today}</button>
         <button onClick={() => step(1)} style={navBtn} aria-label={c.next}>›</button>
         <div style={{ minWidth: 160, textAlign: 'right', fontSize: 'var(--fs-title)', fontWeight: 600 }}>
-          {anchor.toFormat(sub === 'agenda' ? 'LLLL yyyy' : 'LLLL yyyy')}
+          {fmtDate(anchor.toMillis(), 'month-year')}
         </div>
       </header>
 
       <div style={{ flex: 1, overflow: 'auto' }}>
         {sub === 'month' ? (
-          <MonthView anchor={anchor} weekStart={weekStart} h12={h12} localTz={localTz} onNavigateWeek={(iso) => { setAnchor(DateTime.fromISO(iso)); setSub('week'); }} />
+          <MonthView anchor={anchor} weekStart={weekStart} localTz={localTz} onNavigateWeek={(iso) => { setAnchor(DateTime.fromISO(iso)); setSub('week'); }} />
         ) : sub === 'week' ? (
-          <WeekView anchor={anchor} h12={h12} localTz={localTz} />
+          <WeekView anchor={anchor} localTz={localTz} />
         ) : (
-          <AgendaView anchor={anchor} h12={h12} localTz={localTz} />
+          <AgendaView anchor={anchor} localTz={localTz} />
         )}
       </div>
     </div>
@@ -57,13 +56,11 @@ export function CalendarView({ settings, initialDateIso }: { settings: Settings 
 function MonthView({
   anchor,
   weekStart,
-  h12,
   localTz,
   onNavigateWeek,
 }: {
   anchor: DateTime;
   weekStart: 'monday' | 'sunday';
-  h12: boolean;
   localTz: string;
   onNavigateWeek: (iso: string) => void;
 }): React.JSX.Element {
@@ -137,7 +134,7 @@ function MonthView({
                     style={chip}
                     title={o.title}
                   >
-                    {o.allDay ? '' : `${DateTime.fromMillis(o.occStartTs, { zone: o.tz }).toFormat(h12 ? 'h:mm a' : 'HH:mm')} `}
+                    {o.allDay ? '' : `${fmtTime(o.occStartTs, { tz: o.tz })} `}
                     {o.title}
                   </div>
                 ))}
@@ -154,7 +151,6 @@ function MonthView({
         <DayPanel
           dateIso={dayPanel}
           events={byDay.get(dayPanel) ?? []}
-          h12={h12}
           onClose={() => setDayPanel(null)}
           onOpenEvent={(o) => openEditorFor(o, setEditor)}
           onNewEvent={() => setQuickCreate(dayPanel)}
@@ -166,7 +162,6 @@ function MonthView({
         <QuickCreatePopover
           dateIso={quickCreate}
           localTz={localTz}
-          h12={h12}
           onClose={() => setQuickCreate(null)}
           onCreated={() => { setQuickCreate(null); reload(); }}
           onFullEditor={(init) => { setQuickCreate(null); setEditor({ mode: 'create', initial: init }); }}
@@ -287,7 +282,6 @@ const emptyResult: EditorResult = {
 function DayPanel({
   dateIso,
   events,
-  h12,
   onClose,
   onOpenEvent,
   onNewEvent,
@@ -295,7 +289,6 @@ function DayPanel({
 }: {
   dateIso: string;
   events: OccurrenceDTO[];
-  h12: boolean;
   onClose: () => void;
   onOpenEvent: (o: OccurrenceDTO) => void;
   onNewEvent: () => void;
@@ -306,7 +299,7 @@ function DayPanel({
     <aside style={{ width: 300, borderLeft: '1px solid var(--border)', padding: 'var(--sp-4)', overflow: 'auto', flexShrink: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--sp-3)' }}>
         <button onClick={onOpenWeek} style={{ ...linkBtn, fontWeight: 600, fontSize: 'var(--fs-body)' }}>
-          {DateTime.fromISO(dateIso).toFormat('cccc, LLL d')}
+          {fmtDateIso(dateIso, 'weekday-full')}
         </button>
         <button onClick={onClose} style={linkBtn} aria-label="Close">✕</button>
       </div>
@@ -317,7 +310,7 @@ function DayPanel({
           <div key={`${o.eventId}-${o.occStartTs}`} onClick={() => onOpenEvent(o)} style={{ ...chip, whiteSpace: 'normal', padding: 'var(--sp-2)', marginBottom: 'var(--sp-2)' }}>
             <div style={{ fontWeight: 500 }}>{o.title}</div>
             <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-2)' }}>
-              {o.allDay ? STRINGS.cards.allDay : `${DateTime.fromMillis(o.occStartTs, { zone: o.tz }).toFormat(h12 ? 'h:mm a' : 'HH:mm')}–${DateTime.fromMillis(o.occEndTs, { zone: o.tz }).toFormat(h12 ? 'h:mm a' : 'HH:mm')}`}
+              {o.allDay ? STRINGS.cards.allDay : `${fmtTime(o.occStartTs, { tz: o.tz })}–${fmtTime(o.occEndTs, { tz: o.tz })}`}
             </div>
           </div>
         ))
@@ -336,7 +329,6 @@ function QuickCreatePopover({
 }: {
   dateIso: string;
   localTz: string;
-  h12: boolean;
   onClose: () => void;
   onCreated: () => void;
   onFullEditor: (init: EditorInitial) => void;
@@ -385,7 +377,7 @@ function QuickCreatePopover({
     >
       <div style={{ width: 320, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-card)', boxShadow: 'var(--shadow-card)', padding: 'var(--sp-4)' }}>
         <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-3)', marginBottom: 'var(--sp-2)' }}>
-          {DateTime.fromISO(dateIso).toFormat('cccc, LLL d')}
+          {fmtDateIso(dateIso, 'weekday-full')}
         </div>
         <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && create()} placeholder={c.titlePlaceholder} style={input} />
         <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', margin: 'var(--sp-2) 0', fontSize: 'var(--fs-body)' }}>

@@ -7,6 +7,7 @@ import { RingingCard, type RingingAlert } from '../../components/RingingCard';
 import { isStageCard } from '../../lib/stage';
 import { CancelWindowBar } from '../../components/ConfirmBar';
 import { enqueueTtsChunk, playEarcon, setEarconVolume, stopPlayback } from '../../lib/audioPlayer';
+import { useFormatInit } from '../../lib/useLive';
 
 type OrbState = Extract<VoiceState, 'idle' | 'thinking' | 'speaking' | 'listening' | 'followup' | 'muted' | 'error'>;
 
@@ -41,6 +42,7 @@ function Waveform({ rms }: { rms: number }): React.JSX.Element {
 }
 
 export function OrbApp(): React.JSX.Element {
+  useFormatInit();
   const [state, setState] = useState<OrbState>('idle');
   const [cards, setCards] = useState<PanelCard[]>([]);
   const [hovering, setHovering] = useState(false);

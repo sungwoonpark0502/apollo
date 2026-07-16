@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { DateTime } from 'luxon';
-import { type ToolDef } from '@apollo/shared';
+import { fmtDate, type ToolDef } from '@apollo/shared';
 import { type TodosRepo } from '../db/repos/todos';
 import { type UndoRepo } from '../db/repos/undo';
 
@@ -25,7 +25,7 @@ export function createTodoTools(deps: TodoToolDeps): ToolDef[] {
       const t = deps.todos.add({ content: a.content, dueTs });
       const undoToken = deps.undo.push({ turnId: ctx.turnId, convId: ctx.convId, tool: 'todo.add', data: { id: t.id } });
       return {
-        llmText: `Added to your list: "${a.content}"${dueTs ? ` due ${DateTime.fromMillis(dueTs, { zone: ctx.tz }).toFormat('ccc LLL d')}` : ''}.`,
+        llmText: `Added to your list: "${a.content}"${dueTs ? ` due ${fmtDate(dueTs, 'weekday-date', { tz: ctx.tz })}` : ''}.`,
         undoToken,
       };
     },
@@ -64,7 +64,7 @@ export function createTodoTools(deps: TodoToolDeps): ToolDef[] {
       const open = deps.todos.listOpen();
       if (open.length === 0) return { llmText: 'The todo list is empty.' };
       const lines = open.map((t, i) => {
-        const due = t.dueTs ? ` (due ${DateTime.fromMillis(t.dueTs, { zone: ctx.tz }).toFormat('ccc LLL d')})` : '';
+        const due = t.dueTs ? ` (due ${fmtDate(t.dueTs, 'weekday-date', { tz: ctx.tz })})` : '';
         return `${i + 1}. ${t.content}${due}`;
       });
       return {

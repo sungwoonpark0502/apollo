@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { STRINGS } from '@apollo/shared';
+import { fmtNumber, STRINGS } from '@apollo/shared';
 
 interface Diag {
   perf: Array<{ name: string; count: number; p50: number; p95: number }>;
@@ -95,7 +95,7 @@ export function DiagnosticsTab(): React.JSX.Element {
               ) : (
                 (usage?.[period] ?? []).map((u) => (
                   <div key={`${u.provider}-${u.metric}`} style={{ color: 'var(--text-2)' }}>
-                    <span style={{ color: 'var(--text-3)' }}>{u.provider} {u.metric}:</span> {Math.round(u.amount).toLocaleString()}
+                    <span style={{ color: 'var(--text-3)' }}>{u.provider} {u.metric}:</span> {fmtNumber(Math.round(u.amount))}
                   </div>
                 ))
               )}

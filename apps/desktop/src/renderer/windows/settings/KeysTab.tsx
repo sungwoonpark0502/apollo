@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { STRINGS, type KeyProvider } from '@apollo/shared';
+import { fmtDate, STRINGS, type KeyProvider } from '@apollo/shared';
 
 const PROVIDERS: KeyProvider[] = ['anthropic', 'deepgram', 'brave', 'picovoice'];
 
@@ -93,7 +93,7 @@ export function KeysTab(): React.JSX.Element {
           {info[p]?.configured ? (
             <div style={{ marginTop: 'var(--sp-1)', fontSize: 'var(--fs-caption)', color: 'var(--text-2)', display: 'flex', gap: 'var(--sp-2)', alignItems: 'center' }}>
               <span>
-                {STRINGS.settings.keys.configured(info[p]!.last4 ?? '····', info[p]!.setAt ? new Date(info[p]!.setAt!).toLocaleDateString() : '—')}
+                {STRINGS.settings.keys.configured(info[p]!.last4 ?? '····', info[p]!.setAt ? fmtDate(info[p]!.setAt!, 'short') : '—')}
               </span>
               <button onClick={() => remove(p)} style={{ fontSize: 'var(--fs-caption)', color: 'var(--danger)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>
                 {STRINGS.settings.keys.remove}

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { STRINGS, type Settings } from '@apollo/shared';
+import { fmtDateTime, STRINGS, type Settings } from '@apollo/shared';
 import { buttonStyle } from '../../components/cards/TimerCard';
 
 interface Privacy {
@@ -207,7 +207,7 @@ function DataSection({ settings, patch }: { settings: Settings; patch: (s: Setti
           backups.slice(0, 10).map((b) => (
             <div key={b.filename} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--sp-1) 0' }}>
               <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-2)' }}>
-                {new Date(b.createdAt).toLocaleString()} · {b.reason} · {(b.sizeBytes / 1024).toFixed(0)} KB
+                {fmtDateTime(b.createdAt, { dateStyle: 'weekday-date' })} · {b.reason} · {(b.sizeBytes / 1024).toFixed(0)} KB
               </span>
               <button style={buttonStyle} onClick={() => void window.apollo.call('backup.restore', { filename: b.filename })}>
                 {STRINGS.settings.privacy.restore}
@@ -237,7 +237,7 @@ function ActionLogSection(): React.JSX.Element {
         rows.map((r) => (
           <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--sp-3)', padding: 'var(--sp-1) 0', fontSize: 'var(--fs-caption)' }}>
             <span style={{ color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              <span style={{ color: 'var(--text-3)' }}>{new Date(r.ts).toLocaleString()} · </span>
+              <span style={{ color: 'var(--text-3)' }}>{fmtDateTime(r.ts, { dateStyle: 'weekday-date' })} · </span>
               {r.summary}
             </span>
             <span style={{ color: color[r.outcome] ?? 'var(--text-3)', flexShrink: 0 }}>{r.outcome}</span>

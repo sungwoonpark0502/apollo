@@ -1,4 +1,5 @@
 import { DateTime } from 'luxon';
+import { monthKey } from '@apollo/shared';
 import { type Db } from '../connection';
 
 export interface UsageRow { day: string; provider: string; metric: string; amount: number }
@@ -21,7 +22,7 @@ export function createUsageLogRepo(db: Db, opts: { tz?: () => string } = {}) {
       return db.prepare('SELECT * FROM usage_log WHERE day=?').all(dayOf(at)) as UsageRow[];
     },
     month(at: number = Date.now()): UsageRow[] {
-      const prefix = `${DateTime.fromMillis(at, { zone: tz() }).toFormat('yyyy-LL')}-%`;
+      const prefix = `${monthKey(at, tz())}-%`;
       return db.prepare('SELECT provider, metric, SUM(amount) AS amount, MAX(day) AS day FROM usage_log WHERE day LIKE ? GROUP BY provider, metric').all(prefix) as UsageRow[];
     },
     /** Total for a provider+metric on a given local day (usage-limit warn check). */

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { DateTime } from 'luxon';
-import { type ToolDef } from '@apollo/shared';
+import { fmtDateTime, type ToolDef } from '@apollo/shared';
 import { type AlarmsRepo } from '../db/repos/alarms';
 import { type UndoRepo } from '../db/repos/undo';
 
@@ -34,7 +34,7 @@ export function createAlarmTools(deps: AlarmToolDeps): ToolDef[] {
       const undoToken = deps.undo.push({ turnId: ctx.turnId, convId: ctx.convId, tool: 'alarm.set', data: { id: alarm.id } });
       return {
         llmText:
-          `Alarm set for ${at.toFormat('ccc LLL d, h:mm a')} (${tz})${a.rrule ? `, repeating (${a.rrule})` : ''}.` +
+          `Alarm set for ${fmtDateTime(at.toMillis(), { tz, dateStyle: 'weekday-date' })} (${tz})${a.rrule ? `, repeating (${a.rrule})` : ''}.` +
           (past ? ' WARNING that time is in the past.' : ''),
         undoToken,
       };

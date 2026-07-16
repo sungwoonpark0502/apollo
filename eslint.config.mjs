@@ -26,6 +26,37 @@ export default tseslint.config(
     rules: reactHooks.configs.recommended.rules,
   },
   {
+    // I2 craft rule: all human-facing date/time/number formatting goes through
+    // packages/shared/src/format.ts. Flag ad-hoc formatters everywhere else.
+    files: ['**/*.ts', '**/*.tsx'],
+    ignores: ['**/*.test.ts', '**/*.test.tsx', 'packages/shared/src/format.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "CallExpression[callee.property.name='toLocaleTimeString']",
+          message: 'Use fmtTime/fmtDateTime from @apollo/shared format.ts instead of toLocaleTimeString.',
+        },
+        {
+          selector: "CallExpression[callee.property.name='toLocaleDateString']",
+          message: 'Use fmtDate/fmtDateTime from @apollo/shared format.ts instead of toLocaleDateString.',
+        },
+        {
+          selector: "CallExpression[callee.property.name='toLocaleString']",
+          message: 'Use format.ts helpers (fmtDateTime/fmtNumber) instead of toLocaleString for display.',
+        },
+        {
+          selector: "CallExpression[callee.property.name='toFormat']",
+          message: 'Use format.ts helpers (fmt*/icsDate/localDateKey) instead of luxon DateTime.toFormat.',
+        },
+        {
+          selector: "CallExpression[callee.property.name='toRelative']",
+          message: 'Use fmtRelative from @apollo/shared format.ts instead of luxon toRelative.',
+        },
+      ],
+    },
+  },
+  {
     files: ['**/*.test.ts', '**/scripts/**', 'eval/**'],
     rules: { 'no-console': 'off' },
   },

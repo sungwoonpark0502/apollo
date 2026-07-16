@@ -9,11 +9,13 @@ import { GeneralTab } from './GeneralTab';
 import { ProfileTab } from './ProfileTab';
 import { AboutTab } from './AboutTab';
 import { ProactiveTab } from './ProactiveTab';
+import { useFormatInit } from '../../lib/useLive';
 
 type TabId = keyof typeof STRINGS.settings.tabs;
 const TAB_ORDER: TabId[] = ['profile', 'general', 'voice', 'proactive', 'accounts', 'keys', 'privacy', 'diagnostics', 'about'];
 
 export function SettingsApp(): React.JSX.Element {
+  useFormatInit();
   const [tab, setTab] = useState<TabId>('profile');
 
   return (

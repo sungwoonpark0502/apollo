@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { STRINGS } from '@apollo/shared';
-import { useNavigate, useSettings } from '../../lib/useLive';
+import { useFormatInit, useNavigate, useSettings } from '../../lib/useLive';
 import { TodayView } from './TodayView';
 import { CalendarView } from './CalendarView';
 import { NotesView } from './NotesView';
@@ -12,6 +12,7 @@ type View = 'today' | 'calendar' | 'notes' | 'chats';
 const RAIL_W = 64;
 
 export function WorkspaceApp(): React.JSX.Element {
+  useFormatInit();
   const [view, setView] = useState<View>('today');
   const [navDateIso, setNavDateIso] = useState<string | undefined>(undefined);
   const [navNoteId, setNavNoteId] = useState<string | undefined>(undefined);

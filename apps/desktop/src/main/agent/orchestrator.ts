@@ -1,5 +1,7 @@
 import { DateTime } from 'luxon';
 import {
+  fmtDate,
+  fmtTime,
   newId,
   STRINGS,
   toErrorCode,
@@ -419,11 +421,11 @@ export function createOrchestrator(deps: OrchestratorDeps) {
         return true;
       }
       case 'timeNow': {
-        finish(STRINGS.spoken.timeNow(DateTime.fromMillis(now(), { zone: deps.tz() }).toFormat('h:mm a')));
+        finish(STRINGS.spoken.timeNow(fmtTime(now(), { tz: deps.tz() })));
         return true;
       }
       case 'dateToday': {
-        finish(STRINGS.spoken.dateToday(DateTime.fromMillis(now(), { zone: deps.tz() }).toFormat('cccc, LLLL d')));
+        finish(STRINGS.spoken.dateToday(fmtDate(now(), 'full', { tz: deps.tz() })));
         return true;
       }
       case 'openApp': {

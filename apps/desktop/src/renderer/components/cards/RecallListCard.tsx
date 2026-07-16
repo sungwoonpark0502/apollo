@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { STRINGS, type RecallItem } from '@apollo/shared';
+import { fmtDate, STRINGS, type RecallItem } from '@apollo/shared';
 
 const KIND_ICON: Record<RecallItem['kind'], string> = { note: '📝', message: '💬', fact: '🧠' };
 
@@ -21,7 +21,7 @@ export function RecallListCard({ items }: { items: RecallItem[] }): React.JSX.El
 
 function RecallRow({ item }: { item: RecallItem }): React.JSX.Element {
   const [expanded, setExpanded] = useState(false);
-  const date = new Date(item.ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  const date = fmtDate(item.ts, 'date');
 
   const onClick = (): void => {
     if (item.kind === 'note') {

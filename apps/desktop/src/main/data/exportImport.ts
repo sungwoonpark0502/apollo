@@ -1,6 +1,6 @@
 import AdmZip from 'adm-zip';
 import { DateTime } from 'luxon';
-import { type Settings } from '@apollo/shared';
+import { icsDate as icsDateKey, icsDateTime, type Settings } from '@apollo/shared';
 import { type Repos } from '../db/repos/index';
 import { type EventRow } from '../db/repos/events';
 
@@ -21,8 +21,7 @@ function icsEscape(s: string): string {
 }
 
 function icsDate(ms: number, tz: string, allDay: boolean): string {
-  const dt = DateTime.fromMillis(ms, { zone: tz });
-  return allDay ? `;VALUE=DATE:${dt.toFormat('yyyyLLdd')}` : `;TZID=${tz}:${dt.toFormat("yyyyLLdd'T'HHmmss")}`;
+  return allDay ? `;VALUE=DATE:${icsDateKey(ms, tz)}` : `;TZID=${tz}:${icsDateTime(ms, tz)}`;
 }
 
 export function buildIcs(events: EventRow[]): string {

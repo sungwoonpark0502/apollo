@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { STRINGS, type EventDTO, type RecallItem } from '@apollo/shared';
+import { fmtDate, STRINGS, type EventDTO, type RecallItem } from '@apollo/shared';
 
 const DEBOUNCE_MS = 150;
 const MAX_TOTAL = 10;
@@ -116,7 +116,7 @@ function renderGroup(
       {groupRows.map((row) => {
         const idx = allRows.indexOf(row);
         const title = row.group === 'events' ? row.item.title : row.item.title;
-        const sub = row.group === 'events' ? new Date(row.item.startTs).toLocaleDateString() : row.item.snippet;
+        const sub = row.group === 'events' ? fmtDate(row.item.startTs, 'short', { tz: row.item.tz }) : row.item.snippet;
         return (
           <button
             key={`${row.group}-${row.group === 'events' ? row.item.id : row.item.chunkId}`}

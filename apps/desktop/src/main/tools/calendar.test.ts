@@ -91,7 +91,7 @@ describe('calendar.update', () => {
     );
     const id = (created.card as { event: { id: string } }).event.id;
     const res = await reg.execute('calendar.update', { id, startIso: '2026-07-16T10:00:00' }, makeCtx());
-    expect(res.llmText).toContain('Thu Jul 16, 10:00 AM');
+    expect(res.llmText).toContain('Thu, Jul 16, 10:00 AM');
     const ev = repos.events.get(id)!;
     expect(ev.endTs! - ev.startTs).toBe(90 * 60_000); // duration preserved
 

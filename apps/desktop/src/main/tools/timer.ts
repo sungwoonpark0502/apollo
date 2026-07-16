@@ -1,6 +1,5 @@
 import { z } from 'zod';
-import { DateTime } from 'luxon';
-import { MS, STRINGS, type ToolDef } from '@apollo/shared';
+import { fmtTime, MS, STRINGS, type ToolDef } from '@apollo/shared';
 import { type TimersRepo } from '../db/repos/timers';
 import { type UndoRepo } from '../db/repos/undo';
 
@@ -95,5 +94,5 @@ function describeRemaining(endsAt: number, now: Date): string {
 }
 
 export function nextTimerLabel(endsAt: number, tz: string): string {
-  return DateTime.fromMillis(endsAt, { zone: tz }).toFormat('h:mm a');
+  return fmtTime(endsAt, { tz });
 }

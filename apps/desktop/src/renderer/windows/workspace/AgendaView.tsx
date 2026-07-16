@@ -1,13 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { DateTime } from 'luxon';
-import { STRINGS, type OccurrenceDTO } from '@apollo/shared';
+import { fmtDateIso, fmtTime, STRINGS, type OccurrenceDTO } from '@apollo/shared';
 import { useDataSync } from '../../lib/useLive';
 import { EventEditorModal, type EditorInitial } from './EventEditorModal';
 import { ScopeDialog } from './ScopeDialog';
 
 const AGENDA_DAYS = 60; // E3.2 next 60 days
 
-export function AgendaView({ anchor, h12, localTz: _localTz }: { anchor: DateTime; h12: boolean; localTz: string }): React.JSX.Element {
+export function AgendaView({ anchor, localTz: _localTz }: { anchor: DateTime; localTz: string }): React.JSX.Element {
   const start = useMemo(() => anchor.startOf('day'), [anchor]);
   const rangeStart = start.toMillis();
   const rangeEnd = start.plus({ days: AGENDA_DAYS }).toMillis();
@@ -53,12 +53,12 @@ export function AgendaView({ anchor, h12, localTz: _localTz }: { anchor: DateTim
         groups.map(([dateIso, events]) => (
           <div key={dateIso} style={{ marginBottom: 'var(--sp-4)' }}>
             <div style={{ fontSize: 'var(--fs-caption)', textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-3)', marginBottom: 'var(--sp-2)' }}>
-              {DateTime.fromISO(dateIso).toFormat('cccc, LLLL d')}
+              {fmtDateIso(dateIso, 'full')}
             </div>
             {events.map((o) => (
               <div key={`${o.eventId}-${o.occStartTs}`} onClick={() => openEditor(o)} style={row}>
                 <span style={{ minWidth: 96, color: 'var(--text-2)', fontSize: 'var(--fs-caption)' }}>
-                  {o.allDay ? STRINGS.cards.allDay : DateTime.fromMillis(o.occStartTs, { zone: o.tz }).toFormat(h12 ? 'h:mm a' : 'HH:mm')}
+                  {o.allDay ? STRINGS.cards.allDay : fmtTime(o.occStartTs, { tz: o.tz })}
                 </span>
                 <span style={{ flex: 1 }}>{o.title}</span>
                 {o.location ? <span style={{ color: 'var(--text-3)', fontSize: 'var(--fs-caption)' }}>{o.location}</span> : null}

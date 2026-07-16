@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { DateTime } from 'luxon';
-import { STRINGS } from '@apollo/shared';
+import { fmtDateIso, STRINGS } from '@apollo/shared';
 import { Modal } from './Modal';
 import { buildRRule, detectPreset, isValidRRule, type RecurrencePreset } from '../../lib/recurrence';
 
@@ -60,7 +60,7 @@ export function EventEditorModal({
   const [notes, setNotes] = useState(initial.notes);
   const [reminderMin, setReminderMin] = useState<string>(initial.reminderMin?.toString() ?? '');
 
-  const weekdayLabel = useMemo(() => DateTime.fromISO(startIso).toFormat('cccc'), [startIso]);
+  const weekdayLabel = useMemo(() => fmtDateIso(startIso, 'weekday-long'), [startIso]);
   const dayOfMonth = useMemo(() => DateTime.fromISO(startIso).day, [startIso]);
 
   const customValid = preset !== 'custom' || isValidRRule(customRrule);

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { DateTime } from 'luxon';
-import { type ToolDef } from '@apollo/shared';
+import { fmtDateTime, fmtTime, type ToolDef } from '@apollo/shared';
 import { type ReminderRow, type RemindersRepo } from '../db/repos/reminders';
 import { type UndoRepo } from '../db/repos/undo';
 
@@ -60,7 +60,7 @@ export function createReminderTools(deps: ReminderToolDeps): ToolDef[] {
       const undoToken = deps.undo.push({ turnId: ctx.turnId, convId: ctx.convId, tool: 'reminder.create', data: { id: r.id } });
       return {
         llmText:
-          `Reminder set: "${a.text}" at ${due.toFormat('ccc LLL d, h:mm a')} (${tz})${a.rrule ? `, repeating (${a.rrule})` : ''}.` +
+          `Reminder set: "${a.text}" at ${fmtDateTime(due.toMillis(), { tz, dateStyle: 'weekday-date' })} (${tz})${a.rrule ? `, repeating (${a.rrule})` : ''}.` +
           (due.toMillis() <= ctx.now().getTime() && !a.rrule ? ' WARNING that time is in the past.' : ''),
         undoToken,
       };
@@ -100,7 +100,7 @@ export function createReminderTools(deps: ReminderToolDeps): ToolDef[] {
       deps.onArm?.();
       if (!updated) return { llmText: 'ERROR snooze failed' };
       return {
-        llmText: `Snoozed "${target.text}" until ${DateTime.fromMillis(updated.dueTs, { zone: ctx.tz }).toFormat('h:mm a')}.`,
+        llmText: `Snoozed "${target.text}" until ${fmtTime(updated.dueTs, { tz: ctx.tz })}.`,
       };
     },
   };
@@ -115,7 +115,7 @@ export function createReminderTools(deps: ReminderToolDeps): ToolDef[] {
       if (pending.length === 0) return { llmText: 'No pending reminders.' };
       const lines = pending.map(
         (r, i) =>
-          `${i + 1}. "${r.text}" at ${DateTime.fromMillis(r.dueTs, { zone: ctx.tz }).toFormat('ccc LLL d, h:mm a')}${r.rrule ? ' (recurring)' : ''} (id ${r.id})`,
+          `${i + 1}. "${r.text}" at ${fmtDateTime(r.dueTs, { tz: ctx.tz, dateStyle: 'weekday-date' })}${r.rrule ? ' (recurring)' : ''} (id ${r.id})`,
       );
       return {
         llmText: `${pending.length} pending reminder${pending.length > 1 ? 's' : ''}:\n${lines.join('\n')}`,

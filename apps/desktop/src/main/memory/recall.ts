@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon';
-import { type RecallItem } from '@apollo/shared';
+import { fmtDate, type RecallItem } from '@apollo/shared';
 import { type ChunksRepo, type ChunkKind, type ChunkRow } from '../db/repos/chunks';
 import { type Repos } from '../db/repos/index';
 import { type Embedder } from './embedder';
@@ -135,7 +135,7 @@ export function formatRecallLlmText(query: string, items: RecallItem[], tz: stri
   if (items.length === 0) return `No matches found in notes, chats, or memory for "${query}".`;
   return items
     .map((it, i) => {
-      const date = DateTime.fromMillis(it.ts, { zone: tz }).toFormat('LLL d');
+      const date = fmtDate(it.ts, 'date', { tz });
       return `${i + 1}. [${it.kind}, ${date}] "${it.snippet}"`;
     })
     .join('\n');

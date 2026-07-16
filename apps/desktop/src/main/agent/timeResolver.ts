@@ -1,5 +1,6 @@
 import * as chrono from 'chrono-node';
 import { DateTime } from 'luxon';
+import { fmtDate, fmtDateTime } from '@apollo/shared';
 
 /**
  * English time resolution with the C11 normative overrides layered over
@@ -26,7 +27,7 @@ function fmt(dt: DateTime): string {
 }
 
 function fmtHuman(dt: DateTime): string {
-  return dt.toFormat('ccc LLL d, h:mm a');
+  return fmtDateTime(dt.toMillis(), { tz: dt.zoneName ?? undefined, dateStyle: 'weekday-date' });
 }
 
 /** Upcoming occurrence of a weekday, strictly after today unless allowToday. */
@@ -144,7 +145,7 @@ export function resolveTime(text: string, opts: ResolveOpts): ResolvedTime | nul
       let assumption: string | undefined;
       if (m[1] === 'next') {
         day = day.plus({ weeks: 1 });
-        assumption = `assumed ${day.toFormat('ccc LLL d')} (the ${m[2]} after this coming one)`;
+        assumption = `assumed ${fmtDate(day.toMillis(), 'weekday-date', { tz: day.zoneName ?? undefined })} (the ${m[2]} after this coming one)`;
       }
       let dt = withTime(day, 9);
       let timeGiven = false;

@@ -1,7 +1,7 @@
 import { app, BrowserWindow, dialog, globalShortcut, ipcMain, net, Notification, powerMonitor, safeStorage, session, shell, systemPreferences } from 'electron';
 import { lockDownSession, defaultSessionAllows, audioSessionAllows } from './security/permissions';
 import { join } from 'node:path';
-import { STRINGS, type AgentEvent } from '@apollo/shared';
+import { configureFormat, localDateKey, STRINGS, type AgentEvent, type Settings } from '@apollo/shared';
 import { createTray, getTray } from './tray';
 import { AUDIO_SESSION_PARTITION, createAudioWindow, createOnboardingWindow, closeOnboardingWindow, createOrbWindow, createPaletteWindow, openCaptureWindow, openSettingsWindow, openWorkspaceWindow, getWorkspaceWindow, togglePalette } from './windows';
 import { createTodayProvider } from './workspace/today';
@@ -159,8 +159,17 @@ function boot(): void {
       voiceController.onHotkey();
     }
   };
+  // I2: keep format.ts's context in step with locale/timeFormat/weekStart so
+  // every spoken template and tool string formats consistently.
+  const applyFormat = (s: Settings): void =>
+    configureFormat({
+      locale: s.locale.region ?? app.getLocale(),
+      timeFormat: s.profile.timeFormat,
+      weekStart: s.profile.weekStart,
+    });
   const settings = createSettingsService(repos.settings, {
     onChange: (next, prev) => {
+      applyFormat(next);
       if (next.hotkey !== prev.hotkey || next.quickCapture.hotkey !== prev.quickCapture.hotkey) reRegisterHotkeys?.();
       if (next.wake.sensitivity !== prev.wake.sensitivity) workerHost.send({ t: 'setSensitivity', v: next.wake.sensitivity });
       if (JSON.stringify(next.proactive) !== JSON.stringify(prev.proactive)) proactiveRef?.reconfigure();
@@ -174,6 +183,7 @@ function boot(): void {
       }
     },
   });
+  applyFormat(settings.get()); // seed format context at boot
   const secrets = createSecrets({ settings: repos.settings, codec: safeStorageCodec(safeStorage), env: config.env, log });
   const testKey = createKeyTester({ secrets, model: settings.get().anthropic.model });
 
@@ -327,7 +337,7 @@ function boot(): void {
   let lastUsageWarnDay: string | null = null;
   function maybeWarnUsage(): void {
     const limit = settings.get().usage.warnDailyAnthropicTokens;
-    const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
+    const today = localDateKey(Date.now()); // YYYY-MM-DD local
     const total = repos.usageLog.todayTotal('anthropic', 'inputTokens') + repos.usageLog.todayTotal('anthropic', 'outputTokens');
     const decision = shouldWarnUsage({ todayTotalTokens: total, limit, today, lastWarnedDay: lastUsageWarnDay });
     lastUsageWarnDay = decision.lastWarnedDay;

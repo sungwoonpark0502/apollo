@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { STRINGS, type CardPayload } from '@apollo/shared';
+import { fmtDateIso, STRINGS, type CardPayload } from '@apollo/shared';
 import { WeatherGlyph } from './WeatherGlyph';
 import { sentenceToRow, stageDeepLink, stageRowCount, stageTitle } from '../lib/stage';
 
@@ -103,7 +103,7 @@ function StageWeather({ card }: { card: Extract<CardPayload, { kind: 'weather' }
           {card.days.slice(0, 4).map((d) => (
             <div key={d.dateIso} style={{ textAlign: 'center' }}>
               <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-3)' }}>
-                {new Date(`${d.dateIso}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short' })}
+                {fmtDateIso(d.dateIso, 'weekday-short')}
               </div>
               <WeatherGlyph condition={d.condition} size={18} />
               <div style={{ fontSize: 'var(--fs-caption)' }}>{d.hiF}° <span style={{ color: 'var(--text-3)' }}>{d.loF}°</span></div>

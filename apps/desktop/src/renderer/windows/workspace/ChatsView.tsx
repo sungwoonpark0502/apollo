@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { STRINGS } from '@apollo/shared';
+import { fmtDateTime, STRINGS } from '@apollo/shared';
 
 interface ConvSummary { id: string; title: string; startedAt: number; lastTs: number; messageCount: number }
 interface Msg { role: 'user' | 'assistant'; content: string; ts: number }
@@ -56,7 +56,7 @@ export function ChatsView(): React.JSX.Element {
                 style={{ display: 'block', width: '100%', textAlign: 'left', border: 'none', borderBottom: '1px solid var(--border)', cursor: 'pointer', padding: 'var(--sp-3)', background: selected === c.id ? 'var(--accent-soft)' : 'transparent' }}
               >
                 <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title}</div>
-                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-3)' }}>{new Date(c.lastTs).toLocaleString()} · {c.messageCount}</div>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-3)' }}>{fmtDateTime(c.lastTs, { dateStyle: 'weekday-date' })} · {c.messageCount}</div>
               </button>
             ))
           )}

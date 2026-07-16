@@ -1,5 +1,24 @@
 import { useCallback, useEffect, useState } from 'react';
-import { type DataChanged, type Settings } from '@apollo/shared';
+import { configureFormat, type DataChanged, type Settings } from '@apollo/shared';
+
+/**
+ * I2: keep format.ts's process-wide context in step with the user's locale,
+ * time format, and week start. Call once at each window root; every fmt* call
+ * then reads the fresh context, and format-consuming components re-render on
+ * settings.changed because they read the settings blob too.
+ */
+export function useFormatInit(): void {
+  useEffect(() => {
+    const apply = (s: Settings): void =>
+      configureFormat({
+        locale: s.locale.region ?? navigator.language,
+        timeFormat: s.profile.timeFormat,
+        weekStart: s.profile.weekStart,
+      });
+    void window.apollo.call('settings.get', {}).then(apply);
+    return window.apollo.on('settings.changed', apply);
+  }, []);
+}
 
 /**
  * E2/E7 renderer live-sync helpers. useSettings tracks the live settings blob

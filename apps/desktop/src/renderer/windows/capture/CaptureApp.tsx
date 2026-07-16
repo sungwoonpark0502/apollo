@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { STRINGS, type InvokeRes } from '@apollo/shared';
+import { fmtDateTime, STRINGS, type InvokeRes } from '@apollo/shared';
 import { debounce } from '../../lib/debounce';
+import { useFormatInit } from '../../lib/useLive';
 
 type CaptureType = 'note' | 'todo' | 'reminder';
 type Classification = InvokeRes<'capture.classify'>;
@@ -10,6 +11,7 @@ type Classification = InvokeRes<'capture.classify'>;
  * Esc closes. 150ms check morph on success; 2px shake on empty. Zero LLM.
  */
 export function CaptureApp(): React.JSX.Element {
+  useFormatInit();
   const [text, setText] = useState('');
   const [cls, setCls] = useState<Classification | null>(null);
   const [override, setOverride] = useState<CaptureType | null>(null); // Tab override
@@ -126,6 +128,5 @@ export function CaptureApp(): React.JSX.Element {
 
 function shortWhen(iso: string | null): string {
   if (!iso) return '';
-  const d = new Date(iso);
-  return d.toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+  return fmtDateTime(new Date(iso).getTime(), { dateStyle: 'weekday-date' });
 }

@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { DateTime } from 'luxon';
-import { STRINGS, type NoteListItem } from '@apollo/shared';
+import { fmtRelative, STRINGS, type NoteListItem } from '@apollo/shared';
 import { useDataSync } from '../../lib/useLive';
 import { debounce, wordCount } from '../../lib/debounce';
 
@@ -232,7 +231,7 @@ function NoteRow({ note, active, onClick }: { note: NoteListItem; active: boolea
         {note.title || STRINGS.workspace.notes.untitled}
       </div>
       <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-        {note.snippet || DateTime.fromMillis(note.updatedAt).toRelative()}
+        {note.snippet || fmtRelative(note.updatedAt)}
       </div>
     </button>
   );

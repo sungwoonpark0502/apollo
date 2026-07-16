@@ -107,6 +107,40 @@ export const SettingsSchema = z.object({
       indexEnabled: z.boolean().default(true), // G7: Clear index disables until re-enabled
     })
     .default({}),
+  // I1 locale override for Intl formatting (null = follow OS)
+  locale: z
+    .object({
+      region: z.string().nullable().default(null), // BCP-47, e.g. "en-US"; drives Intl formatting
+    })
+    .default({}),
+  // I1 local calendar collections for categorization/color
+  calendars: z
+    .object({
+      active: z
+        .array(
+          z.object({
+            id: z.string(),
+            name: z.string(),
+            color: z.string(), // hex from a fixed palette
+            kind: z.enum(['local', 'google']),
+            readOnly: z.boolean().default(false),
+          }),
+        )
+        .default([{ id: 'default', name: 'Personal', color: '#D97757', kind: 'local', readOnly: false }]),
+      defaultCalendarId: z.string().default('default'),
+    })
+    .default({}),
+  // I7 Google Calendar sync (master opt-in; inert when disabled)
+  googleCalendar: z
+    .object({
+      enabled: z.boolean().default(false),
+      syncedCalendarIds: z.array(z.string()).default([]),
+      direction: z.enum(['read-only', 'two-way']).default('read-only'),
+      lastSyncTs: z.number().nullable().default(null),
+    })
+    .default({}),
+  // I4 policy gate for the user-link egress lane
+  allowLinkReading: z.boolean().default(true),
   launchAtLogin: z.boolean().default(false),
   openWorkspaceOnLaunch: z.boolean().default(false), // E7 General tab
   workspaceBounds: z
@@ -118,6 +152,7 @@ export const SettingsSchema = z.object({
 
 export type Settings = z.infer<typeof SettingsSchema>;
 export type Profile = Settings['profile'];
+export type CalendarCollection = Settings['calendars']['active'][number];
 
 export function defaultSettings(): Settings {
   return SettingsSchema.parse({});

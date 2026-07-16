@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { DateTime } from 'luxon';
-import { MS, type EventDTO, type OccurrenceDTO, type ToolDef } from '@apollo/shared';
+import { fmtDate, fmtDateTime, MS, type EventDTO, type OccurrenceDTO, type ToolDef } from '@apollo/shared';
 import { type EventRow, type EventsRepo } from '../db/repos/events';
 import { type UndoRepo } from '../db/repos/undo';
 import { registerInverse } from './undo';
@@ -25,7 +25,7 @@ function occToDTO(o: OccurrenceDTO): EventDTO {
 }
 
 function fmt(ms: number, tz: string): string {
-  return DateTime.fromMillis(ms, { zone: tz }).toFormat('ccc LLL d, h:mm a');
+  return fmtDateTime(ms, { tz, dateStyle: 'weekday-date' });
 }
 
 const createParams = z.object({
@@ -111,7 +111,7 @@ export function createCalendarTools(deps: CalendarToolDeps): ToolDef[] {
       const undoToken = deps.undo.push({ turnId: ctx.turnId, convId: ctx.convId, tool: 'calendar.create', data: { id: ev.id } });
       return {
         llmText:
-          `Created "${ev.title}" ${start.toFormat('ccc LLL d, h:mm a')} (${tz}).` +
+          `Created "${ev.title}" ${fmt(start.toMillis(), tz)} (${tz}).` +
           (a.rrule ? ` Repeats: ${a.rrule}.` : '') +
           (overlaps.length ? ` WARNING overlaps: ${overlaps.map((o) => o.title).join(', ')}.` : '') +
           (start.toMillis() < ctx.now().getTime() && !a.rrule ? ' WARNING start time is in the past.' : ''),
@@ -156,7 +156,7 @@ export function createCalendarTools(deps: CalendarToolDeps): ToolDef[] {
           data: { parentId: cur.id, dateIso: a.occurrenceDateIso, detachedId: detached.id },
         });
         return {
-          llmText: `Moved the ${a.occurrenceDateIso} occurrence of "${cur.title}" to ${newStart.toFormat('ccc LLL d, h:mm a')} (${tz}). The rest of the series is unchanged.`,
+          llmText: `Moved the ${a.occurrenceDateIso} occurrence of "${cur.title}" to ${fmt(newStart.toMillis(), tz)} (${tz}). The rest of the series is unchanged.`,
           card: { kind: 'event', event: toDTO(detached) },
           undoToken,
         };
@@ -235,13 +235,13 @@ export function createCalendarTools(deps: CalendarToolDeps): ToolDef[] {
       const end = a.endIso ? DateTime.fromISO(a.endIso, { zone: tz }) : start.endOf('day');
       if (!start.isValid || !end.isValid) return { llmText: 'ERROR invalid range' };
       const occs = deps.events.expandOccurrences(start.toMillis(), end.toMillis()).slice(0, 20);
-      if (occs.length === 0) return { llmText: `No events between ${start.toFormat('LLL d')} and ${end.toFormat('LLL d')}.` };
+      if (occs.length === 0) return { llmText: `No events between ${fmtDate(start.toMillis(), 'date', { tz })} and ${fmtDate(end.toMillis(), 'date', { tz })}.` };
       const lines = occs.map((o, i) => `${i + 1}. ${o.title} ${fmt(o.occStartTs, o.tz)}${o.location ? ` @ ${o.location}` : ''} (id ${o.eventId})`);
       return {
         llmText: `${occs.length} event${occs.length > 1 ? 's' : ''}:\n${lines.join('\n')}`,
         card: {
           kind: 'eventList',
-          title: start.hasSame(end, 'day') ? start.toFormat('cccc LLL d') : `${start.toFormat('LLL d')} – ${end.toFormat('LLL d')}`,
+          title: start.hasSame(end, 'day') ? fmtDate(start.toMillis(), 'weekday-full', { tz }) : `${fmtDate(start.toMillis(), 'date', { tz })} – ${fmtDate(end.toMillis(), 'date', { tz })}`,
           events: occs.map(occToDTO),
         },
       };

@@ -3,8 +3,10 @@ import { STRINGS } from '@apollo/shared';
 import { useStore } from '../../state/store';
 import { CardShell, CardView } from '../../components/cards/CardView';
 import { ConfirmBar } from '../../components/ConfirmBar';
+import { useFormatInit } from '../../lib/useLive';
 
 export function App(): React.JSX.Element {
+  useFormatInit();
   const [input, setInput] = useState('');
   const [historyIdx, setHistoryIdx] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);

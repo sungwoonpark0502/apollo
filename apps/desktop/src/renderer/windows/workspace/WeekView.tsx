@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { DateTime } from 'luxon';
-import { STRINGS, type OccurrenceDTO } from '@apollo/shared';
+import { fmtDate, fmtHour, fmtTime, STRINGS, type OccurrenceDTO } from '@apollo/shared';
 import { useDataSync } from '../../lib/useLive';
 import { layoutOverlaps, snap15 } from '../../lib/calendarLayout';
 import { EventEditorModal, type EditorInitial } from './EventEditorModal';
@@ -9,7 +9,7 @@ import { ScopeDialog } from './ScopeDialog';
 const HOUR_PX = 44;               // vertical pixels per hour
 const INITIAL_SCROLL_HOUR = 6;    // E3.2
 
-export function WeekView({ anchor, h12, localTz }: { anchor: DateTime; h12: boolean; localTz: string }): React.JSX.Element {
+export function WeekView({ anchor, localTz }: { anchor: DateTime; localTz: string }): React.JSX.Element {
   const weekStartDt = useMemo(() => anchor.startOf('week'), [anchor]); // luxon week starts Monday
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => weekStartDt.plus({ days: i })), [weekStartDt]);
   const rangeStart = weekStartDt.startOf('day').toMillis();
@@ -36,8 +36,6 @@ export function WeekView({ anchor, h12, localTz }: { anchor: DateTime; h12: bool
   const allDayByDay = useMemo(() => bucketAllDay(occ ?? [], days), [occ, days]);
   const timedByDay = useMemo(() => bucketTimed(occ ?? [], days), [occ, days]);
 
-  const fmtHour = (h: number): string => (h12 ? DateTime.fromObject({ hour: h }).toFormat('ha') : `${String(h).padStart(2, '0')}:00`);
-
   /** Persist a moved/resized occurrence; recurring ones ask scope first. */
   const persistMove = (o: OccurrenceDTO, startTs: number, endTs: number): void => {
     if (o.isRecurring) {
@@ -63,7 +61,7 @@ export function WeekView({ anchor, h12, localTz }: { anchor: DateTime; h12: bool
         <div style={{ padding: 'var(--sp-1)', fontSize: 'var(--fs-caption)', color: 'var(--text-3)' }}>{STRINGS.workspace.calendar.allDay}</div>
         {days.map((d, i) => (
           <div key={d.toISODate()} style={{ borderLeft: '0.5px solid var(--border)', padding: 2, minHeight: 24 }}>
-            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-3)', textAlign: 'center' }}>{d.toFormat('ccc d')}</div>
+            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-3)', textAlign: 'center' }}>{fmtDate(d.toMillis(), 'weekday-day')}</div>
             {(allDayByDay[i] ?? []).map((o) => (
               <div key={`${o.eventId}-${o.occStartTs}`} style={allDayChip} onClick={() => openEditor(o, setEditor)} title={o.title}>{o.title}</div>
             ))}
@@ -85,7 +83,6 @@ export function WeekView({ anchor, h12, localTz }: { anchor: DateTime; h12: bool
               key={d.toISODate()}
               day={d}
               events={timedByDay[i] ?? []}
-              h12={h12}
               nowMs={nowMs}
               onCreate={(startTs, endTs) => {
                 void window.apollo
@@ -155,7 +152,6 @@ export function WeekView({ anchor, h12, localTz }: { anchor: DateTime; h12: bool
 function DayColumn({
   day,
   events,
-  h12,
   nowMs,
   onCreate,
   onMove,
@@ -163,7 +159,6 @@ function DayColumn({
 }: {
   day: DateTime;
   events: OccurrenceDTO[];
-  h12: boolean;
   nowMs: number;
   onCreate: (startTs: number, endTs: number) => void;
   onMove: (o: OccurrenceDTO, startTs: number, endTs: number) => void;
@@ -232,7 +227,6 @@ function DayColumn({
             height={height}
             left={left}
             width={width}
-            h12={h12}
             hourPx={HOUR_PX}
             onOpen={() => onOpen(o)}
             onMove={onMove}
@@ -268,7 +262,6 @@ function TimedChip({
   height,
   left,
   width,
-  h12,
   hourPx,
   dayStartMs,
   onOpen,
@@ -279,7 +272,6 @@ function TimedChip({
   height: number;
   left: string;
   width: string;
-  h12: boolean;
   hourPx: number;
   dayStartMs: number;
   onOpen: () => void;
@@ -352,7 +344,7 @@ function TimedChip({
       title={o.title}
     >
       <div style={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{o.title}</div>
-      <div style={{ color: 'var(--text-2)' }}>{DateTime.fromMillis(o.occStartTs, { zone: o.tz }).toFormat(h12 ? 'h:mm a' : 'HH:mm')}</div>
+      <div style={{ color: 'var(--text-2)' }}>{fmtTime(o.occStartTs, { tz: o.tz })}</div>
       <div
         onPointerDown={(e) => begin('resize', e)}
         style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 6, cursor: 'ns-resize' }}

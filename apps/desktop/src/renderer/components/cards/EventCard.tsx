@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
-import { STRINGS, type EventDTO } from '@apollo/shared';
+import { fmtDate, fmtRange, STRINGS, type EventDTO } from '@apollo/shared';
 import { buttonStyle } from './TimerCard';
 
 function timeRange(e: EventDTO): string {
-  const start = new Date(e.startTs);
-  const day = start.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+  const day = fmtDate(e.startTs, 'weekday-date', { tz: e.tz });
   if (e.allDay) return `${day} · ${STRINGS.cards.allDay}`;
-  const t = (ms: number): string => new Date(ms).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-  return e.endTs ? `${day} · ${t(e.startTs)} – ${t(e.endTs)}` : `${day} · ${t(e.startTs)}`;
+  return `${day} · ${fmtRange(e.startTs, e.endTs, { tz: e.tz })}`;
 }
 
 export function EventCard({ event }: { event: EventDTO }): React.JSX.Element {

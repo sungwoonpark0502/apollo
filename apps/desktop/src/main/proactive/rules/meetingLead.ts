@@ -1,5 +1,4 @@
-import { DateTime } from 'luxon';
-import { STRINGS } from '@apollo/shared';
+import { fmtTime, STRINGS } from '@apollo/shared';
 import { type CandidateSuggestion, type ProactiveRule, ruleParam } from '../types';
 
 /**
@@ -25,7 +24,7 @@ export const meetingLead: ProactiveRule = {
       if (occ.allDay) continue;
       if (occ.occStartTs <= ctx.now || occ.occStartTs > windowEnd) continue; // strictly upcoming, within lead
       const mins = Math.max(1, Math.round((occ.occStartTs - ctx.now) / 60_000));
-      const time = DateTime.fromMillis(occ.occStartTs, { zone: occ.tz }).toFormat('h:mm a');
+      const time = fmtTime(occ.occStartTs, { tz: occ.tz });
       out.push({
         ruleId: this.id,
         urgency: 'time-sensitive',

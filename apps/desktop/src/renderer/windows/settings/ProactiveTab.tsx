@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { DateTime } from 'luxon';
-import { STRINGS, type InvokeRes, type Settings } from '@apollo/shared';
+import { fmtRelative, STRINGS, type InvokeRes, type Settings } from '@apollo/shared';
 
 // Presentation config: which rules exist and which inline params they expose.
 const RULE_META: Array<{ id: string; params: Array<{ key: string; label: string; kind: 'minutes' | 'hour' | 'hours'; def: number }> }> = [
@@ -105,7 +104,7 @@ export function ProactiveTab(): React.JSX.Element {
           <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', padding: 'var(--sp-1) 0', fontSize: 'var(--fs-caption)' }}>
             <span style={{ color: 'var(--text-1)' }}>{s.title}</span>
             <span style={{ color: 'var(--text-3)' }}>
-              {DateTime.fromMillis(s.createdAt).toRelative()}{s.outcome ? ` · ${p.outcomeLabels[s.outcome] ?? s.outcome}` : ''}
+              {fmtRelative(s.createdAt)}{s.outcome ? ` · ${p.outcomeLabels[s.outcome] ?? s.outcome}` : ''}
             </span>
           </div>
         ))

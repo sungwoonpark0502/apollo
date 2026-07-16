@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { DateTime } from 'luxon';
-import { STRINGS, type InvokeRes, type OccurrenceDTO, type Settings } from '@apollo/shared';
+import { fmtDate, fmtDateTime, fmtHour, fmtTime, STRINGS, type InvokeRes, type OccurrenceDTO, type Settings } from '@apollo/shared';
 import { useDataSync } from '../../lib/useLive';
 import { WeatherGlyph } from '../../components/WeatherGlyph';
 
@@ -11,7 +11,6 @@ export function TodayView({ settings, onOpenCalendar }: { settings: Settings | n
   const [now] = useState(() => DateTime.now());
   const partOfDay = now.hour < 12 ? 'morning' : now.hour < 18 ? 'afternoon' : 'evening';
   const name = settings?.profile.name ?? '';
-  const h12 = settings?.profile.timeFormat !== '24h';
 
   const dayStart = now.startOf('day').toMillis();
   const dayEnd = now.endOf('day').toMillis();
@@ -25,9 +24,6 @@ export function TodayView({ settings, onOpenCalendar }: { settings: Settings | n
     [occ, now],
   );
 
-  const fmtTime = (ms: number, tz: string): string =>
-    DateTime.fromMillis(ms, { zone: tz }).toFormat(h12 ? 'h:mm a' : 'HH:mm');
-
   const rel = (ms: number): string => {
     const diff = Math.round((ms - now.toMillis()) / 60000);
     if (diff <= 0) return STRINGS.workspace.today.relNow;
@@ -39,7 +35,7 @@ export function TodayView({ settings, onOpenCalendar }: { settings: Settings | n
     <div style={{ maxWidth: 720, margin: '0 auto', padding: 'var(--sp-6)' }}>
       <header style={{ marginBottom: 'var(--sp-5)' }}>
         <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-          {now.toFormat('cccc, LLLL d')}
+          {fmtDate(now.toMillis(), 'full')}
         </div>
         <h1 style={{ fontSize: 'var(--fs-display)', margin: 'var(--sp-1) 0 0', fontWeight: 600 }}>
           {STRINGS.workspace.greeting(name, partOfDay)}
@@ -60,15 +56,15 @@ export function TodayView({ settings, onOpenCalendar }: { settings: Settings | n
           <Row key={`${o.eventId}-${o.occStartTs}`} onClick={() => onOpenCalendar(o.dateIso)}>
             <span>{o.title}</span>
             <span style={{ color: 'var(--text-2)', fontSize: 'var(--fs-caption)' }}>
-              {o.allDay ? STRINGS.cards.allDay : `${fmtTime(o.occStartTs, o.tz)}–${fmtTime(o.occEndTs, o.tz)}`}
+              {o.allDay ? STRINGS.cards.allDay : `${fmtTime(o.occStartTs, { tz: o.tz })}–${fmtTime(o.occEndTs, { tz: o.tz })}`}
             </span>
           </Row>
         ))}
       </Section>
 
-      <TodosSection todos={todos ?? []} reload={reloadTodos} h12={h12} />
+      <TodosSection todos={todos ?? []} reload={reloadTodos} />
 
-      <WeatherStrip weather={today?.weather ?? null} h12={h12} />
+      <WeatherStrip weather={today?.weather ?? null} />
 
       <BriefSection brief={today?.brief ?? null} />
     </div>
@@ -78,11 +74,9 @@ export function TodayView({ settings, onOpenCalendar }: { settings: Settings | n
 function TodosSection({
   todos,
   reload,
-  h12,
 }: {
   todos: Array<{ id: string; content: string; dueTs: number | null; done: boolean }>;
   reload: () => void;
-  h12: boolean;
 }): React.JSX.Element {
   const [draft, setDraft] = useState('');
   const add = (): void => {
@@ -122,7 +116,7 @@ function TodosSection({
               </label>
               {t.dueTs !== null ? (
                 <span style={{ fontSize: 'var(--fs-caption)', color: overdue ? 'var(--danger)' : 'var(--text-3)' }}>
-                  {overdue ? STRINGS.workspace.today.overdue : DateTime.fromMillis(t.dueTs).toFormat(h12 ? 'LLL d, h:mm a' : 'LLL d, HH:mm')}
+                  {overdue ? STRINGS.workspace.today.overdue : fmtDateTime(t.dueTs, { dateStyle: 'date' })}
                 </span>
               ) : null}
             </Row>
@@ -133,7 +127,7 @@ function TodosSection({
   );
 }
 
-function WeatherStrip({ weather, h12 }: { weather: Today['weather']; h12: boolean }): React.JSX.Element {
+function WeatherStrip({ weather }: { weather: Today['weather'] }): React.JSX.Element {
   return (
     <Section title={STRINGS.workspace.today.weather} empty={weather === null ? STRINGS.workspace.today.emptyWeather : null}>
       {weather ? (
@@ -148,7 +142,7 @@ function WeatherStrip({ weather, h12 }: { weather: Today['weather']; h12: boolea
             {weather.hours.map((hr) => (
               <div key={hr.iso} style={{ textAlign: 'center', minWidth: 44 }}>
                 <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-3)' }}>
-                  {DateTime.fromISO(hr.iso).toFormat(h12 ? 'ha' : 'HH')}
+                  {fmtHour(DateTime.fromISO(hr.iso).hour)}
                 </div>
                 <WeatherGlyph condition={hr.condition} size={18} />
                 <div style={{ fontSize: 'var(--fs-caption)' }}>{hr.temp}°</div>

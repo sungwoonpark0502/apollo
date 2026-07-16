@@ -1,5 +1,5 @@
 import React from 'react';
-import type { WeatherDay, WeatherNow } from '@apollo/shared';
+import { fmtDateIso, type WeatherDay, type WeatherNow } from '@apollo/shared';
 
 export function WeatherCard({ place, now, days }: { place: string; now: WeatherNow; days: WeatherDay[] }): React.JSX.Element {
   return (
@@ -14,7 +14,7 @@ export function WeatherCard({ place, now, days }: { place: string; now: WeatherN
         {days.slice(0, 4).map((d) => (
           <div key={d.dateIso} style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-3)' }}>
-              {new Date(`${d.dateIso}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short' })}
+              {fmtDateIso(d.dateIso, 'weekday-short')}
             </div>
             <div style={{ fontSize: 'var(--fs-caption)' }}>
               {d.hiF}° <span style={{ color: 'var(--text-3)' }}>{d.loF}°</span>

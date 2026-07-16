@@ -13,7 +13,11 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "luxon": "^3.7.2",
     "uuidv7": "^1.2.1",
     "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/luxon": "^3.7.2"
   }
 }
