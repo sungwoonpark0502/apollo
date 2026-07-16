@@ -57,8 +57,9 @@ describe('no network egress during embed + recall (G8)', () => {
     indexer.stop();
   });
 
-  it('Part G did not add any host to the runtime egress allowlist', () => {
-    // The allowlist is frozen to the C14.9 set; embedding/recall add none.
+  it('the runtime egress allowlist stays the C14.9 Google-family set (I7 adds only the Calendar API host)', () => {
+    // Embedding/recall (Part G) add no host. I7 adds www.googleapis.com (Google
+    // Calendar API) — a first-party Google host, no wildcard, no arbitrary egress.
     expect(BASE_ALLOWED_HOSTS).toEqual([
       'api.anthropic.com',
       'api.deepgram.com',
@@ -66,6 +67,7 @@ describe('no network egress during embed + recall (G8)', () => {
       'api.open-meteo.com',
       'geocoding-api.open-meteo.com',
       'gmail.googleapis.com',
+      'www.googleapis.com',
       'oauth2.googleapis.com',
       'accounts.google.com',
       'speech.platform.bing.com',

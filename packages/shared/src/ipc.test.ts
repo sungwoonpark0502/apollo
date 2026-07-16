@@ -95,6 +95,11 @@ const invokeFixtures: Record<InvokeChannelName, { req: unknown; res: unknown }> 
   'undo.recent': { req: {}, res: [{ undoToken: 'u1', label: 'Deleted a note', ts: 1_800_000_000_000 }] },
   'undo.latest': { req: {}, res: { ok: true, label: 'Deleted a note' } },
   'shortcuts.list': { req: {}, res: [{ scope: 'Workspace', keys: '⌘K', description: 'Search everything' }] },
+  'google.connect': { req: {}, res: { ok: true, calendars: [{ id: 'google:primary', name: 'James', color: '#4C8BF5', kind: 'google', readOnly: false }] } },
+  'google.applySelection': { req: { calendars: [{ id: 'google:primary', name: 'James', color: '#4C8BF5', kind: 'google', readOnly: false }], direction: 'two-way' }, res: { ok: true } },
+  'google.disconnect': { req: { keepLocal: true }, res: { ok: true } },
+  'google.sync': { req: {}, res: { ok: true, changed: 3 } },
+  'google.resolveConflict': { req: { eventId: 'e1', choice: 'mine' }, res: { ok: true } },
   'link.preview': { req: { url: 'https://example.com/post' }, res: { ok: true, url: 'https://example.com/post', title: 'Post', summary: 'A short summary.', siteName: 'example.com' } },
   'suggestion.action': { req: { suggestionId: 's1', actionId: 'dismiss' }, res: { ok: true } },
   'proactive.recent': { req: { limit: 10 }, res: [{ id: 's1', ruleId: 'meeting_lead', title: 'Standup in 10 min', createdAt: 1, outcome: 'dismissed' }] },
@@ -167,6 +172,7 @@ const pushFixtures: Record<PushChannelName, unknown> = {
   'alert.ringing': { kind: 'timer', id: 't1', label: 'pasta', firedAt: 1_800_000_000_000, silent: false },
   'alert.stop': { id: 't1' },
   'update.state': { status: 'ready', version: '1.2.3' },
+  'google.state': { status: 'idle', lastSyncTs: 1_800_000_000_000 },
 };
 
 describe('invoke channel round-trips', () => {

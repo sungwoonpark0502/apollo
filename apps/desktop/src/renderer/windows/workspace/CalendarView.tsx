@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { DateTime } from 'luxon';
-import { calendarColor, fmtDate, fmtDateIso, fmtTime, STRINGS, type OccurrenceDTO, type Settings } from '@apollo/shared';
+import { calendarColor, fmtDate, fmtDateIso, fmtRelative, fmtTime, STRINGS, type OccurrenceDTO, type Settings } from '@apollo/shared';
 import { useDataSync } from '../../lib/useLive';
 import { monthGrid, weekdayHeaders } from '../../lib/calendarLayout';
 import { EventEditorModal, type EditorInitial, type EditorResult } from './EventEditorModal';
@@ -35,6 +35,7 @@ export function CalendarView({ settings, initialDateIso }: { settings: Settings 
         <button onClick={() => step(-1)} style={navBtn} aria-label={c.prev}>‹</button>
         <button onClick={() => setAnchor(DateTime.now())} style={navBtn}>{c.today}</button>
         <button onClick={() => step(1)} style={navBtn} aria-label={c.next}>›</button>
+        <GcalIndicator enabled={!!settings?.googleCalendar.enabled} />
         <div style={{ minWidth: 160, textAlign: 'right', fontSize: 'var(--fs-title)', fontWeight: 600 }}>
           {fmtDate(anchor.toMillis(), 'month-year')}
         </div>
@@ -279,6 +280,25 @@ function EventEditorFlow({
 const emptyResult: EditorResult = {
   title: '', startIso: '', endIso: '', allDay: false, tz: 'UTC', rrule: null, location: '', notes: '', reminderMin: null, calendarId: 'default',
 };
+
+/** I7 subtle sync indicator in the Calendar header (spinner / last synced / error+Retry). */
+function GcalIndicator({ enabled }: { enabled: boolean }): React.JSX.Element | null {
+  const [st, setSt] = useState<{ status: 'idle' | 'syncing' | 'error'; lastSyncTs: number | null } | null>(null);
+  useEffect(() => window.apollo.on('google.state', (s) => setSt(s)), []);
+  if (!enabled) return null;
+  const g = STRINGS.gcal;
+  const label =
+    st?.status === 'syncing' ? g.syncing : st?.status === 'error' ? g.syncError : st?.lastSyncTs ? g.lastSync(fmtRelative(st.lastSyncTs)) : g.neverSynced;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', fontSize: 'var(--fs-caption)', color: st?.status === 'error' ? 'var(--danger)' : 'var(--text-3)' }}>
+      <span aria-hidden>{st?.status === 'syncing' ? '↻' : st?.status === 'error' ? '⚠' : '✓'}</span>
+      <span>{label}</span>
+      {st?.status === 'error' ? (
+        <button onClick={() => void window.apollo.call('google.sync', {})} style={{ border: 'none', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontSize: 'var(--fs-caption)' }}>{g.syncNow}</button>
+      ) : null}
+    </div>
+  );
+}
 
 function DayPanel({
   dateIso,

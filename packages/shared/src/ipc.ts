@@ -183,6 +183,26 @@ export const invokeChannels = {
     req: z.object({}),
     res: z.array(z.object({ scope: z.enum(['Global', 'Workspace', 'Calendar', 'Notes', 'Voice']), keys: z.string(), description: z.string() })),
   },
+  // I7 Google Calendar sync (opt-in). Inert unless googleCalendar.enabled.
+  'google.connect': {
+    req: z.object({}),
+    res: z.object({
+      ok: z.boolean(),
+      calendars: z
+        .array(z.object({ id: z.string(), name: z.string(), color: z.string(), kind: z.enum(['local', 'google']), readOnly: z.boolean() }))
+        .optional(),
+    }),
+  },
+  'google.applySelection': {
+    req: z.object({
+      calendars: z.array(z.object({ id: z.string(), name: z.string(), color: z.string(), kind: z.enum(['local', 'google']), readOnly: z.boolean() })),
+      direction: z.enum(['read-only', 'two-way']),
+    }),
+    res: ackSchema,
+  },
+  'google.disconnect': { req: z.object({ keepLocal: z.boolean() }), res: ackSchema },
+  'google.sync': { req: z.object({}), res: z.object({ ok: z.boolean(), changed: z.number() }) },
+  'google.resolveConflict': { req: z.object({ eventId: z.string(), choice: z.enum(['mine', 'theirs', 'both']) }), res: ackSchema },
   'undo.latest': { req: z.object({}), res: z.object({ ok: z.boolean(), label: z.string().optional() }) },
   // I4 link.preview: link.read capped to metadata + first paragraph (Notes affordance).
   'link.preview': {
@@ -355,6 +375,8 @@ export const pushChannels = {
   'alert.ringing': z.object({ kind: z.enum(['timer', 'alarm']), id: z.string(), label: z.string().nullable(), firedAt: z.number(), silent: z.boolean().default(false) }),
   'alert.stop': z.object({ id: z.string() }), // main → orb: stop ringing (snoozed/dismissed elsewhere)
   'update.state': z.object({ status: z.enum(['idle', 'checking', 'downloading', 'ready']), version: z.string().optional() }), // H7
+  // I7 Google Calendar sync status → Calendar header indicator
+  'google.state': z.object({ status: z.enum(['idle', 'syncing', 'error']), lastSyncTs: z.number().nullable(), message: z.string().optional() }),
 } as const satisfies Record<string, z.ZodType>;
 
 export type InvokeChannelName = keyof typeof invokeChannels;

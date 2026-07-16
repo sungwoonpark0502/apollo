@@ -10,6 +10,7 @@ import { createContactsRepo } from './contacts';
 import { createConversationsRepo } from './conversations';
 import { createMemoryRepo } from './memory';
 import { createUndoRepo } from './undo';
+import { createSyncRepo } from './sync';
 import { createCapabilityMissesRepo, createFeedsRepo, createPerfRepo, createSettingsRepo, createOAuthRepo } from './misc';
 import { createSuggestionsRepo } from './suggestions';
 import { createChunksRepo } from './chunks';
@@ -97,6 +98,7 @@ export function createRepos(db: Db, bus: DataBus = createDataBus()) {
     chunks: createChunksRepo(db),
     actionLog: createActionLogRepo(db),
     usageLog: createUsageLogRepo(db),
+    sync: createSyncRepo(db),
   };
 }
 

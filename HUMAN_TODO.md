@@ -32,6 +32,26 @@ Give these a human pass on a running app:
 - Empty states NOT yet re-copyedited (still functional, basic wording): Today, Calendar, Notes, Chats
   primary empty states could get the warmer one-liners the spec describes — low priority follow-up.
 
+## Phase 9 / I7 Google Calendar sync — live account required
+The sync engine, mapping, conflict handling, disconnect, offline queue, and opt-in-inert behavior are
+fully implemented and unit-tested against a **mocked** Google client (no account needed to reach green).
+What genuinely needs a human + a real Google account:
+- **Live incremental auth.** `getCalendarToken()` in index.ts returns null (so the module stays inert and
+  safe). Wire the calendar-scope PKCE grant: reuse the installed-app flow, request
+  `https://www.googleapis.com/auth/calendar` at connect time (incremental — Gmail scopes untouched),
+  store the token via safeStorage in a separate account row, and implement `revoke()` against
+  oauth2.googleapis.com/revoke. Until then "Connect Google Calendar" in Settings > Accounts shows a
+  "not set up on this build" message.
+- **End-to-end verification** against a real calendar: connect, pick calendars + direction, confirm pull
+  (incremental token, recurrence, timezones), two-way push with etag, a real conflict (edit the same
+  event in two places) → the conflict card, disconnect keep-vs-remove, and offline queue flush.
+- **Editor cross-boundary move**: the atomic move (delete-here + create-there, queuing remote ops) is
+  implemented and tested in the engine (`moveEvent`), but the event editor's calendar picker currently
+  just changes calendar_id; wiring the picker to call the engine move for local↔synced transitions is a
+  follow-up.
+- Egress note: I7 added `www.googleapis.com` (Calendar API) to the allowlist — a first-party Google host,
+  no wildcard. Confirm this is acceptable (see DECISIONS).
+
 ## Manual verification script — palette & keys (0.6)
 The agent already smoke-verified boot + an end-to-end turn programmatically
 (`APOLLO_SMOKE=1 pnpm dev` prints `SMOKE_OK … e2e=turn-ok`). What remains human

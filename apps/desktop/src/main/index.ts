@@ -44,6 +44,8 @@ import { createWeatherTools } from './tools/weather';
 import { createSearchWebTool } from './tools/searchWeb';
 import { createLinkTools } from './tools/link';
 import { createLinkReader } from './net/linkReader';
+import { createGCalModule } from './gcal/module';
+import { createGoogleClient } from './gcal/googleClient';
 import { createEmailTools } from './tools/email';
 import { createBriefTool } from './tools/brief';
 import { createScreenTool, readScreenContext } from './tools/screen';
@@ -548,6 +550,42 @@ function boot(): void {
     app.exit(0);
   }
 
+  // I7 Google Calendar sync module. Inert unless googleCalendar.enabled; the
+  // calendar-scope token is not yet wired (see HUMAN_TODO for live auth), so
+  // makeClient returns null and the module stays fully inert until connected.
+  const pushGoogleState = (s: { status: 'idle' | 'syncing' | 'error'; lastSyncTs: number | null; message?: string }): void => {
+    for (const win of BrowserWindow.getAllWindows()) if (!win.isDestroyed()) pushTo(win.webContents, 'google.state', s);
+  };
+  const getCalendarToken = async (): Promise<string | null> => null; // HUMAN_TODO: incremental calendar-scope grant
+  const gcal = createGCalModule({
+    repos,
+    getSettings: () => settings.get(),
+    setSettings: (s) => settings.set(s),
+    makeClient: () =>
+      settings.get().googleCalendar.enabled
+        ? createGoogleClient({
+            http,
+            getAccessToken: getCalendarToken,
+            // Egress-guarded: the Calendar client may only reach allowlisted Google hosts.
+            fetchFn: (url, init) => {
+              if (!egress.isAllowedUrl(url as string)) throw new Error(`egress blocked: ${url as string}`);
+              return net.fetch(url as string, init) as unknown as Promise<Response>;
+            },
+          })
+        : null,
+    pushState: pushGoogleState,
+    // I7.4: surface conflicts as a card on the orb with Keep mine / theirs / both.
+    onConflict: (c) =>
+      emitToAll({
+        type: 'card',
+        card: { kind: 'syncConflict', eventId: c.eventId, localTitle: c.local.title, localStart: c.local.startTs, remoteTitle: c.remote.title, remoteStart: c.remote.startTs },
+      }),
+    revoke: async () => {
+      /* HUMAN_TODO: revoke the calendar scope via oauth2.googleapis.com/revoke */
+    },
+    log,
+  });
+
   const handlers = buildHandlers({
     orchestrator: () => orchestrator,
     repos,
@@ -728,6 +766,15 @@ function boot(): void {
       const r = await linkReader.read(url, { previewOnly: true });
       return { ok: r.ok, url: r.url, title: r.title || r.siteName, summary: r.text, siteName: r.siteName, ...(r.error ? { error: r.error } : {}) };
     },
+    googleConnect: () => gcal.connect(),
+    googleApplySelection: (req) => {
+      gcal.applySelection(req.calendars, req.direction);
+      gcal.start();
+      void gcal.sync();
+    },
+    googleDisconnect: (keepLocal) => gcal.disconnect(keepLocal),
+    googleSync: () => gcal.sync(),
+    googleResolveConflict: (req) => gcal.resolveConflict(req.eventId, req.choice),
     checkForUpdates: async () => (app.isPackaged ? { status: 'checking' as const } : { status: 'disabled' as const }),
     installUpdate: () => updaterHandle?.install(),
     resourceReport: () =>
@@ -781,6 +828,10 @@ function boot(): void {
   if (!settings.get().onboarded && process.env['APOLLO_SMOKE'] !== '1') {
     createOnboardingWindow();
   }
+
+  // I7: start the 15-min sync tick when Google is connected; sync on focus if stale.
+  if (gcal.enabled()) gcal.start();
+  app.on('browser-window-focus', () => void gcal.onFocus());
 
   // C14.8 auto-updates (packaged builds only).
   let updaterHandle: Awaited<ReturnType<typeof initUpdater>> | null = null;

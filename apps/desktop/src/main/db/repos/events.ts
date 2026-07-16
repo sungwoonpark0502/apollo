@@ -205,6 +205,11 @@ export function createEventsRepo(db: Db) {
       return true;
     },
 
+    /** I7: replace the exdate set wholesale (Google recurrence sync). */
+    replaceExdates(id: string, dates: string[]): void {
+      db.prepare('UPDATE events SET exdates=?, updated_at=? WHERE id=?').run(JSON.stringify([...new Set(dates)]), nowMs(), id);
+    },
+
     /** I2: count non-deleted events on a calendar (delete-with-events guard). */
     countByCalendar(calendarId: string): number {
       return (db.prepare('SELECT COUNT(*) AS n FROM events WHERE deleted_at IS NULL AND calendar_id=?').get(calendarId) as { n: number }).n;
@@ -213,6 +218,18 @@ export function createEventsRepo(db: Db) {
     /** I2: move every event from one calendar to another (delete-with-reassign). */
     reassignCalendar(from: string, to: string): number {
       return db.prepare('UPDATE events SET calendar_id=?, updated_at=? WHERE calendar_id=? AND deleted_at IS NULL').run(to, nowMs(), from).changes;
+    },
+
+    /** I7 disconnect (keep local): move a synced calendar's events to 'default', stripping remote fields. */
+    convertCalendarToLocal(from: string): number {
+      return db.prepare(
+        "UPDATE events SET calendar_id='default', remote_id=NULL, etag=NULL, sync_status=NULL, updated_at=? WHERE calendar_id=? AND deleted_at IS NULL",
+      ).run(nowMs(), from).changes;
+    },
+
+    /** I7 disconnect (remove): soft-delete every event on a calendar. */
+    deleteByCalendar(from: string): number {
+      return db.prepare('UPDATE events SET deleted_at=?, updated_at=? WHERE calendar_id=? AND deleted_at IS NULL').run(nowMs(), nowMs(), from).changes;
     },
 
     /** I7: events on a synced calendar, by remote id (sync engine). */

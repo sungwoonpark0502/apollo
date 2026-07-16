@@ -6,6 +6,7 @@ import { WeatherCard } from './WeatherCard';
 import { ConfirmCard } from './ConfirmCard';
 import { BatchConfirmCard } from './BatchConfirmCard';
 import { LinkPreviewCard } from './LinkPreviewCard';
+import { SyncConflictCard } from './SyncConflictCard';
 import { EventCard, EventListCard } from './EventCard';
 import { EmailListCard, EmailDetailCard, DraftCard } from './EmailCard';
 import { BriefCard } from './BriefCard';
@@ -53,6 +54,8 @@ export function CardView({ card }: { card: CardPayload }): React.JSX.Element {
       return <RecallListCard items={card.items} />;
     case 'linkPreview':
       return <LinkPreviewCard url={card.url} title={card.title} summary={card.summary} siteName={card.siteName} />;
+    case 'syncConflict':
+      return <SyncConflictCard eventId={card.eventId} localTitle={card.localTitle} localStart={card.localStart} remoteTitle={card.remoteTitle} remoteStart={card.remoteStart} />;
     default:
       return <TextCard body={JSON.stringify(card, null, 2)} />;
   }

@@ -35,6 +35,11 @@ export interface HandlerDeps {
   todayData?: () => Promise<InvokeRes<'workspace.today'>>;
   geocode?: (query: string, countryCode?: string) => Promise<InvokeRes<'geocode.search'>>;
   linkPreview?: (url: string) => Promise<InvokeRes<'link.preview'>>;
+  googleConnect?: () => Promise<InvokeRes<'google.connect'>>;
+  googleApplySelection?: (req: InvokeReq<'google.applySelection'>) => void;
+  googleDisconnect?: (keepLocal: boolean) => Promise<void>;
+  googleSync?: () => Promise<InvokeRes<'google.sync'>>;
+  googleResolveConflict?: (req: InvokeReq<'google.resolveConflict'>) => void;
   checkForUpdates?: () => Promise<InvokeRes<'update.check'>>;
   installUpdate?: () => void;
   resourceReport?: () => InvokeRes<'resources.get'>;
@@ -86,6 +91,20 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
     },
     'resources.get': () => deps.resourceReport?.() ?? [],
     'shortcuts.list': () => shortcutList(process.platform === 'darwin'),
+    'google.connect': async () => (deps.googleConnect ? deps.googleConnect() : { ok: false as const }),
+    'google.applySelection': (req) => {
+      deps.googleApplySelection?.(req);
+      return { ok: true as const };
+    },
+    'google.disconnect': async (req) => {
+      await deps.googleDisconnect?.(req.keepLocal);
+      return { ok: true as const };
+    },
+    'google.sync': async () => (deps.googleSync ? deps.googleSync() : { ok: false as const, changed: 0 }),
+    'google.resolveConflict': (req) => {
+      deps.googleResolveConflict?.(req);
+      return { ok: true as const };
+    },
     'suggestion.action': (req) => {
       deps.suggestionAction?.(req.suggestionId, req.actionId);
       return { ok: true as const };

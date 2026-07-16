@@ -9,6 +9,7 @@ export const BASE_ALLOWED_HOSTS: readonly string[] = [
   'api.open-meteo.com',
   'geocoding-api.open-meteo.com',
   'gmail.googleapis.com',
+  'www.googleapis.com', // I7 Google Calendar API (calendar/v3)
   'oauth2.googleapis.com',
   'accounts.google.com',
   'speech.platform.bing.com',
