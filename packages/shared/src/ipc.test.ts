@@ -94,6 +94,7 @@ const invokeFixtures: Record<InvokeChannelName, { req: unknown; res: unknown }> 
   'undo.apply': { req: { undoToken: 'u1' }, res: { ok: true } },
   'undo.recent': { req: {}, res: [{ undoToken: 'u1', label: 'Deleted a note', ts: 1_800_000_000_000 }] },
   'undo.latest': { req: {}, res: { ok: true, label: 'Deleted a note' } },
+  'link.preview': { req: { url: 'https://example.com/post' }, res: { ok: true, url: 'https://example.com/post', title: 'Post', summary: 'A short summary.', siteName: 'example.com' } },
   'suggestion.action': { req: { suggestionId: 's1', actionId: 'dismiss' }, res: { ok: true } },
   'proactive.recent': { req: { limit: 10 }, res: [{ id: 's1', ruleId: 'meeting_lead', title: 'Standup in 10 min', createdAt: 1, outcome: 'dismissed' }] },
   'capture.open': { req: {}, res: { ok: true } },

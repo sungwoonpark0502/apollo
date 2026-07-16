@@ -179,6 +179,11 @@ export const invokeChannels = {
     res: z.array(z.object({ undoToken: z.string(), label: z.string(), ts: z.number() })),
   },
   'undo.latest': { req: z.object({}), res: z.object({ ok: z.boolean(), label: z.string().optional() }) },
+  // I4 link.preview: link.read capped to metadata + first paragraph (Notes affordance).
+  'link.preview': {
+    req: z.object({ url: z.string().url() }),
+    res: z.object({ ok: z.boolean(), url: z.string(), title: z.string(), summary: z.string(), siteName: z.string(), error: z.string().optional() }),
+  },
   // ---- F1 Proactive + Quick Capture channels ----
   'suggestion.action': { req: z.object({ suggestionId: z.string(), actionId: z.string() }), res: ackSchema },
   'proactive.recent': {

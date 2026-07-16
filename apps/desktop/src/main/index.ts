@@ -42,6 +42,8 @@ import { createFilesTool } from './tools/files';
 import { createSystemTools, spawnRunner } from './tools/system';
 import { createWeatherTools } from './tools/weather';
 import { createSearchWebTool } from './tools/searchWeb';
+import { createLinkTools } from './tools/link';
+import { createLinkReader } from './net/linkReader';
 import { createEmailTools } from './tools/email';
 import { createBriefTool } from './tools/brief';
 import { createScreenTool, readScreenContext } from './tools/screen';
@@ -202,6 +204,10 @@ function boot(): void {
   // H4: use Electron's net.fetch transport (system proxy, PAC, OS cert store) while
   // preserving the httpClient interface, breaker, and egress allowlist.
   const http = createHttpClient({ egress, breaker: createBreaker(), fetchFn: (url, init) => net.fetch(url as string, init), log });
+  // I4 user-link lane: the ONLY egress path that reaches arbitrary public hosts,
+  // and only for user-provided links via link.read/link.preview. It replaces the
+  // C14.9 allowlist with the SSRF guard; nothing else may use it.
+  const linkReader = createLinkReader({ fetchFn: (url, init) => net.fetch(url as string, init) as unknown as Promise<Response>, log });
 
   // H6 ringing overlay: push to the orb + OS notification. DND suppresses sound only.
   function ringAlert(kind: 'timer' | 'alarm', id: string, label: string | null, body: string): void {
@@ -288,6 +294,7 @@ function boot(): void {
         getUnits: () => settings.get().profile.units,
       }),
       createSearchWebTool({ http, getBraveKey: () => secrets.get('brave') }),
+      ...createLinkTools({ reader: linkReader, allowLinkReading: () => settings.get().allowLinkReading }),
       createRecallTool({ recall, tz: () => Intl.DateTimeFormat().resolvedOptions().timeZone }),
       createNewsTool({ http, feeds: repos.feeds, summarize: createLlmSummarizer(llm) }),
       createFilesTool({ getApprovedDirs: () => settings.get().approvedDirs }),
@@ -708,6 +715,13 @@ function boot(): void {
       } catch {
         return [];
       }
+    },
+    linkPreview: async (url) => {
+      // I4 Notes affordance: a direct user action on a URL they authored → SSRF +
+      // policy gate apply (via the reader), no substring gate needed.
+      if (!settings.get().allowLinkReading) return { ok: false as const, url, title: '', summary: '', siteName: '', error: 'disabled' };
+      const r = await linkReader.read(url, { previewOnly: true });
+      return { ok: r.ok, url: r.url, title: r.title || r.siteName, summary: r.text, siteName: r.siteName, ...(r.error ? { error: r.error } : {}) };
     },
     checkForUpdates: async () => (app.isPackaged ? { status: 'checking' as const } : { status: 'disabled' as const }),
     installUpdate: () => updaterHandle?.install(),

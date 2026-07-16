@@ -5,6 +5,7 @@ import { TimerCard } from './TimerCard';
 import { WeatherCard } from './WeatherCard';
 import { ConfirmCard } from './ConfirmCard';
 import { BatchConfirmCard } from './BatchConfirmCard';
+import { LinkPreviewCard } from './LinkPreviewCard';
 import { EventCard, EventListCard } from './EventCard';
 import { EmailListCard, EmailDetailCard, DraftCard } from './EmailCard';
 import { BriefCard } from './BriefCard';
@@ -50,6 +51,8 @@ export function CardView({ card }: { card: CardPayload }): React.JSX.Element {
       return <BriefCard sections={card.sections} />;
     case 'recallList':
       return <RecallListCard items={card.items} />;
+    case 'linkPreview':
+      return <LinkPreviewCard url={card.url} title={card.title} summary={card.summary} siteName={card.siteName} />;
     default:
       return <TextCard body={JSON.stringify(card, null, 2)} />;
   }

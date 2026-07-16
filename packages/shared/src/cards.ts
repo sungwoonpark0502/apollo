@@ -61,6 +61,7 @@ export type CardPayload =
   | { kind: 'draft'; to: string[]; subject: string; body: string }
   | { kind: 'confirm'; confirmationId: string; action: ConfirmAction; expiresAt: number }
   | { kind: 'batchConfirm'; confirmationId: string; actions: ConfirmAction[]; expiresAt: number }
+  | { kind: 'linkPreview'; url: string; title: string; summary: string; siteName: string }
   | { kind: 'brief'; sections: CardPayload[] }
   | { kind: 'nudge'; suggestion: SuggestionDTO }
   | { kind: 'nudgeGroup'; suggestions: SuggestionDTO[] }
@@ -149,6 +150,7 @@ export const cardPayloadSchema: z.ZodType<CardPayload> = z.lazy(() =>
     z.object({ kind: z.literal('draft'), to: z.array(z.string()), subject: z.string(), body: z.string() }),
     z.object({ kind: z.literal('confirm'), confirmationId: z.string(), action: confirmActionSchema, expiresAt: z.number() }),
     z.object({ kind: z.literal('batchConfirm'), confirmationId: z.string(), actions: z.array(confirmActionSchema), expiresAt: z.number() }),
+    z.object({ kind: z.literal('linkPreview'), url: z.string(), title: z.string(), summary: z.string(), siteName: z.string() }),
     z.object({ kind: z.literal('brief'), sections: z.array(cardPayloadSchema) }),
     z.object({ kind: z.literal('nudge'), suggestion: suggestionDTOSchema }),
     z.object({ kind: z.literal('nudgeGroup'), suggestions: z.array(suggestionDTOSchema) }),

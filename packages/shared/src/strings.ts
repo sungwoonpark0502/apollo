@@ -47,6 +47,8 @@ export const STRINGS = {
   cards: {
     pin: 'Pin',
     unpin: 'Unpin',
+    open: 'Open',
+    preview: 'Preview',
     delete: 'Delete',
     edit: 'Edit',
     cancel: 'Cancel',
@@ -441,6 +443,7 @@ export const STRINGS = {
       empty: 'No notes yet.',
       emptyEditor: 'Select a note or create a new one.',
       placeholder: 'Start writing…',
+      previewFailed: "Couldn't load a preview for that link.",
     },
     omni: {
       placeholder: 'Search notes, events, and memory…',

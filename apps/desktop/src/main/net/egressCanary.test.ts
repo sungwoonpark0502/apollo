@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { BASE_ALLOWED_HOSTS, createEgressPolicy } from './egress';
 import { createHttpClient } from './httpClient';
@@ -30,5 +32,38 @@ describe('egress canary (H4)', () => {
     const allow = new Set(BASE_ALLOWED_HOSTS);
     for (const host of observed) expect(allow.has(host)).toBe(true);
     expect(observed.has('evil.example.com')).toBe(false);
+  });
+
+  it('the base allowlist is a fixed set with no wildcard/arbitrary host (I4 does not widen it)', () => {
+    for (const h of BASE_ALLOWED_HOSTS) {
+      expect(h).not.toContain('*');
+      expect(h).toMatch(/^[a-z0-9.-]+$/);
+    }
+    // The user-link lane adds no hosts to the standard allowlist.
+    expect(createEgressPolicy(() => []).isAllowedUrl('https://arbitrary.example.com/x')).toBe(false);
+  });
+
+  it('the user-link lane (linkReader) is constructed only in main wiring and consumed only by the link tool', () => {
+    const SRC = join(__dirname, '..'); // apps/desktop/src/main
+    const constructs: string[] = []; // files that call createLinkReader(
+    const importers: string[] = []; // files that reference the linkReader module
+    const walk = (dir: string): void => {
+      for (const name of readdirSync(dir)) {
+        const p = join(dir, name);
+        if (statSync(p).isDirectory()) {
+          walk(p);
+          continue;
+        }
+        if (!/\.(ts|tsx)$/.test(name) || name.endsWith('.test.ts') || name === 'linkReader.ts') continue;
+        const text = readFileSync(p, 'utf8');
+        const rel = p.slice(SRC.length + 1);
+        if (/createLinkReader\s*\(/.test(text)) constructs.push(rel);
+        if (/from '.*\/net\/linkReader'/.test(text)) importers.push(rel);
+      }
+    };
+    walk(SRC);
+    // Only main wiring builds the lane; only the link tool references its type.
+    expect(constructs.sort()).toEqual(['index.ts']);
+    expect(importers.sort()).toEqual(['index.ts', 'tools/link.ts']);
   });
 });

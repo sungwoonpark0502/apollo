@@ -42,6 +42,7 @@ const samples: CardPayload[] = [
     ],
     expiresAt: 1_800_000_000_000,
   },
+  { kind: 'linkPreview', url: 'https://example.com/post', title: 'A Post', summary: 'Two sentences. About a thing.', siteName: 'example.com' },
   { kind: 'brief', sections: [{ kind: 'text', body: 'Good morning' }] },
   {
     kind: 'nudge',
@@ -76,7 +77,7 @@ describe('card payload round-trips (every kind)', () => {
   it('covers every kind in the union', () => {
     const kinds = new Set(samples.map((s) => s.kind));
     expect([...kinds].sort()).toEqual(
-      ['batchConfirm', 'brief', 'confirm', 'draft', 'emailDetail', 'emailList', 'event', 'eventList', 'newsList', 'nudge', 'nudgeGroup', 'recallList', 'text', 'timer', 'weather'].sort(),
+      ['batchConfirm', 'brief', 'confirm', 'draft', 'emailDetail', 'emailList', 'event', 'eventList', 'linkPreview', 'newsList', 'nudge', 'nudgeGroup', 'recallList', 'text', 'timer', 'weather'].sort(),
     );
   });
   it('rejects unknown kind', () => {

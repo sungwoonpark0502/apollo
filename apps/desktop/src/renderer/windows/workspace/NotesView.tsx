@@ -195,9 +195,70 @@ function NoteEditor({ noteId, onChanged, onDeleted }: { noteId: string; onChange
         placeholder={n.placeholder}
         style={editorArea}
       />
+      <LinkPreviews content={content} />
       <div style={{ padding: 'var(--sp-2) var(--sp-4)', borderTop: '1px solid var(--border)', fontSize: 'var(--fs-caption)', color: 'var(--text-3)' }}>
         {n.words(wordCount(content))}
       </div>
+    </div>
+  );
+}
+
+/** I4: bare URLs on their own line get an inline Preview affordance (link.preview). */
+export function bareUrls(content: string): string[] {
+  const out: string[] = [];
+  for (const line of content.split('\n')) {
+    const t = line.trim();
+    if (/^https?:\/\/\S+$/.test(t) && !out.includes(t)) out.push(t);
+  }
+  return out.slice(0, 5);
+}
+
+function LinkPreviews({ content }: { content: string }): React.JSX.Element | null {
+  const urls = bareUrls(content);
+  if (urls.length === 0) return null;
+  return (
+    <div style={{ padding: 'var(--sp-2) var(--sp-4)', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)' }}>
+      {urls.map((u) => (
+        <LinkPreviewRow key={u} url={u} />
+      ))}
+    </div>
+  );
+}
+
+function LinkPreviewRow({ url }: { url: string }): React.JSX.Element {
+  const [state, setState] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
+  const [preview, setPreview] = useState<{ title: string; summary: string; siteName: string } | null>(null);
+
+  const load = (): void => {
+    setState('loading');
+    void window.apollo.call('link.preview', { url }).then((r) => {
+      if (r.ok) {
+        setPreview({ title: r.title, summary: r.summary, siteName: r.siteName });
+        setState('done');
+      } else {
+        setState('error');
+      }
+    });
+  };
+
+  return (
+    <div style={{ fontSize: 'var(--fs-caption)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
+        <span style={{ color: 'var(--text-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{url}</span>
+        {state === 'idle' ? (
+          <button onClick={load} style={{ ...toolBtn, fontSize: 'var(--fs-caption)' }}>{STRINGS.cards.preview}</button>
+        ) : state === 'loading' ? (
+          <span style={{ color: 'var(--text-3)' }}>…</span>
+        ) : null}
+      </div>
+      {state === 'done' && preview ? (
+        <div style={{ marginTop: 'var(--sp-1)', paddingLeft: 'var(--sp-2)', borderLeft: '2px solid var(--border)' }}>
+          <div style={{ color: 'var(--text-3)' }}>{preview.siteName}</div>
+          <div style={{ color: 'var(--text-1)', fontWeight: 500 }}>{preview.title}</div>
+          {preview.summary ? <div style={{ color: 'var(--text-2)' }}>{preview.summary}</div> : null}
+        </div>
+      ) : null}
+      {state === 'error' ? <div style={{ color: 'var(--text-3)', marginTop: 'var(--sp-1)' }}>{STRINGS.workspace.notes.previewFailed}</div> : null}
     </div>
   );
 }

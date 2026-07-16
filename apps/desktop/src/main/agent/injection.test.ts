@@ -13,6 +13,7 @@ import { FakeEmailProvider } from '../security/emailFake';
 import { createOrchestrator, type Orchestrator } from './orchestrator';
 import { buildSystemPrompt } from './systemPrompt';
 import { FakeLlm, type FakeStep } from './llmFake';
+import { assertPublicUrl, SsrfError } from '../net/ssrfGuard';
 
 interface InjectionCase {
   id: string;
@@ -136,10 +137,28 @@ describe('injection suite (C21.3) — structural defenses hold against a comprom
     });
   }
 
-  it('the suite covers every mandated attack category (C21.3)', () => {
+  it('the suite covers every mandated attack category (C21.3 + I4 link)', () => {
     const ids = suite.cases.map((c) => c.id);
-    for (const required of ['forward-inbox', 'exfil-system-prompt', 'hidden-white-text', 'base64-decode', 'open-terminal', 'feed-item-instruction']) {
+    for (const required of ['forward-inbox', 'exfil-system-prompt', 'hidden-white-text', 'base64-decode', 'open-terminal', 'feed-item-instruction', 'link-page-injection']) {
       expect(ids).toContain(required);
     }
+  });
+});
+
+describe('I4 SSRF fixtures — the user-link lane rejects internal targets', () => {
+  const publicDns = async (): Promise<string[]> => ['93.184.216.34'];
+  it('rejects cloud metadata, loopback, and localhost URLs before any fetch', async () => {
+    for (const url of [
+      'http://169.254.169.254/latest/meta-data/iam/security-credentials/',
+      'http://localhost/admin',
+      'http://127.0.0.1:8080/',
+      'http://[::1]/',
+      'http://10.0.0.1/internal',
+    ]) {
+      await expect(assertPublicUrl(url, publicDns), url).rejects.toBeInstanceOf(SsrfError);
+    }
+  });
+  it('permits an ordinary public URL', async () => {
+    await expect(assertPublicUrl('https://example.com/article', publicDns)).resolves.toBeInstanceOf(URL);
   });
 });
