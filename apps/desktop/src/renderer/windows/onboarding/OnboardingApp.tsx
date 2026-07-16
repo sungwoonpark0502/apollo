@@ -14,13 +14,14 @@ const PROFILE_STEP = 1;
 export function OnboardingApp(): React.JSX.Element {
   const [step, setStep] = useState(0);
   const [profileName, setProfileName] = useState('');
+  const [seedWelcome, setSeedWelcome] = useState(true); // I6 opt-in, default yes
 
   useEffect(() => {
     void window.apollo.call('settings.get', {}).then((s) => setProfileName(s.profile.name));
   }, []);
 
   const finish = (): void => {
-    void window.apollo.call('onboarding.finish', {}).then(() => window.close());
+    void window.apollo.call('onboarding.finish', { seedWelcomeNote: seedWelcome }).then(() => window.close());
   };
 
   // H/E6 override: name is required to move past the Profile step; location is optional.
@@ -32,17 +33,20 @@ export function OnboardingApp(): React.JSX.Element {
     <Permissions key="p" />,
     <Keys key="k" />,
     <WakeWord key="wa" />,
-    <TryIt key="t" onDone={finish} />,
+    <TryIt key="t" onDone={finish} seedWelcome={seedWelcome} onSeedChange={setSeedWelcome} />,
   ];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', padding: 'var(--sp-6)', background: 'var(--bg)', color: 'var(--text-1)' }}>
       <div style={{ flex: 1 }}>{steps[step]}</div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'var(--sp-4)' }}>
-        <div style={{ display: 'flex', gap: 'var(--sp-1)' }}>
-          {steps.map((_, i) => (
-            <span key={i} style={{ width: 6, height: 6, borderRadius: '50%', background: i === step ? 'var(--accent)' : 'var(--border)' }} />
-          ))}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-1)' }}>
+          <div style={{ display: 'flex', gap: 'var(--sp-1)' }}>
+            {steps.map((_, i) => (
+              <span key={i} style={{ width: 6, height: 6, borderRadius: '50%', background: i === step ? 'var(--accent)' : 'var(--border)' }} />
+            ))}
+          </div>
+          <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-3)' }}>{STRINGS.onboarding.stepIndicator(step + 1, steps.length)}</span>
         </div>
         <div style={{ display: 'flex', gap: 'var(--sp-2)' }}>
           {step > 0 ? (
@@ -221,10 +225,14 @@ function WakeWord(): React.JSX.Element {
   );
 }
 
-function TryIt({ onDone }: { onDone: () => void }): React.JSX.Element {
+function TryIt({ onDone, seedWelcome, onSeedChange }: { onDone: () => void; seedWelcome: boolean; onSeedChange: (v: boolean) => void }): React.JSX.Element {
   return (
     <Panel title={STRINGS.onboarding.tryTitle}>
       <p style={body}>{STRINGS.onboarding.tryBody('Option+Space')}</p>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', marginTop: 'var(--sp-3)', fontSize: 'var(--fs-body)', color: 'var(--text-2)' }}>
+        <input type="checkbox" checked={seedWelcome} onChange={(e) => onSeedChange(e.target.checked)} />
+        {STRINGS.onboarding.sampleNote}
+      </label>
       <button onClick={onDone} style={{ ...primaryButton, marginTop: 'var(--sp-4)' }}>
         {STRINGS.onboarding.tryFinish}
       </button>

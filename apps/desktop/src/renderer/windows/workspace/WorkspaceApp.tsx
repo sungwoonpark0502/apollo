@@ -1,11 +1,18 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { STRINGS } from '@apollo/shared';
+import { matchesBinding, shortcut, STRINGS } from '@apollo/shared';
 import { useFormatInit, useNavigate, useSettings } from '../../lib/useLive';
 import { TodayView } from './TodayView';
 import { CalendarView } from './CalendarView';
 import { NotesView } from './NotesView';
 import { ChatsView } from './ChatsView';
 import { OmniSearch } from './OmniSearch';
+import { ShortcutsHelp } from './ShortcutsHelp';
+
+/** Match a keyboard event against a registered shortcut id (single source, I6). */
+function isShortcut(id: string, e: KeyboardEvent): boolean {
+  const b = shortcut(id)?.binding;
+  return !!b && matchesBinding(b, e);
+}
 
 type View = 'today' | 'calendar' | 'notes' | 'chats';
 
@@ -17,8 +24,18 @@ export function WorkspaceApp(): React.JSX.Element {
   const [navDateIso, setNavDateIso] = useState<string | undefined>(undefined);
   const [navNoteId, setNavNoteId] = useState<string | undefined>(undefined);
   const [omniOpen, setOmniOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [undoToast, setUndoToast] = useState<string | null>(null);
+  const [keysBanner, setKeysBanner] = useState(false);
   const settings = useSettings();
+
+  // I6: a persistent, dismissible banner when required keys are missing, instead of silent degradation.
+  useEffect(() => {
+    void window.apollo.call('keys.info', {}).then((info) => {
+      const has = (p: string): boolean => info.some((k) => k.provider === p && k.configured);
+      if (!has('anthropic') || !has('deepgram')) setKeysBanner(true);
+    });
+  }, []);
 
   // I3 global undo: Cmd/Ctrl+Z reverses the most recent action across surfaces,
   // including after a per-action toast has expired (up to 10 back).
@@ -43,20 +60,29 @@ export function WorkspaceApp(): React.JSX.Element {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
-      const mod = e.metaKey || e.ctrlKey;
-      if (mod && e.key.toLowerCase() === 'k') { setOmniOpen((v) => !v); e.preventDefault(); }
-      else if (mod && !e.shiftKey && e.key.toLowerCase() === 'z' && !isTyping(e)) { undoLatest(); e.preventDefault(); }
-      else if (mod && e.key === '1') { go('today'); e.preventDefault(); }
-      else if (mod && e.key === '2') { go('calendar'); e.preventDefault(); }
-      else if (mod && e.key === '3') { go('notes'); e.preventDefault(); }
-      else if (!mod && e.key.toLowerCase() === 't' && !isTyping(e)) { go('today'); }
+      // I6: bindings come from the shortcuts registry so help + behavior stay in sync.
+      if (isShortcut('workspace.omnisearch', e)) { setOmniOpen((v) => !v); e.preventDefault(); }
+      else if ((isShortcut('workspace.help', e) || isShortcut('workspace.helpAlt', e)) && !isTyping(e)) { setHelpOpen((v) => !v); e.preventDefault(); }
+      else if (isShortcut('workspace.undo', e) && !isTyping(e)) { undoLatest(); e.preventDefault(); }
+      else if (isShortcut('workspace.today', e)) { go('today'); e.preventDefault(); }
+      else if (isShortcut('workspace.calendar', e)) { go('calendar'); e.preventDefault(); }
+      else if (isShortcut('workspace.notes', e)) { go('notes'); e.preventDefault(); }
+      else if (isShortcut('calendar.today', e) && !isTyping(e)) { go('today'); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [go, undoLatest]);
 
   return (
-    <div style={{ display: 'flex', height: '100vh', background: 'var(--bg)', color: 'var(--text-1)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg)', color: 'var(--text-1)' }}>
+      {keysBanner ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', padding: 'var(--sp-2) var(--sp-4)', background: 'var(--accent-soft)', borderBottom: '1px solid var(--border)', fontSize: 'var(--fs-caption)' }}>
+          <span style={{ flex: 1 }}>{STRINGS.onboarding.keysSkippedBanner}</span>
+          <button onClick={() => void window.apollo.call('settings.open', {})} style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-1)', borderRadius: 'var(--radius-ctl)', padding: '1px var(--sp-2)', cursor: 'pointer', fontSize: 'var(--fs-caption)', fontFamily: 'var(--font-sans)' }}>{STRINGS.onboarding.keysSkippedAction}</button>
+          <button onClick={() => setKeysBanner(false)} aria-label={STRINGS.onboarding.dismiss} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-3)' }}>✕</button>
+        </div>
+      ) : null}
+      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
       <nav
         style={{
           width: RAIL_W,
@@ -94,6 +120,7 @@ export function WorkspaceApp(): React.JSX.Element {
           <NotesView initialNoteId={navNoteId} />
         )}
       </main>
+      </div>
       {undoToast ? (
         <div
           role="status"
@@ -106,6 +133,7 @@ export function WorkspaceApp(): React.JSX.Element {
           {undoToast}
         </div>
       ) : null}
+      {helpOpen ? <ShortcutsHelp onClose={() => setHelpOpen(false)} /> : null}
       {omniOpen ? (
         <OmniSearch
           onClose={() => setOmniOpen(false)}

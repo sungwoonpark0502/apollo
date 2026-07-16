@@ -18,6 +18,20 @@ few turns):
   A generic copy affordance on Stage/orb cards other than events is NOT yet added (deferred).
 Confirm these read well and the deferred items are acceptable or file follow-ups.
 
+## Phase 9 / I6 empty states, onboarding, help — visual QA
+Structural pieces are done and tested (shortcuts registry single-source + help sheet, welcome-note
+seed, first-nudge explainer flag, keys-skipped banner, onboarding step indicator + sample-note opt-in).
+Give these a human pass on a running app:
+- Shortcuts help sheet: press `?` or Cmd/Ctrl+/ in the Workspace — every binding shown matches actual
+  behavior (they share the registry); scopes grouped Global/Workspace/Calendar/Notes/Voice.
+- Onboarding: run it fresh — "Step i of 6" indicator, Back preserves entered values, the sample-note
+  checkbox (default on) seeds a real welcome note, finish lands on Today; skip keys → the dismissible
+  banner appears in the Workspace.
+- First proactive nudge ever: the one-time explainer note appears above it, then never again.
+- Omnisearch: before typing shows recent notes; a no-match query offers "Create a note: …".
+- Empty states NOT yet re-copyedited (still functional, basic wording): Today, Calendar, Notes, Chats
+  primary empty states could get the warmer one-liners the spec describes — low priority follow-up.
+
 ## Manual verification script — palette & keys (0.6)
 The agent already smoke-verified boot + an end-to-end turn programmatically
 (`APOLLO_SMOKE=1 pnpm dev` prints `SMOKE_OK … e2e=turn-ok`). What remains human

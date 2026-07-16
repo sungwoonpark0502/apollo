@@ -672,8 +672,13 @@ function boot(): void {
     logTail: (lines) => readLogTail(join(userData, 'logs', 'apollo.log'), lines),
     egressHosts: () => egress.allowedHosts(),
     wipeAllData: () => wipeAllData(),
-    finishOnboarding: () => {
+    finishOnboarding: (opts) => {
+      const firstTime = !settings.get().onboarded;
       settings.patch({ onboarded: true });
+      // I6: opt-in welcome note, seeded once. A real, editable, deletable note.
+      if (firstTime && opts.seedWelcomeNote && repos.notes.list({ limit: 1 }).length === 0) {
+        repos.notes.save({ content: STRINGS.onboarding.welcomeNote });
+      }
       closeOnboardingWindow();
       openWorkspace({ view: 'today' }); // E6: finish opens the Workspace Today view
     },
@@ -821,7 +826,10 @@ function boot(): void {
     // (never suppress a nudge for a fullscreen we can't observe). See HUMAN_TODO.
     isFullscreen: () => false,
     push: (payload) => {
-      if (!orbWindow.isDestroyed()) pushTo(orbWindow.webContents, 'suggestion.show', { ...payload, silent: payload.silent ?? false });
+      // I6: the very first proactive nudge ever is preceded by a one-time explainer.
+      const firstNudge = !settings.get().firstNudgeSeen;
+      if (firstNudge) settings.patch({ firstNudgeSeen: true });
+      if (!orbWindow.isDestroyed()) pushTo(orbWindow.webContents, 'suggestion.show', { ...payload, silent: payload.silent ?? false, ...(firstNudge ? { firstNudge: true } : {}) });
     },
     notify: (title, body) => new Notification({ title, body }).show(),
     speak: (line) => {

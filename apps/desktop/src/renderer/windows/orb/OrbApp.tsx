@@ -56,6 +56,7 @@ export function OrbApp(): React.JSX.Element {
   const [ringing, setRinging] = useState<RingingAlert[]>([]);
   const [earconVol, setEarconVol] = useState(0.7);
   const [nudgeDot, setNudgeDot] = useState(false); // F3: small accent dot on the idle orb
+  const [firstNudgeNote, setFirstNudgeNote] = useState(false); // I6 one-time proactivity explainer
   const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hoveringRef = useRef(false);
   const voiceTurnRef = useRef(false); // E4: is the current turn voice-sourced?
@@ -127,9 +128,10 @@ export function OrbApp(): React.JSX.Element {
     const offAudio = window.apollo.on('tts.audio', ({ data, last }) => enqueueTtsChunk(data, last));
     const offStop = window.apollo.on('tts.stop', () => stopPlayback());
     const offSpoken = window.apollo.on('tts.spoken', ({ index }) => setSpokenIndex(index));
-    const offNudge = window.apollo.on('suggestion.show', ({ suggestion, group, silent }) => {
+    const offNudge = window.apollo.on('suggestion.show', ({ suggestion, group, silent, firstNudge }) => {
       const list = group ?? (suggestion ? [suggestion] : []);
       if (list.length === 0) return;
+      if (firstNudge) setFirstNudgeNote(true); // I6 one-time proactivity explainer
       if (!silent) void playEarcon('nudge'); // silent DND delivery skips the chime
       setNudges((ns) => [...ns, { id: newId(), suggestions: list }].slice(-4));
       setNudgeDot(true);
@@ -302,6 +304,12 @@ export function OrbApp(): React.JSX.Element {
       {/* proactive nudge panels (F3): quiet, dismissible, above the reply cards */}
       {nudges.length > 0 ? (
         <div style={{ width: 380, display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)', marginRight: 'var(--sp-3)' }}>
+          {firstNudgeNote ? (
+            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-2)', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-card)', padding: 'var(--sp-3)', display: 'flex', gap: 'var(--sp-2)', alignItems: 'flex-start' }}>
+              <span style={{ flex: 1 }}>{STRINGS.nudges.firstNudgeExplainer}</span>
+              <button onClick={() => setFirstNudgeNote(false)} aria-label="Dismiss" style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-3)' }}>✕</button>
+            </div>
+          ) : null}
           {nudges.map((p) => (
             <CardShell key={p.id}>
               {p.suggestions.length === 1 ? (

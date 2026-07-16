@@ -54,7 +54,7 @@ export const invokeChannels = {
   'oauth.google.start': { req: z.object({}), res: z.object({ ok: z.boolean(), address: z.string().optional() }) },
   'oauth.google.revoke': { req: z.object({}), res: z.object({ ok: z.boolean() }) },
   'oauth.google.status': { req: z.object({}), res: z.object({ connected: z.boolean(), address: z.string().nullable(), needsReauth: z.boolean() }) },
-  'onboarding.finish': { req: z.object({}), res: ackSchema },
+  'onboarding.finish': { req: z.object({ seedWelcomeNote: z.boolean().optional() }), res: ackSchema },
   'permissions.request': {
     req: z.object({ kind: z.enum(['mic', 'accessibility']) }),
     res: z.object({ granted: z.boolean() }),
@@ -177,6 +177,11 @@ export const invokeChannels = {
   'undo.recent': {
     req: z.object({}),
     res: z.array(z.object({ undoToken: z.string(), label: z.string(), ts: z.number() })),
+  },
+  // I6 shortcuts registry: single source that drives the help sheet.
+  'shortcuts.list': {
+    req: z.object({}),
+    res: z.array(z.object({ scope: z.enum(['Global', 'Workspace', 'Calendar', 'Notes', 'Voice']), keys: z.string(), description: z.string() })),
   },
   'undo.latest': { req: z.object({}), res: z.object({ ok: z.boolean(), label: z.string().optional() }) },
   // I4 link.preview: link.read capped to metadata + first paragraph (Notes affordance).
@@ -343,6 +348,7 @@ export const pushChannels = {
     suggestion: suggestionDTOSchema.optional(),
     group: z.array(suggestionDTOSchema).optional(),
     silent: z.boolean().default(false),
+    firstNudge: z.boolean().optional(), // I6: show the one-time proactivity explainer above this nudge
   }),
   'capture.result': z.object({ ok: z.boolean() }), // main → capture window: morph + close, or shake
   // H6: main → orb ringing overlay

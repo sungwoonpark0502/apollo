@@ -141,6 +141,8 @@ export const SettingsSchema = z.object({
     .default({}),
   // I4 policy gate for the user-link egress lane
   allowLinkReading: z.boolean().default(true),
+  // I6: one-time proactivity explainer has been shown
+  firstNudgeSeen: z.boolean().default(false),
   launchAtLogin: z.boolean().default(false),
   openWorkspaceOnLaunch: z.boolean().default(false), // E7 General tab
   workspaceBounds: z

@@ -21,11 +21,19 @@ export function OmniSearch({ onClose, onNavigate }: OmniSearchProps): React.JSX.
   const [facts, setFacts] = useState<RecallItem[]>([]);
   const [events, setEvents] = useState<EventDTO[]>([]);
   const [active, setActive] = useState(0);
+  const [recent, setRecent] = useState<Array<{ id: string; title: string }>>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     inputRef.current?.focus();
+    // I6 empty state: before typing, show recent notes as a jumping-off point.
+    void window.apollo.call('notes.list', { limit: 5 }).then((ns) => setRecent(ns.map((n) => ({ id: n.id, title: n.title }))));
   }, []);
+
+  const createNote = (): void => {
+    const q = query.trim();
+    void window.apollo.call('notes.save', { content: q }).then((n) => { onNavigate({ view: 'notes', noteId: n.id }); onClose(); });
+  };
 
   useEffect(() => {
     const q = query.trim();
@@ -87,8 +95,23 @@ export function OmniSearch({ onClose, onNavigate }: OmniSearchProps): React.JSX.
           style={{ width: '100%', boxSizing: 'border-box', padding: 'var(--sp-4)', fontSize: 'var(--fs-title)', border: 'none', borderBottom: '1px solid var(--border)', background: 'transparent', color: 'var(--text-1)', outline: 'none' }}
         />
         <div style={{ maxHeight: '46vh', overflowY: 'auto' }}>
+          {query.trim().length < 2 && recent.length > 0 ? (
+            <div>
+              <div style={{ padding: 'var(--sp-2) var(--sp-4)', fontSize: 'var(--fs-caption)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{STRINGS.workspace.omni.recent}</div>
+              {recent.map((n) => (
+                <button key={n.id} onClick={() => { onNavigate({ view: 'notes', noteId: n.id }); onClose(); }} style={{ display: 'block', width: '100%', textAlign: 'left', border: 'none', cursor: 'pointer', padding: 'var(--sp-2) var(--sp-4)', background: 'transparent', color: 'var(--text-1)', fontSize: 'var(--fs-body)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {n.title || STRINGS.workspace.notes.untitled}
+                </button>
+              ))}
+            </div>
+          ) : null}
           {query.trim().length >= 2 && rows.length === 0 ? (
-            <div style={{ padding: 'var(--sp-4)', color: 'var(--text-3)', fontSize: 'var(--fs-body)' }}>{STRINGS.workspace.omni.empty}</div>
+            <div style={{ padding: 'var(--sp-4)' }}>
+              <div style={{ color: 'var(--text-3)', fontSize: 'var(--fs-body)', marginBottom: 'var(--sp-2)' }}>{STRINGS.workspace.omni.empty}</div>
+              <button onClick={createNote} style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--accent)', borderRadius: 'var(--radius-ctl)', padding: 'var(--sp-1) var(--sp-3)', cursor: 'pointer', fontSize: 'var(--fs-body)', fontFamily: 'var(--font-sans)' }}>
+                {STRINGS.workspace.omni.createNote(query.trim())}
+              </button>
+            </div>
           ) : null}
           {renderGroup(STRINGS.workspace.omni.notes, rows, 'notes', activeIdx, rows, activate, setActive)}
           {renderGroup(STRINGS.workspace.omni.events, rows, 'events', activeIdx, rows, activate, setActive)}

@@ -3,7 +3,7 @@ import { type Orchestrator } from '../../agent/orchestrator';
 import { type Repos } from '../../db/repos/index';
 import { buildWorkspaceHandlers } from './workspace';
 import { applyCalendarCrud } from '../../calendars/service';
-import { newId, type InvokeReq, type InvokeRes } from '@apollo/shared';
+import { newId, shortcutList, type InvokeReq, type InvokeRes } from '@apollo/shared';
 import { type SettingsService } from '../../settingsService';
 import { type Secrets } from '../../security/secrets';
 import { type KeyProvider } from '@apollo/shared';
@@ -22,7 +22,7 @@ export interface HandlerDeps {
   logTail: (lines: number) => string[];
   egressHosts: () => string[];
   wipeAllData: () => void;
-  finishOnboarding?: () => void;
+  finishOnboarding?: (opts: { seedWelcomeNote?: boolean }) => void;
   requestPermission?: (kind: 'mic' | 'accessibility') => Promise<boolean>;
   oauthConnect?: () => Promise<{ ok: boolean; address?: string }>;
   oauthRevoke?: () => void;
@@ -85,6 +85,7 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
       return { ok: true as const };
     },
     'resources.get': () => deps.resourceReport?.() ?? [],
+    'shortcuts.list': () => shortcutList(process.platform === 'darwin'),
     'suggestion.action': (req) => {
       deps.suggestionAction?.(req.suggestionId, req.actionId);
       return { ok: true as const };
@@ -160,8 +161,8 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
       deps.wipeAllData(); // deletes DB + safeStorage entries and relaunches (C14.10)
       return { ok: true as const };
     },
-    'onboarding.finish': () => {
-      deps.finishOnboarding?.();
+    'onboarding.finish': (req) => {
+      deps.finishOnboarding?.({ seedWelcomeNote: req.seedWelcomeNote });
       return { ok: true as const };
     },
     'permissions.request': async (req) => ({ granted: (await deps.requestPermission?.(req.kind)) ?? false }),

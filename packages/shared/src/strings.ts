@@ -86,6 +86,11 @@ export const STRINGS = {
     taintWarning: (arg: string) => `The ${arg} did not come from you — double-check it.`,
   },
 
+  shortcuts: {
+    title: 'Keyboard shortcuts',
+    scopes: { Global: 'Global', Workspace: 'Workspace', Calendar: 'Calendar', Notes: 'Notes', Voice: 'Voice' } as Record<string, string>,
+  },
+
   orbControls: {
     cancel: 'Cancel',
     stop: 'Stop',
@@ -169,6 +174,21 @@ export const STRINGS = {
     tryTitle: 'Try it',
     tryBody: (hotkey: string) => `Press ${hotkey}, then try "set a timer for 5 minutes" or "what's the weather".`,
     tryFinish: 'Open Apollo',
+    stepIndicator: (i: number, n: number) => `Step ${i} of ${n}`,
+    sampleNote: 'Add a welcome note with example prompts',
+    keysSkippedBanner: 'Some features are limited until you add your Anthropic and Deepgram keys.',
+    keysSkippedAction: 'Add keys',
+    dismiss: 'Dismiss',
+    welcomeNote:
+      'Things you can ask Apollo\n\n' +
+      '• "Set a timer for 10 minutes"\n' +
+      '• "What\'s the weather this weekend?"\n' +
+      '• "Put dentist on my calendar Tuesday at 3"\n' +
+      '• "Remind me to call mom tomorrow at 6"\n' +
+      '• "Take a note: the wifi password is hunter2"\n' +
+      '• "What did I say about the drone idea?"\n' +
+      '• Paste a link and ask "what does this say?"\n\n' +
+      'This is a normal note — edit it or delete it whenever you like.',
   },
 
   settings: {
@@ -298,6 +318,7 @@ export const STRINGS = {
   },
 
   nudges: {
+    firstNudgeExplainer: "I'll occasionally surface things like this. You can tune or turn these off in Settings > Proactive.",
     dismiss: 'Dismiss',
     snooze5: 'Snooze 5 min',
     openCalendar: 'Open calendar',
@@ -503,7 +524,9 @@ export const STRINGS = {
       notes: 'Notes',
       events: 'Events',
       facts: 'Facts',
+      recent: 'Recent notes',
       empty: 'No matches.',
+      createNote: (q: string) => `Create a note: "${q}"`,
     },
     stage: {
       morningBrief: 'Morning brief',
