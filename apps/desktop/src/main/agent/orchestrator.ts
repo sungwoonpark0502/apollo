@@ -15,6 +15,7 @@ import { type Registry } from '../tools/registry';
 import { type Repos } from '../db/repos/index';
 import { LlmAbortError, type LlmClient, type LlmMessage, type LlmToolUse } from './llm';
 import { matchFastPath } from './fastPath';
+import { applyUndoEntry } from '../tools/undo';
 import { computeTaintFlags } from './taint';
 import { createConfirmationStore, matchConfirmReply, type PendingConfirmation } from './confirmations';
 
@@ -37,6 +38,8 @@ export interface OrchestratorDeps {
   onUsage?: (e: { inputTokens: number; outputTokens: number }) => void;
   /** H5 "new conversation" fast path. */
   onNewConversation?: () => void;
+  /** I3 "undo" fast path: audit trail for a global undo. */
+  onUndone?: (what: string, convId: string) => void;
   buildContext?: () => Record<string, string | number>;
   now?: () => number;
   confirmTtlMs?: number;
@@ -499,6 +502,22 @@ export function createOrchestrator(deps: OrchestratorDeps) {
       case 'newConversation': {
         deps.onNewConversation?.();
         finish(STRINGS.spoken.newConversation);
+        return true;
+      }
+      case 'undo': {
+        // I3 global undo: pop and reverse the most recent action across all surfaces.
+        const entry = deps.repos.undo.popNewest();
+        if (!entry) {
+          finish(STRINGS.spoken.nothingToUndo);
+          return true;
+        }
+        const what = applyUndoEntry(deps.repos, entry);
+        if (what === null) {
+          finish(STRINGS.spoken.nothingToUndo);
+          return true;
+        }
+        deps.onUndone?.(what, state.convId);
+        finish(STRINGS.spoken.undone(what));
         return true;
       }
     }

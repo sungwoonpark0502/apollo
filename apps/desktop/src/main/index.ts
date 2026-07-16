@@ -398,6 +398,7 @@ function boot(): void {
     tz: () => Intl.DateTimeFormat().resolvedOptions().timeZone,
     historyEnabled: () => settings.get().history.enabled,
     onNewConversation: () => conversationManager.startNew(), // H5
+    onUndone: (what, convId) => repos.actionLog.record({ tool: 'undo.last', summary: what, outcome: 'undone', convId }), // I3
     onMessagePersisted: (m) => indexer.onMessagePersisted(m),
     onAction: (e) => repos.actionLog.record(e), // H3 audit trail
     onUsage: (e) => {

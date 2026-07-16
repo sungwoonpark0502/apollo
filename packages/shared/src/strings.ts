@@ -337,6 +337,7 @@ export const STRINGS = {
 
   workspace: {
     nav: { today: 'Today', calendar: 'Calendar', notes: 'Notes', chats: 'Chats', settings: 'Settings' },
+    undo: { undid: (label: string) => `Undid: ${label}`, nothing: 'Nothing to undo' },
     chats: {
       filter: 'Filter conversations…',
       empty: 'No conversations yet.',

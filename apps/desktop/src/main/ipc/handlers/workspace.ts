@@ -1,7 +1,7 @@
 import { DateTime } from 'luxon';
 import { calendarColor, type EventDTO, type InvokeReq, type InvokeRes } from '@apollo/shared';
 import { type Repos, type EventRow } from '../../db/repos/index';
-import { applyUndoEntry, registerInverse } from '../../tools/undo';
+import { applyUndoEntry, registerInverse, undoLabel } from '../../tools/undo';
 
 /**
  * E1 Workspace IPC handlers. Direct UI actions are the user acting on their
@@ -219,6 +219,19 @@ export function buildWorkspaceHandlers(deps: WorkspaceHandlerDeps) {
       if (what === null) throw new Error('cannot undo this action');
       deps.log(`undo.apply: ${what}`);
       return { ok: true as const };
+    },
+
+    'undo.recent': (): InvokeRes<'undo.recent'> =>
+      repos.undo.recent(10).map((e) => ({ undoToken: e.id, label: undoLabel(e.tool), ts: e.createdAt })),
+
+    'undo.latest': (): InvokeRes<'undo.latest'> => {
+      const entry = repos.undo.popNewest();
+      if (!entry) return { ok: false as const };
+      const label = undoLabel(entry.tool);
+      const what = applyUndoEntry(repos, entry);
+      if (what === null) return { ok: false as const };
+      deps.log(`undo.latest: ${what}`);
+      return { ok: true as const, label };
     },
   };
 }

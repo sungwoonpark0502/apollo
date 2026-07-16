@@ -41,6 +41,17 @@ export function createUndoRepo(db: Db) {
       db.prepare('DELETE FROM undo_log WHERE id=?').run(r.id);
       return toEntry(r);
     },
+    /** I3 global undo: the last N undoable entries across ALL surfaces (not removed). */
+    recent(limit = 10): UndoEntry[] {
+      return (db.prepare('SELECT * FROM undo_log ORDER BY created_at DESC, id DESC LIMIT ?').all(limit) as Raw[]).map(toEntry);
+    },
+    /** I3 global undo: pops the single most recent entry across ALL surfaces. */
+    popNewest(): UndoEntry | null {
+      const r = db.prepare('SELECT * FROM undo_log ORDER BY created_at DESC, id DESC LIMIT 1').get() as Raw | undefined;
+      if (!r) return null;
+      db.prepare('DELETE FROM undo_log WHERE id=?').run(r.id);
+      return toEntry(r);
+    },
   };
 }
 

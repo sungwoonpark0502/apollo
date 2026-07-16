@@ -65,6 +65,40 @@ const INVERSES: Record<string, InverseFn> = {
   },
 };
 
+/**
+ * I3 global-undo labels: a human description of the ACTION each undoable tool
+ * performed (what Cmd/Ctrl+Z would reverse), shown in the undo.recent list and
+ * the undo toast. Distinct from the inverse's past-tense confirmation string.
+ */
+const UNDO_LABELS: Record<string, string> = {
+  'timer.start': 'Started a timer',
+  'alarm.set': 'Set an alarm',
+  'note.save': 'Created a note',
+  'todo.add': 'Added a to-do',
+  'todo.complete': 'Completed a to-do',
+  'contact.add': 'Added a contact',
+  'memory.save': 'Remembered a fact',
+  'memory.forget': 'Forgot a fact',
+  'memory.replace': 'Updated a fact',
+  'reminder.create': 'Created a reminder',
+  'reminder.complete': 'Completed a reminder',
+  'calendar.create': 'Created an event',
+  'calendar.delete': 'Deleted an event',
+  'workspace.event.update': 'Edited an event',
+  'workspace.event.detach': 'Edited this occurrence',
+  'workspace.event.exdate': 'Deleted this occurrence',
+  'workspace.note.delete': 'Deleted a note',
+};
+
+export function undoLabel(tool: string): string {
+  return UNDO_LABELS[tool] ?? 'Last action';
+}
+
+/** Register a label for a tool whose inverse is registered elsewhere (workspace UI). */
+export function registerUndoLabel(tool: string, label: string): void {
+  UNDO_LABELS[tool] = label;
+}
+
 export function createUndoTool(repos: Repos, opts: { onUndone?: (what: string, convId: string) => void } = {}): ToolDef {
   const undoLast: ToolDef<z.ZodType<Record<string, never>>> = {
     name: 'undo.last',

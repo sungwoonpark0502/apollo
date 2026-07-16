@@ -15,7 +15,8 @@ export type FastPathIntent =
   | { kind: 'weatherForecast'; when: 'tomorrow' | 'weekend' }
   | { kind: 'brief' }
   | { kind: 'repeat' }            // H5 "say that again"
-  | { kind: 'newConversation' };  // H5 "new conversation"
+  | { kind: 'newConversation' }   // H5 "new conversation"
+  | { kind: 'undo' };             // I3 "undo (that)"
 
 export function normalizeUtterance(text: string): string {
   return text
@@ -64,6 +65,9 @@ export function matchFastPath(text: string): FastPathIntent | null {
 
   // H5 "new conversation" — starts a fresh conversation.
   if (/^(?:new|start a new) (?:conversation|chat)$/.test(t)) return { kind: 'newConversation' };
+
+  // I3 "undo (that)" — reverses the most recent undoable action across surfaces.
+  if (/^undo(?: that)?$/.test(t)) return { kind: 'undo' };
 
   if (/^what time is it(?: now)?$/.test(t) || /^what'?s the time$/.test(t)) return { kind: 'timeNow' };
 

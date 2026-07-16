@@ -63,6 +63,12 @@ describe('H5 repeat + new-conversation fast path', () => {
   it('does NOT match "repeat after me" (reaches the LLM)', () => {
     expect(matchFastPath('repeat after me')).toBeNull();
   });
+  it('matches undo phrasings (I3)', () => {
+    expect(matchFastPath('undo')).toEqual({ kind: 'undo' });
+    expect(matchFastPath('undo that')).toEqual({ kind: 'undo' });
+    expect(matchFastPath('Undo that.')).toEqual({ kind: 'undo' });
+    expect(matchFastPath('undo my last three edits')).toBeNull(); // residue → LLM
+  });
 });
 
 describe('fast path residue routes to LLM (returns null)', () => {

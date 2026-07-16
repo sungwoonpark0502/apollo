@@ -17,7 +17,17 @@ export function WorkspaceApp(): React.JSX.Element {
   const [navDateIso, setNavDateIso] = useState<string | undefined>(undefined);
   const [navNoteId, setNavNoteId] = useState<string | undefined>(undefined);
   const [omniOpen, setOmniOpen] = useState(false);
+  const [undoToast, setUndoToast] = useState<string | null>(null);
   const settings = useSettings();
+
+  // I3 global undo: Cmd/Ctrl+Z reverses the most recent action across surfaces,
+  // including after a per-action toast has expired (up to 10 back).
+  const undoLatest = useCallback(() => {
+    void window.apollo.call('undo.latest', {}).then((r) => {
+      setUndoToast(r.ok && r.label ? STRINGS.workspace.undo.undid(r.label) : STRINGS.workspace.undo.nothing);
+      window.setTimeout(() => setUndoToast(null), 3000);
+    });
+  }, []);
 
   useNavigate((v, dateIso, noteId) => {
     setView(v);
@@ -35,6 +45,7 @@ export function WorkspaceApp(): React.JSX.Element {
     const onKey = (e: KeyboardEvent): void => {
       const mod = e.metaKey || e.ctrlKey;
       if (mod && e.key.toLowerCase() === 'k') { setOmniOpen((v) => !v); e.preventDefault(); }
+      else if (mod && !e.shiftKey && e.key.toLowerCase() === 'z' && !isTyping(e)) { undoLatest(); e.preventDefault(); }
       else if (mod && e.key === '1') { go('today'); e.preventDefault(); }
       else if (mod && e.key === '2') { go('calendar'); e.preventDefault(); }
       else if (mod && e.key === '3') { go('notes'); e.preventDefault(); }
@@ -42,7 +53,7 @@ export function WorkspaceApp(): React.JSX.Element {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [go]);
+  }, [go, undoLatest]);
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: 'var(--bg)', color: 'var(--text-1)' }}>
@@ -83,6 +94,18 @@ export function WorkspaceApp(): React.JSX.Element {
           <NotesView initialNoteId={navNoteId} />
         )}
       </main>
+      {undoToast ? (
+        <div
+          role="status"
+          style={{
+            position: 'fixed', bottom: 'var(--sp-5)', left: '50%', transform: 'translateX(-50%)',
+            background: 'var(--text-1)', color: 'var(--bg)', padding: 'var(--sp-2) var(--sp-4)',
+            borderRadius: 'var(--radius-ctl)', fontSize: 'var(--fs-body)', boxShadow: 'var(--shadow-card)', zIndex: 100,
+          }}
+        >
+          {undoToast}
+        </div>
+      ) : null}
       {omniOpen ? (
         <OmniSearch
           onClose={() => setOmniOpen(false)}

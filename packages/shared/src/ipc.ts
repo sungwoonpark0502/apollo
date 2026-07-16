@@ -169,6 +169,12 @@ export const invokeChannels = {
   'todos.toggle': { req: z.object({ id: z.string(), done: z.boolean() }), res: ackSchema },
   'todos.delete': { req: z.object({ id: z.string() }), res: ackSchema },
   'undo.apply': { req: z.object({ undoToken: z.string() }), res: ackSchema }, // UI undo toasts
+  // I3 global undo: last 10 undoable actions across all surfaces + a shortcut that undoes the newest.
+  'undo.recent': {
+    req: z.object({}),
+    res: z.array(z.object({ undoToken: z.string(), label: z.string(), ts: z.number() })),
+  },
+  'undo.latest': { req: z.object({}), res: z.object({ ok: z.boolean(), label: z.string().optional() }) },
   // ---- F1 Proactive + Quick Capture channels ----
   'suggestion.action': { req: z.object({ suggestionId: z.string(), actionId: z.string() }), res: ackSchema },
   'proactive.recent': {
