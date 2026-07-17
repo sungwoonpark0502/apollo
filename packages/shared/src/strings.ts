@@ -302,6 +302,7 @@ export const STRINGS = {
       configured: (last4: string, date: string) => `Configured (…${last4}) since ${date}`,
       remove: 'Remove',
       replace: 'Replace',
+      pastePlaceholder: 'Paste key (write-only)',
     },
     privacy: {
       history: 'Keep conversation history',
@@ -418,6 +419,10 @@ export const STRINGS = {
       idle: '', waking: 'Waking', listening: 'Listening', thinking: 'Thinking',
       speaking: 'Speaking', followup: 'Listening for a follow-up', muted: 'Muted', error: 'Voice error',
     } as Record<string, string>,
+    nudge: 'You have a nudge',
+    copyReply: 'Copy reply',
+    copy: 'Copy',
+    color: 'Color',
   },
 
   alerts: {

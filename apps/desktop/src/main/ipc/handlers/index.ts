@@ -72,6 +72,7 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
       repos: deps.repos,
       tz: deps.tz ?? (() => Intl.DateTimeFormat().resolvedOptions().timeZone),
       openWorkspace: (target) => deps.openWorkspace?.(target),
+      defaultCalendarId: () => deps.settings.get().calendars.defaultCalendarId,
       log: deps.log,
     }),
     'settings.open': () => {

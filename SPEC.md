@@ -1,4 +1,4 @@
-APOLLO Master Build Specification v3.4 (Implementation Grade)
+APOLLO Master Build Specification v3.5 (Implementation Grade)
 Status: normative. This document is the single source of truth. If code and spec disagree, the spec wins. If the spec is silent, choose the simplest option consistent with Part B invariants and record it in DECISIONS.md.
 PART A: Agent operating protocol
 You are the sole principal engineer on this project. You own architecture, implementation, tests, security, and quality. Work autonomously through the milestone plan in Part D. Do not wait for permission between milestones. Do not ask questions this document answers.
@@ -892,3 +892,70 @@ Milestones (Phase 9, strict order):
 9.9 Full regression + docs/README (calendars, links, Google sync, shortcuts) + DECISIONS updates. Verify: Phase 9 gate.
 
 Phase 9 gate: all new suites green; full regression clean (injection 100% incl. link/SSRF, egress canary incl. user-link lane); Google module provably inert when disabled and lossless when enabled (mocked-client suite); formatting lint rule enforced repo-wide; pnpm build produces installable artifacts on both CI platforms; Global DoD re-verified; DECISIONS records the user-link egress lane rationale and the single calendar migration decision.
+
+PART J: Audit and Stabilize (v3.5 addendum, Phase 10)
+Status: normative extension. Parts A through I remain in force. Where Part J conflicts with earlier parts, Part J wins. Prerequisite: Phase 9 gate passed. This phase adds no features. It is a systematic audit-and-fix pass over the entire codebase (Phases 0 through 9) plus a set of hardening tests that should have existed. Every item below is either a defect to fix or a test to add that proves a defect is absent. Scope discipline (A3) is absolute: if an audit reveals a desirable feature, log it to BACKLOG.md, do not build it.
+J0. Method
+Work in three passes, in order, each committing continuously:
+Pass A, static and contract audit. Reconcile every cross-part contract. Produce AUDIT.md: a table of every finding (id, severity S1 critical / S2 major / S3 minor, location, description, fix or test). Fix all S1 and S2; S3 either fixed or explicitly deferred to BACKLOG with reason. Nothing is "found and left" without a line in AUDIT.md.
+Pass B, dynamic and integration audit. Build the missing integration and property tests below; fix every failure they expose. These target the concurrency, lifecycle, and edge-case classes that unit tests miss.
+Pass C, regression lock. Re-run the entire suite for all phases; add regression tests capturing each bug fixed in A and B so it can never recur; update all docs to match reality.
+J1. Contract reconciliation (Pass A, targeted findings)
+Resolve each of these explicitly; each resolution is a fix plus a test:
+
+Migration integrity: verify migrations 0001 through 0006 apply cleanly in sequence on a fresh DB and are individually idempotent-safe under the schema_version guard; assert no table or index is created twice across parts; assert action_log, usage_log, suggestions, chunks, calendars-related columns each exist exactly once. Add a test that boots a fresh DB, runs all migrations, and snapshots the final schema; commit the snapshot as the source of truth.
+EventDTO evolution: audit every producer of EventDTO/event rows (calendar tools, events.* IPC, gcal engine, cards) to guarantee calendarId defaults to defaultCalendarId and color is always derived from the owning calendar; add a test that an event created via the Phase-0-era calendar.create path lands with a valid calendarId and color. Backfill any pre-existing rows on the 0006 migration.
+Taint ergonomics decision (S2): specify and implement that recall/link results tainting a turn require Tier 3 confirmation, BUT a recipient/URL value that originated from the user's own note or fact (kind note/fact) retrieved this turn counts as "user-stated" for the substring gate, since it is the user's own data. Concretely: extend the taint value check (C8.7) so a value is cleared if it is a substring of any user utterance OR of any recall result of kind note/fact this turn. Link results (kind link) and email results never clear the gate. Document this in DECISIONS.md and cover with tests: "email the address from my note" confirms once with the address shown but without the red value_not_user_stated flag; "email the address from this web page" keeps the flag.
+Channel registry completeness: assert in a test that every channel referenced anywhere in the codebase exists in the ipc.ts registry with request and response schemas, is subject to senderFrame verification, and has a throttle bucket (explicit or default). Specifically confirm settings.changed is registered (it is relied on by E7/F5/I2). Any channel missing from the registry fails the test.
+
+J2. Concurrency and FSM audit (Pass B)
+Add an integration harness driving the real VoiceController, orchestrator, proactive engine, scheduler, indexer, and alert paths together with fake clock and fake adapters. Prove each interaction:
+
+Follow-up vs nudge: the proactive busy-check (F3.2 step 6) treats followup exactly like listening; a nudge arriving during the follow-up window defers and never interrupts. Fix: add followup to the deferral states. Test both time-sensitive (silent, still deferred if it would grab the mic) and normal.
+Follow-up vs barge-in vs ringing: enumerate and test the transitions when a timer fires while in followup, when a nudge and an alarm coincide, when the user speaks as an alarm rings (voice command wins the mic, alarm keeps ringing visually, sound ducks). Define a strict priority order in the FSM and encode it: active user speech > ringing alarm sound > TTS reply > proactive delivery. Any ambiguity found becomes an explicit rule in the spec section and a test.
+Confirmation set generalization: prove the single-pending-set invariant with batches: a new Tier 3 (single or batch) while a batch is pending supersedes the whole pending set with tool_result "superseded"; per-row deny within a batch, then a follow-up new request, behaves correctly; the batch cancel window interacts with supersede without executing a superseded action.
+Alert vs VoiceController shared window: timer/alarm ringing overlay and the orb's listening/speaking UI must not corrupt each other's state in the shared orb window; test that starting a voice interaction while ringing keeps both renderable and routes alert.action and agent.* independently.
+
+J3. Lifecycle and resource audit (Pass B)
+
+Unified power/resume: on powerMonitor resume and on suspend, prove all four timers (scheduler, proactive tick, indexer drain, gcal sync) suspend cleanly and re-arm/catch-up correctly, with no double-fire and no missed fire. Add one "resume storm" test that jumps the fake clock across a suspend spanning multiple due items in every subsystem at once.
+Wall-clock jump resilience (S2): scheduled work must survive manual clock changes and timezone travel. Fix: every armed timer stores its absolute target ms and, on any powerMonitor resume, system time-change event, or a periodic 60s sanity check, recomputes remaining delay from the absolute target rather than trusting the original delta; overdue targets fire immediately (grouped). Test by moving the fake clock forward and backward and asserting correct firing.
+Indexer gating: the indexer drains only when no agent turn is active AND voice state is in {idle, muted} (explicitly not listening/thinking/speaking/followup); fix the condition if followup was omitted; test that indexing pauses during a follow-up window.
+Audio worker lifecycle matrix: test lazy spawn, crash-restart backoff, 3-strike disable, battery-pause transition, and resume, in combination; prove no orphaned worker, no double-spawn, and that PTT still works after a battery pause disabled wake.
+Disk-full and write-failure handling (S1): wrap the DB write path so that SQLITE_FULL / disk I/O errors surface as a new user-facing state (reuse DB_CORRUPT-class handling with distinct copy: "I can't save right now, your disk may be full"), never a silent data loss or crash; queued proactive/index writes back off and retry; the current user action reports failure honestly. Test with a mocked failing statement.
+
+J4. Edge-case and data-integrity audit (Pass B)
+
+Large inputs: property tests for a very large single note (e.g. 5MB) through chunker + FTS + indexer (must chunk within caps, not OOM, not block the loop), and a calendar with thousands of events through expandOccurrences and the month/week layout (must meet a stated budget or degrade gracefully with virtualization already present or added minimally).
+Unicode and emoji: golden tests that note titles, event titles, and replies containing emoji, combining characters, RTL snippets, and CJK are correctly chunked (grapheme-aware where it matters), FTS-searchable, safely truncated for snippets (no broken surrogate pairs), and spoken without crashing TTS; snippet/title truncation must never split a surrogate pair or a combining sequence.
+Recurrence corner cases: DST spring-forward/fall-back exact-hour events, RRULE with COUNT and UNTIL, monthly-on-31st in short months, all-day multi-day events across month boundaries in month view. Extend the existing recurrence golden set to cover each.
+Empty/degenerate: empty query to recall, zero-length note save rejected gracefully, event with end before start rejected, malformed RRULE from the custom field validated before persist, timer of 0 or negative rejected.
+
+J5. Security re-audit (Pass B/C)
+
+DNS rebinding for link.read (S1): the SSRF guard must resolve and pin: resolve the hostname, validate every resolved IP against the private/loopback/link-local blocklist, and connect to the validated IP (or re-validate at connect and on each redirect hop) so a rebinding between check and connect cannot reach a private address. Test with a fixture resolver returning a public IP on first lookup and a private IP on second.
+Export secret-exclusion completeness: re-run the secrets-absent proof against the full current schema, explicitly asserting absence of every ciphertext/token/credential column and of usage_log if it were ever deemed sensitive (decide and document); include gcal tokens and any oauth rows. Add each as an assertion, not a blanket check.
+Full IPC surface sweep: the J1.4 test doubles as security coverage; additionally fuzz each channel with malformed and oversized payloads asserting zod rejection and no throw, and assert throttle buckets actually drop on burst for every channel class.
+Egress lane integrity: re-assert (extending the H4/I8 canaries) that across a full multi-subsystem run the observed egress hosts are exactly the allowlist, the user-link lane is exercised only by link.read, and no proactive/recall/gcal path reaches an unexpected host.
+Fuse and permission re-verification on the packaged Phase-9 build: re-run the fuse readback and the permission-denial tests to confirm no later phase regressed them.
+
+J6. Consistency and polish audit (Pass A/C)
+
+Formatting lint sweep: confirm the I2 lint rule is green repo-wide with zero suppressions; any stray formatting is a fix.
+String centralization sweep: assert (via a test or lint) no user-facing literal exists outside strings.ts in components, tools, cards, and error paths (A5); fix stragglers introduced across nine phases.
+Error taxonomy coverage: every catch/reject path maps to an ErrorCode with user copy; add a test that no code path emits an error event with empty or raw-provider userMessage.
+Copy and label pass: enumerate all user-facing strings and check tone/consistency against C10/C18 voice (sentence case, no corporate filler, present tense); this is a HUMAN_TODO review item with a generated inventory file strings-inventory.md.
+Accessibility spot audit: keyboard-only traversal of every window and overlay added across phases; screen-reader announcement of voice/alert state; a HUMAN_TODO checklist with the generated list of interactive surfaces.
+
+J7. Deliverables and gates
+Deliverables committed: AUDIT.md (every finding with disposition), BACKLOG.md (deferred S3s and any features surfaced), a committed fresh-DB schema snapshot, strings-inventory.md, and regression tests for every A/B fix. PROGRESS.md, DECISIONS.md, README.md, and HUMAN_TODO.md reconciled to reality.
+Milestones (Phase 10, strict order):
+
+10.1 Pass A: contract reconciliation (J1) + AUDIT.md scaffold + schema snapshot + channel-registry test + formatting/strings sweeps (J6.1, J6.2). Verify: J1 tests, sweep lints green, AUDIT.md lists all findings.
+10.2 Pass B concurrency (J2): integration harness + FSM priority order encoded + all interaction tests. Verify: J2 suite green.
+10.3 Pass B lifecycle (J3): power/resume unification, wall-clock jump fix, indexer gating fix, worker matrix, disk-full handling. Verify: J3 suite green.
+10.4 Pass B edge cases (J4): large-input, unicode, recurrence, degenerate suites. Verify: J4 suite green.
+10.5 Pass B/C security re-audit (J5): DNS-rebinding fix, export completeness, IPC fuzz, egress + fuse + permission re-verification. Verify: J5 suite green; injection still 100%.
+10.6 Pass C regression lock (J6.3 + full run): error-taxonomy coverage test, regression tests for every fix, entire Phase 0 through 9 suite re-run, docs reconciled, strings-inventory + a11y checklists to HUMAN_TODO. Verify: Phase 10 gate.
+
+Phase 10 gate: AUDIT.md shows every S1/S2 fixed with a linked regression test and every S3 fixed or backlogged; the full cross-phase test, eval, injection, egress, perf, boot, and new Phase 10 suites all pass; the fresh-DB schema snapshot matches; formatting and strings lints are clean repo-wide; the packaged build passes fuse/permission/egress re-verification; pnpm build produces installable artifacts on both CI platforms; Global DoD re-verified; no known S1/S2 defect remains open.

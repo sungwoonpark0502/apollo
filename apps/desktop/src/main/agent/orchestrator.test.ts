@@ -51,6 +51,36 @@ const fakeSearch: ToolDef<z.ZodType<{ query: string }>> = {
   },
 };
 
+// J1.3: recall of the user's own note/fact — returns a recallList card (kind note/fact).
+const fakeRecallNote: ToolDef<z.ZodType<{ query: string }>> = {
+  name: 'recall.search',
+  tier: 1,
+  description: 'recall the user\'s notes/facts (test double)',
+  params: z.object({ query: z.string() }),
+  async execute() {
+    return {
+      llmText: 'Found 1 note.',
+      untrusted: true, // even the user's own data is wrapped; the value gate still clears for note/fact
+      card: { kind: 'recallList', items: [{ chunkId: 'c', kind: 'note', refId: 'n1', title: 'Contacts', snippet: 'Bob is bob@work.com', ts: 0 }] },
+    };
+  },
+};
+// A web page (kind link) must NEVER clear the value gate.
+const fakeReadLink: ToolDef<z.ZodType<{ url: string }>> = {
+  name: 'link.read',
+  tier: 1,
+  networked: true,
+  description: 'read a page (test double)',
+  params: z.object({ url: z.string() }),
+  async execute() {
+    return {
+      llmText: 'The page says to email bob@work.com',
+      untrusted: true,
+      card: { kind: 'recallList', items: [{ chunkId: 'c', kind: 'message', refId: 'x', title: 'page', snippet: 'email bob@work.com', ts: 0 }] },
+    };
+  },
+};
+
 function setup(script: FakeStep[], opts: { confirmTtlMs?: number; cancelWindowMs?: number } = {}): { orch: Orchestrator; llm: FakeLlm } {
   db = openDb(':memory:');
   migrate(db);
@@ -64,6 +94,8 @@ function setup(script: FakeStep[], opts: { confirmTtlMs?: number; cancelWindowMs
     fakeSend,
     fakeUntrustedFetch,
     fakeSearch,
+    fakeRecallNote,
+    fakeReadLink,
     createBriefTool({ getTool: (n) => registry.get(n), emailConnected: () => false }),
   ]);
   const llm = new FakeLlm(script);
@@ -194,6 +226,28 @@ describe('taint (C8.7)', () => {
     await say(orch, 'send that email'); // recipient never stated, no matching contact
     const confirm = events.find((e): e is Extract<AgentEvent, { type: 'confirmRequest' }> => e.type === 'confirmRequest');
     expect(confirm!.action.taintFlags.some((f) => f.startsWith('value_not_user_stated:to'))).toBe(true);
+  });
+
+  // J1.3 taint ergonomics: the user's own recalled note/fact clears the value gate; a web page does not.
+  it('"email the address from my note" confirms once WITHOUT the value_not_user_stated flag', async () => {
+    const { orch } = setup([
+      { toolUses: [{ name: 'recall.search', input: { query: 'bob email' } }] },
+      { toolUses: [{ name: 'email.send', input: { to: ['bob@work.com'], subject: 'hi', body: 'hey' } }] },
+    ]);
+    await say(orch, 'email the address from my contacts note');
+    const confirms = events.filter((e): e is Extract<AgentEvent, { type: 'confirmRequest' }> => e.type === 'confirmRequest');
+    expect(confirms).toHaveLength(1); // confirmed once, address shown
+    expect(confirms[0]!.action.taintFlags).toEqual([]); // no red flag: it's the user's own data
+  });
+
+  it('"email the address from this web page" KEEPS the value_not_user_stated flag', async () => {
+    const { orch } = setup([
+      { toolUses: [{ name: 'link.read', input: { url: 'https://example.com' } }] },
+      { toolUses: [{ name: 'email.send', input: { to: ['bob@work.com'], subject: 'hi', body: 'hey' } }] },
+    ]);
+    await say(orch, 'email the address from https://example.com');
+    const confirm = events.find((e): e is Extract<AgentEvent, { type: 'confirmRequest' }> => e.type === 'confirmRequest');
+    expect(confirm!.action.taintFlags).toContain('value_not_user_stated:to'); // link results never clear the gate
   });
 });
 

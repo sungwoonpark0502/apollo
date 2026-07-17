@@ -20,6 +20,25 @@ beforeEach(() => {
   reg = createRegistry([...createCalendarTools({ events: repos.events, undo: repos.undo }), createUndoTool(repos)]);
 });
 
+describe('J1.2 EventDTO calendar defaults', () => {
+  it('an event created via the Phase-0-era calendar.create path lands with a valid calendarId and derived color', async () => {
+    const res = await reg.execute('calendar.create', { title: 'Standup', startIso: '2026-07-14T09:00:00' }, makeCtx());
+    const card = res.card as { kind: 'event'; event: { calendarId: string; color: string } };
+    expect(card.event.calendarId).toBe('default');
+    expect(card.event.color).toMatch(/^#[0-9A-Fa-f]{6}$/);
+  });
+
+  it('honors a configured non-default calendar for AI-created events', async () => {
+    const reg2 = createRegistry([
+      ...createCalendarTools({ events: repos.events, undo: repos.undo, defaultCalendarId: () => 'work' }),
+      createUndoTool(repos),
+    ]);
+    const res = await reg2.execute('calendar.create', { title: 'Sync', startIso: '2026-07-14T10:00:00' }, makeCtx());
+    const card = res.card as { kind: 'event'; event: { calendarId: string } };
+    expect(card.event.calendarId).toBe('work');
+  });
+});
+
 describe('calendar.create', () => {
   it('creates with LOCAL tz, default 1h end, event card, undo token', async () => {
     const res = await reg.execute('calendar.create', { title: 'Dentist', startIso: '2026-07-14T15:00:00' }, makeCtx());

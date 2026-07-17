@@ -8,6 +8,8 @@ import { registerInverse } from './undo';
 export interface CalendarToolDeps {
   events: EventsRepo;
   undo: UndoRepo;
+  /** J1.2: new events land on the user's configured default calendar, not a literal. */
+  defaultCalendarId?: () => string;
 }
 
 export function toDTO(ev: EventRow): EventDTO {
@@ -109,6 +111,7 @@ export function createCalendarTools(deps: CalendarToolDeps): ToolDef[] {
         title: a.title, startTs: start.toMillis(), endTs: end.toMillis(), tz,
         allDay: a.allDay, rrule: a.rrule ?? null, location: a.location ?? null,
         notes: a.notes ?? null, reminderMin: a.reminderMin ?? null,
+        calendarId: deps.defaultCalendarId?.(),
       });
       const undoToken = deps.undo.push({ turnId: ctx.turnId, convId: ctx.convId, tool: 'calendar.create', data: { id: ev.id } });
       return {

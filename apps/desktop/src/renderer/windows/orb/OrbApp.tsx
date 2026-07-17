@@ -228,7 +228,7 @@ export function OrbApp(): React.JSX.Element {
             />
             {nudgeDot ? (
               <span
-                aria-label="You have a nudge"
+                aria-label={STRINGS.a11y.nudge}
                 style={{ position: 'absolute', top: -1, right: -1, width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)', boxShadow: '0 0 0 2px var(--bg)' }}
               />
             ) : null}

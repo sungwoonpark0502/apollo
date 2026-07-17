@@ -101,8 +101,8 @@ export function App(): React.JSX.Element {
           {s.streaming ? <span style={{ color: 'var(--text-3)' }}> ▌</span> : null}
           {s.reply && !s.streaming ? (
             <button
-              aria-label="Copy reply"
-              title="Copy"
+              aria-label={STRINGS.a11y.copyReply}
+              title={STRINGS.a11y.copy}
               onClick={() => void navigator.clipboard.writeText(s.reply)}
               style={{ marginLeft: 'var(--sp-2)', fontSize: 'var(--fs-caption)', color: 'var(--text-3)', background: 'transparent', border: 'none', cursor: 'pointer' }}
             >

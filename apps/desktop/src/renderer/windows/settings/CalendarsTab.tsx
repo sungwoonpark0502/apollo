@@ -117,7 +117,7 @@ function ColorSwatch({ value, onChange }: { value: string; onChange: (color: str
       <button
         onClick={() => setOpen((o) => !o)}
         style={{ width: 20, height: 20, borderRadius: '50%', background: value, border: '1px solid var(--border)', cursor: 'pointer', flexShrink: 0 }}
-        aria-label="Color"
+        aria-label={STRINGS.a11y.color}
       />
       {open ? (
         <div

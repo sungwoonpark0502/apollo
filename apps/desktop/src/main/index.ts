@@ -288,7 +288,7 @@ function boot(): void {
         onFactForgotten: (id) => indexer.onFactForgotten(id),
       }),
       createUndoTool(repos, { onUndone: (what, convId) => repos.actionLog.record({ tool: 'undo.last', summary: what, outcome: 'undone', convId }) }),
-      ...createCalendarTools({ events: repos.events, undo: repos.undo }),
+      ...createCalendarTools({ events: repos.events, undo: repos.undo, defaultCalendarId: () => settings.get().calendars.defaultCalendarId }),
       ...createReminderTools({ reminders: repos.reminders, undo: repos.undo, onArm: () => scheduler.rearm() }),
       ...createWeatherTools({
         http,

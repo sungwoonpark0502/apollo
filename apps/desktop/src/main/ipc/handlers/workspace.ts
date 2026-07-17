@@ -12,6 +12,8 @@ export interface WorkspaceHandlerDeps {
   repos: Repos;
   tz: () => string;
   openWorkspace: (target: InvokeReq<'workspace.open'>) => void;
+  /** J1.2: events created without an explicit calendar land on the configured default. */
+  defaultCalendarId?: () => string;
   log: (msg: string) => void;
 }
 
@@ -103,7 +105,7 @@ export function buildWorkspaceHandlers(deps: WorkspaceHandlerDeps) {
       const ev = repos.events.create({
         title: req.title, startTs: start.toMillis(), endTs: end.toMillis(), tz,
         allDay: req.allDay ?? false, rrule: req.rrule ?? null, location: req.location ?? null,
-        notes: req.notes ?? null, reminderMin: req.reminderMin ?? null, calendarId: req.calendarId,
+        notes: req.notes ?? null, reminderMin: req.reminderMin ?? null, calendarId: req.calendarId ?? deps.defaultCalendarId?.(),
       });
       repos.undo.push({ turnId: UI_CONV, convId: UI_CONV, tool: 'calendar.create', data: { id: ev.id } });
       return evToDTO(ev);

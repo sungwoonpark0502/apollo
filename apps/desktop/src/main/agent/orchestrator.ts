@@ -69,6 +69,10 @@ export function createOrchestrator(deps: OrchestratorDeps) {
   const emit = deps.emit;
   const conversationTaint = new Map<string, boolean>();
   const utterancesByConv = new Map<string, string[]>();
+  // J1.3 taint ergonomics: text from the user's OWN notes/facts recalled this
+  // turn counts as "user-stated" for the substring gate (it is the user's data).
+  // Reset each turn; link/email results are never added here.
+  const userOwnedRecallByConv = new Map<string, string[]>();
   const lastReplyByConv = new Map<string, string>(); // H5 "repeat that"
   const failedToolByConv = new Map<string, LlmToolUse>(); // I5 retry-with-memory (one per conv)
   const activeTurns = new Map<string, TurnHandle>();
@@ -93,6 +97,15 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     if (!u) {
       u = [];
       utterancesByConv.set(convId, u);
+    }
+    return u;
+  }
+
+  function userOwnedRecall(convId: string): string[] {
+    let u = userOwnedRecallByConv.get(convId);
+    if (!u) {
+      u = [];
+      userOwnedRecallByConv.set(convId, u);
     }
     return u;
   }
@@ -154,6 +167,13 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     const ok = !res.llmText.startsWith('ERROR');
     emit({ type: 'toolResult', tool: tu.name, ok });
     if (res.card) emit({ type: 'card', card: res.card });
+    // J1.3: capture the user's own recalled note/fact text so a value they saved
+    // themselves clears the value_not_user_stated gate. message/link/email do not.
+    if (res.card?.kind === 'recallList') {
+      for (const item of res.card.items) {
+        if (item.kind === 'note' || item.kind === 'fact') userOwnedRecall(turn.convId).push(`${item.title}\n${item.snippet}`);
+      }
+    }
     if (res.untrusted) conversationTaint.set(turn.convId, true);
     // I5 retry-with-memory: remember the last failed tool call; clear on any success.
     if (ok) failedToolByConv.delete(turn.convId);
@@ -322,8 +342,10 @@ export function createOrchestrator(deps: OrchestratorDeps) {
     const args = (tu.input ?? {}) as Record<string, unknown>;
     const isEmailSend = tu.name === 'email.send';
     const knownValues = isEmailSend ? recipientKnownValues(args) : [];
+    // J1.3: the user's own recalled note/fact text joins their utterances as "user-stated".
+    const stated = [...userUtterances(state.convId), ...userOwnedRecall(state.convId)];
     return taint || isEmailSend
-      ? computeTaintFlags(args, userUtterances(state.convId), {
+      ? computeTaintFlags(args, stated, {
           taint,
           knownValues,
           alwaysCheckKeys: isEmailSend ? new Set(['to', 'cc', 'bcc']) : undefined,
@@ -570,6 +592,7 @@ export function createOrchestrator(deps: OrchestratorDeps) {
       const completion = (async () => {
         emit({ type: 'turnStart', turnId });
         userUtterances(input.convId).push(input.text);
+        userOwnedRecallByConv.set(input.convId, []); // J1.3: note/fact clearing is scoped to this turn
         const history = historyMessages(input.convId); // before persisting this turn's text
         persist(input.convId, 'user', input.text);
 

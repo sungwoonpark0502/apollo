@@ -60,7 +60,7 @@ export function KeysTab(): React.JSX.Element {
               type="password"
               value={rows[p].value}
               onChange={(e) => update(p, { value: e.target.value })}
-              placeholder="Paste key (write-only)"
+              placeholder={STRINGS.settings.keys.pastePlaceholder}
               style={{
                 flex: 1,
                 fontFamily: 'var(--font-sans)',

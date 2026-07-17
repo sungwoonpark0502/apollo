@@ -1,0 +1,311 @@
+{
+  "schemaVersion": 6,
+  "objects": [
+    {
+      "type": "index",
+      "name": "idx_action_ts",
+      "tbl_name": "action_log",
+      "sql": "CREATE INDEX idx_action_ts ON action_log(ts DESC)"
+    },
+    {
+      "type": "index",
+      "name": "idx_alarms_next",
+      "tbl_name": "alarms",
+      "sql": "CREATE INDEX idx_alarms_next   ON alarms(at_ts)     WHERE enabled=1 AND deleted_at IS NULL"
+    },
+    {
+      "type": "index",
+      "name": "idx_chunks_ref",
+      "tbl_name": "chunks",
+      "sql": "CREATE INDEX idx_chunks_ref ON chunks(kind, ref_id)"
+    },
+    {
+      "type": "index",
+      "name": "idx_chunks_unembedded",
+      "tbl_name": "chunks",
+      "sql": "CREATE INDEX idx_chunks_unembedded ON chunks(embedded_at) WHERE embedded_at IS NULL"
+    },
+    {
+      "type": "index",
+      "name": "idx_conv_started",
+      "tbl_name": "conversations",
+      "sql": "CREATE INDEX idx_conv_started ON conversations(started_at DESC)"
+    },
+    {
+      "type": "index",
+      "name": "idx_events_calendar",
+      "tbl_name": "events",
+      "sql": "CREATE INDEX idx_events_calendar ON events(calendar_id)"
+    },
+    {
+      "type": "index",
+      "name": "idx_events_remote",
+      "tbl_name": "events",
+      "sql": "CREATE INDEX idx_events_remote ON events(remote_id)"
+    },
+    {
+      "type": "index",
+      "name": "idx_events_start",
+      "tbl_name": "events",
+      "sql": "CREATE INDEX idx_events_start  ON events(start_ts)  WHERE deleted_at IS NULL"
+    },
+    {
+      "type": "index",
+      "name": "idx_memory_cat",
+      "tbl_name": "memory_facts",
+      "sql": "CREATE INDEX idx_memory_cat    ON memory_facts(category) WHERE deleted_at IS NULL"
+    },
+    {
+      "type": "index",
+      "name": "idx_messages_conv",
+      "tbl_name": "messages",
+      "sql": "CREATE INDEX idx_messages_conv ON messages(conv_id, ts)"
+    },
+    {
+      "type": "index",
+      "name": "idx_notes_updated",
+      "tbl_name": "notes",
+      "sql": "CREATE INDEX idx_notes_updated ON notes(updated_at DESC) WHERE deleted_at IS NULL"
+    },
+    {
+      "type": "index",
+      "name": "idx_reminders_due",
+      "tbl_name": "reminders",
+      "sql": "CREATE INDEX idx_reminders_due ON reminders(due_ts) WHERE fired_at IS NULL AND done=0 AND deleted_at IS NULL"
+    },
+    {
+      "type": "index",
+      "name": "idx_sugg_day",
+      "tbl_name": "suggestions",
+      "sql": "CREATE INDEX idx_sugg_day ON suggestions(created_at)"
+    },
+    {
+      "type": "index",
+      "name": "idx_sugg_dedupe",
+      "tbl_name": "suggestions",
+      "sql": "CREATE UNIQUE INDEX idx_sugg_dedupe ON suggestions(rule_id, dedupe_key)"
+    },
+    {
+      "type": "index",
+      "name": "idx_timers_active",
+      "tbl_name": "timers",
+      "sql": "CREATE INDEX idx_timers_active ON timers(ends_at)   WHERE canceled=0 AND fired_at IS NULL"
+    },
+    {
+      "type": "table",
+      "name": "action_log",
+      "tbl_name": "action_log",
+      "sql": "CREATE TABLE action_log(\n  id TEXT PRIMARY KEY, ts INTEGER NOT NULL, tool TEXT NOT NULL,\n  summary TEXT NOT NULL, outcome TEXT NOT NULL\n    CHECK(outcome IN ('executed','canceled','denied','expired','undone')),\n  conv_id TEXT)"
+    },
+    {
+      "type": "table",
+      "name": "alarms",
+      "tbl_name": "alarms",
+      "sql": "CREATE TABLE alarms(\n  id TEXT PRIMARY KEY, label TEXT, at_ts INTEGER NOT NULL, rrule TEXT,\n  enabled INTEGER NOT NULL DEFAULT 1, fired_at INTEGER,\n  created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, deleted_at INTEGER)"
+    },
+    {
+      "type": "table",
+      "name": "capability_misses",
+      "tbl_name": "capability_misses",
+      "sql": "CREATE TABLE capability_misses(id TEXT PRIMARY KEY, utterance TEXT NOT NULL, ts INTEGER NOT NULL)"
+    },
+    {
+      "type": "table",
+      "name": "chunks",
+      "tbl_name": "chunks",
+      "sql": "CREATE TABLE chunks(\n  id TEXT PRIMARY KEY,\n  kind TEXT NOT NULL CHECK(kind IN ('note','message','fact')),\n  ref_id TEXT NOT NULL,               -- note id / message id / memory_fact id\n  conv_id TEXT,                       -- messages only\n  text TEXT NOT NULL, ts INTEGER NOT NULL,\n  embedded_at INTEGER)"
+    },
+    {
+      "type": "table",
+      "name": "contacts",
+      "tbl_name": "contacts",
+      "sql": "CREATE TABLE contacts(\n  id TEXT PRIMARY KEY, name TEXT NOT NULL, email TEXT,\n  created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, deleted_at INTEGER)"
+    },
+    {
+      "type": "table",
+      "name": "conversations",
+      "tbl_name": "conversations",
+      "sql": "CREATE TABLE conversations(id TEXT PRIMARY KEY, started_at INTEGER NOT NULL)"
+    },
+    {
+      "type": "table",
+      "name": "events",
+      "tbl_name": "events",
+      "sql": "CREATE TABLE events(\n  id TEXT PRIMARY KEY, title TEXT NOT NULL, start_ts INTEGER NOT NULL, end_ts INTEGER,\n  tz TEXT NOT NULL, all_day INTEGER NOT NULL DEFAULT 0, rrule TEXT, exdates TEXT,\n  location TEXT, notes TEXT, reminder_min INTEGER,\n  created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, deleted_at INTEGER, calendar_id TEXT NOT NULL DEFAULT 'default', remote_id TEXT, etag TEXT, sync_status TEXT)"
+    },
+    {
+      "type": "table",
+      "name": "feeds",
+      "tbl_name": "feeds",
+      "sql": "CREATE TABLE feeds(id TEXT PRIMARY KEY, url TEXT NOT NULL, category TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 1)"
+    },
+    {
+      "type": "table",
+      "name": "memory_facts",
+      "tbl_name": "memory_facts",
+      "sql": "CREATE TABLE memory_facts(\n  id TEXT PRIMARY KEY, category TEXT NOT NULL, fact TEXT NOT NULL,\n  source_conv_id TEXT, confidence REAL NOT NULL DEFAULT 0.8,\n  updated_at INTEGER NOT NULL, deleted_at INTEGER)"
+    },
+    {
+      "type": "table",
+      "name": "messages",
+      "tbl_name": "messages",
+      "sql": "CREATE TABLE messages(\n  id TEXT PRIMARY KEY, conv_id TEXT NOT NULL REFERENCES conversations(id),\n  role TEXT NOT NULL CHECK(role IN ('user','assistant','tool')), content TEXT NOT NULL, ts INTEGER NOT NULL)"
+    },
+    {
+      "type": "table",
+      "name": "notes",
+      "tbl_name": "notes",
+      "sql": "CREATE TABLE notes(\n  id TEXT PRIMARY KEY, content TEXT NOT NULL, tags TEXT,\n  created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, deleted_at INTEGER, pinned INTEGER NOT NULL DEFAULT 0)"
+    },
+    {
+      "type": "table",
+      "name": "notes_fts",
+      "tbl_name": "notes_fts",
+      "sql": "CREATE VIRTUAL TABLE notes_fts USING fts5(content, content='notes', content_rowid='rowid')"
+    },
+    {
+      "type": "table",
+      "name": "notes_fts_config",
+      "tbl_name": "notes_fts_config",
+      "sql": "CREATE TABLE 'notes_fts_config'(k PRIMARY KEY, v) WITHOUT ROWID"
+    },
+    {
+      "type": "table",
+      "name": "notes_fts_data",
+      "tbl_name": "notes_fts_data",
+      "sql": "CREATE TABLE 'notes_fts_data'(id INTEGER PRIMARY KEY, block BLOB)"
+    },
+    {
+      "type": "table",
+      "name": "notes_fts_docsize",
+      "tbl_name": "notes_fts_docsize",
+      "sql": "CREATE TABLE 'notes_fts_docsize'(id INTEGER PRIMARY KEY, sz BLOB)"
+    },
+    {
+      "type": "table",
+      "name": "notes_fts_idx",
+      "tbl_name": "notes_fts_idx",
+      "sql": "CREATE TABLE 'notes_fts_idx'(segid, term, pgno, PRIMARY KEY(segid, term)) WITHOUT ROWID"
+    },
+    {
+      "type": "table",
+      "name": "oauth_accounts",
+      "tbl_name": "oauth_accounts",
+      "sql": "CREATE TABLE oauth_accounts(id TEXT PRIMARY KEY, provider TEXT NOT NULL, address TEXT, token_ref TEXT NOT NULL)"
+    },
+    {
+      "type": "table",
+      "name": "perf_spans",
+      "tbl_name": "perf_spans",
+      "sql": "CREATE TABLE perf_spans(id TEXT PRIMARY KEY, turn_id TEXT NOT NULL, name TEXT NOT NULL, dur_ms INTEGER NOT NULL, ts INTEGER NOT NULL)"
+    },
+    {
+      "type": "table",
+      "name": "reminders",
+      "tbl_name": "reminders",
+      "sql": "CREATE TABLE reminders(\n  id TEXT PRIMARY KEY, text TEXT NOT NULL, due_ts INTEGER NOT NULL, rrule TEXT,\n  fired_at INTEGER, done INTEGER NOT NULL DEFAULT 0,\n  created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, deleted_at INTEGER)"
+    },
+    {
+      "type": "table",
+      "name": "schema_version",
+      "tbl_name": "schema_version",
+      "sql": "CREATE TABLE schema_version(version INTEGER)"
+    },
+    {
+      "type": "table",
+      "name": "settings",
+      "tbl_name": "settings",
+      "sql": "CREATE TABLE settings(key TEXT PRIMARY KEY, value TEXT NOT NULL)"
+    },
+    {
+      "type": "table",
+      "name": "suggestions",
+      "tbl_name": "suggestions",
+      "sql": "CREATE TABLE suggestions(\n  id TEXT PRIMARY KEY, rule_id TEXT NOT NULL, dedupe_key TEXT NOT NULL,\n  urgency TEXT NOT NULL CHECK(urgency IN ('low','normal','time-sensitive')),\n  payload TEXT NOT NULL,              -- SuggestionDTO JSON\n  created_at INTEGER NOT NULL, shown_at INTEGER,\n  outcome TEXT CHECK(outcome IN ('acted','dismissed','snoozed','expired')),\n  acted_at INTEGER)"
+    },
+    {
+      "type": "table",
+      "name": "sync_queue",
+      "tbl_name": "sync_queue",
+      "sql": "CREATE TABLE sync_queue(\n  op_id TEXT PRIMARY KEY,\n  calendar_id TEXT NOT NULL,\n  event_id TEXT NOT NULL,\n  op TEXT NOT NULL,\n  payload TEXT,\n  created_at INTEGER NOT NULL\n)"
+    },
+    {
+      "type": "table",
+      "name": "sync_state",
+      "tbl_name": "sync_state",
+      "sql": "CREATE TABLE sync_state(\n  calendar_id TEXT PRIMARY KEY,\n  sync_token TEXT,\n  last_sync_ts INTEGER\n)"
+    },
+    {
+      "type": "table",
+      "name": "timers",
+      "tbl_name": "timers",
+      "sql": "CREATE TABLE timers(\n  id TEXT PRIMARY KEY, label TEXT, ends_at INTEGER NOT NULL,\n  canceled INTEGER NOT NULL DEFAULT 0, fired_at INTEGER, created_at INTEGER NOT NULL)"
+    },
+    {
+      "type": "table",
+      "name": "todos",
+      "tbl_name": "todos",
+      "sql": "CREATE TABLE todos(\n  id TEXT PRIMARY KEY, content TEXT NOT NULL, due_ts INTEGER,\n  done INTEGER NOT NULL DEFAULT 0,\n  created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, deleted_at INTEGER)"
+    },
+    {
+      "type": "table",
+      "name": "undo_log",
+      "tbl_name": "undo_log",
+      "sql": "CREATE TABLE undo_log(id TEXT PRIMARY KEY, turn_id TEXT NOT NULL, tool TEXT NOT NULL, payload TEXT NOT NULL, created_at INTEGER NOT NULL)"
+    },
+    {
+      "type": "table",
+      "name": "usage_log",
+      "tbl_name": "usage_log",
+      "sql": "CREATE TABLE usage_log(\n  day TEXT NOT NULL, provider TEXT NOT NULL, metric TEXT NOT NULL,\n  amount REAL NOT NULL, PRIMARY KEY(day, provider, metric))"
+    },
+    {
+      "type": "table",
+      "name": "vec_chunks",
+      "tbl_name": "vec_chunks",
+      "sql": "CREATE VIRTUAL TABLE vec_chunks USING vec0(chunk_id TEXT PRIMARY KEY, embedding float[384])"
+    },
+    {
+      "type": "table",
+      "name": "vec_chunks_chunks",
+      "tbl_name": "vec_chunks_chunks",
+      "sql": "CREATE TABLE \"vec_chunks_chunks\"(chunk_id INTEGER PRIMARY KEY AUTOINCREMENT,size INTEGER NOT NULL,validity BLOB NOT NULL,rowids BLOB NOT NULL)"
+    },
+    {
+      "type": "table",
+      "name": "vec_chunks_info",
+      "tbl_name": "vec_chunks_info",
+      "sql": "CREATE TABLE \"vec_chunks_info\" (key text primary key, value any)"
+    },
+    {
+      "type": "table",
+      "name": "vec_chunks_rowids",
+      "tbl_name": "vec_chunks_rowids",
+      "sql": "CREATE TABLE \"vec_chunks_rowids\"(rowid INTEGER PRIMARY KEY AUTOINCREMENT,id TEXT UNIQUE NOT NULL,chunk_id INTEGER,chunk_offset INTEGER)"
+    },
+    {
+      "type": "table",
+      "name": "vec_chunks_vector_chunks00",
+      "tbl_name": "vec_chunks_vector_chunks00",
+      "sql": "CREATE TABLE \"vec_chunks_vector_chunks00\"(rowid PRIMARY KEY,vectors BLOB NOT NULL)"
+    },
+    {
+      "type": "trigger",
+      "name": "notes_ad",
+      "tbl_name": "notes",
+      "sql": "CREATE TRIGGER notes_ad AFTER DELETE ON notes BEGIN\n  INSERT INTO notes_fts(notes_fts, rowid, content) VALUES ('delete', old.rowid, old.content);\nEND"
+    },
+    {
+      "type": "trigger",
+      "name": "notes_ai",
+      "tbl_name": "notes",
+      "sql": "CREATE TRIGGER notes_ai AFTER INSERT ON notes BEGIN\n  INSERT INTO notes_fts(rowid, content) VALUES (new.rowid, new.content);\nEND"
+    },
+    {
+      "type": "trigger",
+      "name": "notes_au",
+      "tbl_name": "notes",
+      "sql": "CREATE TRIGGER notes_au AFTER UPDATE OF content ON notes BEGIN\n  INSERT INTO notes_fts(notes_fts, rowid, content) VALUES ('delete', old.rowid, old.content);\n  INSERT INTO notes_fts(rowid, content) VALUES (new.rowid, new.content);\nEND"
+    }
+  ]
+}
