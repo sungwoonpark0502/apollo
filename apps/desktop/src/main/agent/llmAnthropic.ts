@@ -10,6 +10,18 @@ export interface AnthropicLlmDeps {
   log?: (msg: string) => void;
 }
 
+/**
+ * Anthropic requires tool names to match ^[a-zA-Z0-9_-]{1,128}$, which excludes
+ * the dot in Apollo's `namespace.verb` names (e.g. calendar.create). Map dots
+ * (and any other stray char) to underscores on the wire, and restore the real
+ * name on returned tool_use blocks via a map built from the live tool list. The
+ * transform is deterministic so historical tool_use blocks in the message
+ * history serialize to the same wire name the tools array declares.
+ */
+export function sanitizeToolName(name: string): string {
+  return name.replace(/[^a-zA-Z0-9_-]/g, '_');
+}
+
 function toSdkMessages(messages: LlmMessage[]): Anthropic.MessageParam[] {
   return messages.map((m) => ({
     role: m.role,
@@ -18,7 +30,7 @@ function toSdkMessages(messages: LlmMessage[]): Anthropic.MessageParam[] {
         case 'text':
           return { type: 'text', text: b.text };
         case 'tool_use':
-          return { type: 'tool_use', id: b.id, name: b.name, input: b.input ?? {} };
+          return { type: 'tool_use', id: b.id, name: sanitizeToolName(b.name), input: b.input ?? {} };
         case 'tool_result':
           return { type: 'tool_result', tool_use_id: b.tool_use_id, content: b.content, is_error: b.is_error };
       }
@@ -49,6 +61,11 @@ export function createAnthropicLlm(deps: AnthropicLlmDeps): LlmClient {
         fetch: deps.fetchFn,
         maxRetries: 2,
       });
+      // Wire names must match Anthropic's pattern; keep a map back to real names.
+      const wireTools = (req.tools as unknown as Anthropic.Tool[]).map((t) => ({ ...t, name: sanitizeToolName(t.name) }));
+      const realNameOf = new Map<string, string>();
+      for (const t of req.tools as unknown as Array<{ name: string }>) realNameOf.set(sanitizeToolName(t.name), t.name);
+
       try {
         const stream = client.messages.stream(
           {
@@ -56,7 +73,7 @@ export function createAnthropicLlm(deps: AnthropicLlmDeps): LlmClient {
             max_tokens: req.maxTokens,
             system: req.system,
             messages: toSdkMessages(req.messages),
-            tools: req.tools as unknown as Anthropic.Tool[],
+            tools: wireTools,
           },
           { signal: req.signal },
         );
@@ -69,7 +86,7 @@ export function createAnthropicLlm(deps: AnthropicLlmDeps): LlmClient {
           .join('');
         const toolUses: LlmToolUse[] = final.content
           .filter((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use')
-          .map((b) => ({ id: b.id, name: b.name, input: b.input }));
+          .map((b) => ({ id: b.id, name: realNameOf.get(b.name) ?? b.name, input: b.input }));
 
         return {
           stopReason: final.stop_reason === 'tool_use' ? 'tool_use' : final.stop_reason === 'max_tokens' ? 'max_tokens' : 'end_turn',
