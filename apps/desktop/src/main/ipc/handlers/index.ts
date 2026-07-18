@@ -46,6 +46,11 @@ export interface HandlerDeps {
   /** K2 dictation-into-composer: returns false when STT/mic is unavailable. */
   dictationStart?: () => Promise<boolean>;
   dictationStop?: () => void;
+  // L1 accounts. Tokens never cross this boundary — only status/profile/usage.
+  authSignIn?: () => Promise<{ ok: boolean }>;
+  authSignOut?: () => Promise<void>;
+  authUsage?: () => Promise<InvokeRes<'auth.usage'>>;
+  appMode?: () => 'managed' | 'byok';
   checkForUpdates?: () => Promise<InvokeRes<'update.check'>>;
   installUpdate?: () => void;
   resourceReport?: () => InvokeRes<'resources.get'>;
@@ -187,6 +192,16 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
       deps.dictationStop?.();
       return { ok: true as const };
     },
+    'auth.signIn': async () => {
+      await deps.authSignIn?.();
+      return { ok: true as const };
+    },
+    'auth.signOut': async () => {
+      await deps.authSignOut?.();
+      return { ok: true as const };
+    },
+    'auth.usage': async () => (deps.authUsage ? deps.authUsage() : { used: 0, limit: 0, resetIso: '' }),
+    'app.mode': () => ({ mode: deps.appMode?.() ?? ('managed' as const) }),
     'chat.regenerate': (req) => {
       deps.onUserActivity?.();
       deps.setActiveConversation?.(req.convId);

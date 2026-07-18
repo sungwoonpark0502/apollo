@@ -138,6 +138,10 @@ const invokeFixtures: Record<InvokeChannelName, { req: unknown; res: unknown }> 
   'tts.speak': { req: { text: 'Timer set for 10 minutes.' }, res: { ok: true } },
   'dictation.start': { req: {}, res: { ok: true } },
   'dictation.stop': { req: {}, res: { ok: true } },
+  'auth.signIn': { req: {}, res: { ok: true } },
+  'auth.signOut': { req: {}, res: { ok: true } },
+  'auth.usage': { req: {}, res: { used: 12, limit: 200, resetIso: '2026-08-01T00:00:00.000Z' } },
+  'app.mode': { req: {}, res: { mode: 'managed' } },
   'devices.list': { req: {}, res: { inputs: [{ deviceId: 'default', label: 'Built-in Mic' }], outputs: [{ deviceId: 'default', label: 'Built-in Speakers' }] } },
   'alert.action': { req: { kind: 'alarm', id: 'a1', action: 'snooze', snoozeMin: 10 }, res: { ok: true } },
   'keys.info': { req: {}, res: [{ provider: 'anthropic', configured: true, last4: 'x123', setAt: 1 }] },
@@ -184,6 +188,7 @@ const pushFixtures: Record<PushChannelName, unknown> = {
   'update.state': { status: 'ready', version: '1.2.3' },
   'google.state': { status: 'idle', lastSyncTs: 1_800_000_000_000 },
   'dictation.text': { text: 'note that the dentist moved', final: false },
+  'auth.state': { status: 'signedIn', user: { name: 'James', email: 'james@example.com', plan: 'free' } },
 };
 
 describe('invoke channel round-trips', () => {

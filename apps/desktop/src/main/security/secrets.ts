@@ -28,6 +28,7 @@ const ENV_NAMES: Record<KeyProvider, string> = {
 
 const STORE_PREFIX = 'secret.';
 const META_PREFIX = 'keymeta.'; // non-secret {last4, setAt}, safe to read from renderer
+const SESSION_KEY = 'auth.refreshToken'; // L1: encrypted, main-only, never over IPC
 
 export function createSecrets(deps: SecretsDeps) {
   return {
@@ -56,6 +57,34 @@ export function createSecrets(deps: SecretsDeps) {
     },
     has(provider: KeyProvider): boolean {
       return this.get(provider) !== null;
+    },
+
+    /**
+     * L1/L6 Apollo session refresh token. Same safeStorage rules as provider
+     * keys: encrypted at rest, main-process only, never exposed over IPC and
+     * never logged. Only the refresh token is persisted — the short-lived
+     * access token stays in memory in the session module.
+     */
+    getSessionToken(): string | null {
+      const stored = deps.settings.get(SESSION_KEY);
+      if (!stored) return null;
+      try {
+        return deps.codec.decrypt(stored);
+      } catch {
+        deps.log?.('secrets: failed to decrypt stored session token');
+        return null;
+      }
+    },
+    setSessionToken(token: string | null): void {
+      if (token === null) {
+        deps.settings.delete(SESSION_KEY);
+        return;
+      }
+      if (!deps.codec.available()) {
+        deps.log?.('secrets: safeStorage unavailable; refusing to store session token');
+        return;
+      }
+      deps.settings.set(SESSION_KEY, deps.codec.encrypt(token));
     },
     /** Non-secret metadata for every provider (configured?, last4, setAt). */
     info(): Array<{ provider: KeyProvider; configured: boolean; last4: string | null; setAt: number | null }> {

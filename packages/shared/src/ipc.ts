@@ -112,6 +112,15 @@ export const invokeChannels = {
   // K2 dictation-into-composer: STT transcribes into the textarea, never auto-sends.
   'dictation.start': { req: z.object({}), res: z.object({ ok: z.boolean() }) },
   'dictation.stop': { req: z.object({}), res: ackSchema },
+  // L1 accounts. Tokens never cross this boundary — only status and profile.
+  'auth.signIn': { req: z.object({}), res: ackSchema }, // opens the system browser
+  'auth.signOut': { req: z.object({}), res: ackSchema },
+  'auth.usage': {
+    req: z.object({}),
+    res: z.object({ used: z.number(), limit: z.number(), resetIso: z.string() }),
+  },
+  /** L0.2: which mode the build is running in, so the UI can hide Keys/Account. */
+  'app.mode': { req: z.object({}), res: z.object({ mode: z.enum(['managed', 'byok']) }) },
   'events.list': {
     req: z.object({ startMs: z.number(), endMs: z.number() }),
     res: z.array(occurrenceDTOSchema),
@@ -406,6 +415,11 @@ export const pushChannels = {
   'google.state': z.object({ status: z.enum(['idle', 'syncing', 'error']), lastSyncTs: z.number().nullable(), message: z.string().optional() }),
   // K2 dictation transcript stream → the Chat composer (final=true ends the session)
   'dictation.text': z.object({ text: z.string(), final: z.boolean() }),
+  // L1 auth state → every window (sign-in affordance, Account tab)
+  'auth.state': z.object({
+    status: z.enum(['signedOut', 'signingIn', 'signedIn']),
+    user: z.object({ name: z.string(), email: z.string(), plan: z.string() }).optional(),
+  }),
 } as const satisfies Record<string, z.ZodType>;
 
 export type InvokeChannelName = keyof typeof invokeChannels;

@@ -16,6 +16,10 @@ export const ERROR_CODES = [
   'REAUTH_NEEDED',
   'DB_CORRUPT',
   'DISK_FULL',
+  // L1/L0.1 managed mode: signed-out and quota states get their own friendly
+  // copy — never a keys request, never a raw provider error.
+  'AUTH_REQUIRED',
+  'QUOTA_EXCEEDED',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

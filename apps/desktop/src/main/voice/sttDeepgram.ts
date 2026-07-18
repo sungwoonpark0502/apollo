@@ -10,7 +10,13 @@ import { agentForResolvedProxy } from '../net/proxy';
  * preserving buffered frames; a second failure degrades to STT_DOWN.
  */
 export interface DeepgramDeps {
-  apiKey: () => string | null;
+  /**
+   * The credential to open the live session with. BYOK returns the user's key
+   * synchronously; managed mode returns a promise that mints a short-lived
+   * scoped token from the Apollo backend (L0.1) — the server key never reaches
+   * the device either way.
+   */
+  apiKey: () => string | null | Promise<string | null>;
   /** H4: resolves the system proxy for the Deepgram WS URL (session.resolveProxy). */
   resolveProxy?: (url: string) => Promise<string>;
   log?: (msg: string) => void;
@@ -34,7 +40,7 @@ const LIVE_OPTIONS = {
 export function createDeepgramStt(deps: DeepgramDeps): SttAdapter {
   return {
     async open(cb: SttCallbacks): Promise<SttSession> {
-      const key = deps.apiKey();
+      const key = await deps.apiKey();
       if (!key) throw new AppError('KEY_MISSING', 'no deepgram key');
       // H4: route the WS through the system proxy when one is configured.
       let agent: HttpsProxyAgent<string> | null = null;

@@ -1,10 +1,16 @@
 import { z } from 'zod';
-import { STRINGS, type ToolDef } from '@apollo/shared';
+import { STRINGS, type SearchResponse, type ToolDef } from '@apollo/shared';
 import { type HttpClient } from '../net/httpClient';
 
 export interface SearchToolDeps {
   http: HttpClient;
   getBraveKey: () => string | null;
+  /**
+   * L0.2 managed transport. When present, search goes through the Apollo
+   * backend (which holds the Brave key) instead of a local key. The tool's
+   * behavior, card, and taint marking are identical either way.
+   */
+  managedSearch?: (query: string) => Promise<SearchResponse>;
 }
 
 export function createSearchWebTool(deps: SearchToolDeps): ToolDef {
@@ -16,25 +22,36 @@ export function createSearchWebTool(deps: SearchToolDeps): ToolDef {
       'Web search (Brave). Use for current events, facts you are unsure about, or anything outside the other tools. Returns the top 5 results.',
     params: z.object({ query: z.string().min(1) }),
     async execute(a) {
-      const key = deps.getBraveKey();
-      if (!key) {
+      const results = deps.managedSearch ? await viaBackend(a.query) : await viaLocalKey(a.query);
+      if (results === null) {
         return { llmText: `ERROR KEY_MISSING: ${STRINGS.errors.KEY_MISSING('Brave Search')} Web search is unavailable until a key is added.` };
       }
-      const data = (await deps.http.getJson(
-        `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(a.query)}&count=5`,
-        { headers: { 'X-Subscription-Token': key, Accept: 'application/json' } },
-      )) as { web?: { results?: Array<{ title: string; url: string; description?: string }> } };
-      const results = (data.web?.results ?? []).slice(0, 5);
       if (results.length === 0) return { llmText: `No web results for "${a.query}".`, untrusted: true };
       return {
-        llmText: results.map((r, i) => `${i + 1}. ${r.title} — ${r.description ?? ''} (${r.url})`).join('\n'),
+        llmText: results.map((r, i) => `${i + 1}. ${r.title} — ${r.snippet} (${r.url})`).join('\n'),
         card: {
           kind: 'newsList',
-          items: results.map((r) => ({ title: r.title, source: new URL(r.url).hostname, url: r.url, summary: r.description ?? '' })),
+          items: results.map((r) => ({ title: r.title, source: new URL(r.url).hostname, url: r.url, summary: r.snippet })),
         },
         untrusted: true,
       };
     },
   };
+
+  async function viaBackend(query: string): Promise<Array<{ title: string; url: string; snippet: string }>> {
+    return (await deps.managedSearch!(query)).results.slice(0, 5);
+  }
+
+  /** null = no key configured (BYOK only). */
+  async function viaLocalKey(query: string): Promise<Array<{ title: string; url: string; snippet: string }> | null> {
+    const key = deps.getBraveKey();
+    if (!key) return null;
+    const data = (await deps.http.getJson(
+      `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=5`,
+      { headers: { 'X-Subscription-Token': key, Accept: 'application/json' } },
+    )) as { web?: { results?: Array<{ title: string; url: string; description?: string }> } };
+    return (data.web?.results ?? []).slice(0, 5).map((r) => ({ title: r.title, url: r.url, snippet: r.description ?? '' }));
+  }
+
   return search;
 }

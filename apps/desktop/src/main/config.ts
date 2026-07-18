@@ -8,6 +8,11 @@ import { z } from 'zod';
  */
 const ConfigSchema = z.object({
   anthropicModel: z.string().default('claude-sonnet-4-6'),
+  // L0/L1 managed mode: where the app proxies inference and signs in. Configurable
+  // so a self-host can point at their own deployment (hosting is a HUMAN_TODO).
+  backendBaseUrl: z.string().url().default('https://api.apolloassistant.app'),
+  oidcAuthorizeUrl: z.string().url().default('https://auth.apolloassistant.app/authorize'),
+  oidcClientId: z.string().default('apollo-desktop'),
   env: z.record(z.string()),
 });
 
@@ -40,6 +45,9 @@ export function loadConfig(opts: { dotEnvPath?: string; processEnv?: NodeJS.Proc
   return Object.freeze(
     ConfigSchema.parse({
       anthropicModel: env['ANTHROPIC_MODEL'] ?? 'claude-sonnet-4-6',
+      ...(env['APOLLO_BACKEND_URL'] ? { backendBaseUrl: env['APOLLO_BACKEND_URL'] } : {}),
+      ...(env['APOLLO_OIDC_AUTHORIZE_URL'] ? { oidcAuthorizeUrl: env['APOLLO_OIDC_AUTHORIZE_URL'] } : {}),
+      ...(env['APOLLO_OIDC_CLIENT_ID'] ? { oidcClientId: env['APOLLO_OIDC_CLIENT_ID'] } : {}),
       env,
     }),
   );

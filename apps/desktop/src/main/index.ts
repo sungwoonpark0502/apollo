@@ -68,6 +68,11 @@ import { createOrchestrator, type Orchestrator } from './agent/orchestrator';
 import { createConversationManager } from './agent/conversationManager';
 import { buildSystemPrompt } from './agent/systemPrompt';
 import { createAnthropicLlm } from './agent/llmAnthropic';
+import { createBackendLlm } from './agent/llmBackend';
+import { byokAllowedFromEnv, resolveMode } from './auth/mode';
+import { createSession } from './auth/session';
+import { runSignInFlow } from './auth/signInFlow';
+import { createBackendSearch, createBackendSttToken } from './auth/transports';
 import { createScheduler } from './scheduler/scheduler';
 import { registerRouter, makeTrustedUrlCheck, pushTo } from './ipc/router';
 import { createThrottle } from './ipc/throttle';
@@ -245,21 +250,58 @@ function boot(): void {
     });
   }
 
-  // Streams through the egress-checked fetch; throws KEY_MISSING (mapped to
-  // Settings > Keys copy) until a key exists, while fast path and tools work.
-  const llm = createAnthropicLlm({
-    apiKey: () => secrets.get('anthropic'),
-    model: () => settings.get().anthropic.model,
-    fetchFn: ((input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
-      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-      if (!egress.isAllowedUrl(url)) {
-        log(`egress blocked (llm): ${url}`);
-        return Promise.reject(new Error('egress blocked'));
-      }
-      return fetch(input, init);
-    }) as typeof fetch,
+  // L0.2 mode: BYOK only when the build permits it AND a real key exists;
+  // otherwise managed (backend transport, no provider keys on the device).
+  const byokAllowed = byokAllowedFromEnv(process.env);
+  const appMode = resolveMode({ allowByok: byokAllowed, hasProviderKey: secrets.has('anthropic') });
+  log(`operating mode: ${appMode}`);
+
+  const egressCheckedFetch = ((input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+    if (!egress.isAllowedUrl(url)) {
+      log(`egress blocked: ${url}`);
+      return Promise.reject(new Error('egress blocked'));
+    }
+    return fetch(input, init);
+  }) as typeof fetch;
+
+  // L1 session: refresh token in safeStorage, access token in memory only.
+  const authSession = createSession({
+    baseUrl: config.backendBaseUrl,
+    fetchFn: egressCheckedFetch,
+    loadRefreshToken: () => secrets.getSessionToken(),
+    saveRefreshToken: (t) => secrets.setSessionToken(t),
+    runSignInFlow: () =>
+      runSignInFlow({
+        baseUrl: config.backendBaseUrl,
+        authorizeUrl: config.oidcAuthorizeUrl,
+        clientId: config.oidcClientId,
+        fetchFn: egressCheckedFetch,
+      }),
+    onChange: (state) => {
+      for (const win of BrowserWindow.getAllWindows()) if (!win.isDestroyed()) pushTo(win.webContents, 'auth.state', state);
+    },
     log,
   });
+
+  /**
+   * L0.2 transport selection. Both branches satisfy the same LlmClient, so the
+   * orchestrator, tools, and voice code below are identical in either mode.
+   */
+  const llm =
+    appMode === 'byok'
+      ? createAnthropicLlm({
+          apiKey: () => secrets.get('anthropic'),
+          model: () => settings.get().anthropic.model,
+          fetchFn: egressCheckedFetch,
+          log,
+        })
+      : createBackendLlm({
+          baseUrl: config.backendBaseUrl,
+          getAccessToken: () => authSession.getAccessToken(),
+          fetchFn: egressCheckedFetch,
+          log,
+        });
 
   // G1/G3 semantic memory: on-device embedder + background indexer.
   const { embedder, adapterState: embedderState } = createEmbedder({
@@ -300,7 +342,14 @@ function boot(): void {
         getHome: () => settings.get().profile.homePlace,
         getUnits: () => settings.get().profile.units,
       }),
-      createSearchWebTool({ http, getBraveKey: () => secrets.get('brave') }),
+      createSearchWebTool({
+        http,
+        getBraveKey: () => secrets.get('brave'),
+        // Managed mode proxies search through the backend (which holds the key).
+        ...(appMode === 'managed'
+          ? { managedSearch: createBackendSearch({ baseUrl: config.backendBaseUrl, getAccessToken: () => authSession.getAccessToken(), fetchFn: egressCheckedFetch, log }) }
+          : {}),
+      }),
       ...createLinkTools({ reader: linkReader, allowLinkReading: () => settings.get().allowLinkReading }),
       createRecallTool({ recall, tz: () => Intl.DateTimeFormat().resolvedOptions().timeZone }),
       createNewsTool({ http, feeds: repos.feeds, summarize: createLlmSummarizer(llm) }),
@@ -456,11 +505,21 @@ function boot(): void {
     }
   }
 
-  // STT adapter selection (C17 auto): Deepgram when a key exists, else FakeSTT fixtures.
+  // STT adapter selection (C17 auto): real STT when we have a credential source
+  // — a local key in BYOK, or the backend's short-lived scoped token in managed
+  // mode (L0.1) — else FakeSTT fixtures.
   const sttMode = settings.get().adapters.stt;
-  const useRealStt = sttMode === 'real' || (sttMode === 'auto' && secrets.get('deepgram') !== null);
+  const managedSttToken = createBackendSttToken({
+    baseUrl: config.backendBaseUrl,
+    getAccessToken: () => authSession.getAccessToken(),
+    fetchFn: egressCheckedFetch,
+    log,
+  });
+  const sttCredential = (): string | null | Promise<string | null> =>
+    appMode === 'byok' ? secrets.get('deepgram') : managedSttToken();
+  const useRealStt = sttMode === 'real' || (sttMode === 'auto' && (appMode === 'managed' || secrets.get('deepgram') !== null));
   const sttAdapter = useRealStt
-    ? createDeepgramStt({ apiKey: () => secrets.get('deepgram'), resolveProxy: (url) => session.defaultSession.resolveProxy(url), log })
+    ? createDeepgramStt({ apiKey: sttCredential, resolveProxy: (url) => session.defaultSession.resolveProxy(url), log })
     : new FakeStt(loadVoiceFixtures());
 
   function loadVoiceFixtures(): FakeSttFixture[] {
@@ -793,6 +852,22 @@ function boot(): void {
       });
     },
     dictationStop: () => voiceController.stopDictation(),
+    // L1 accounts: main owns the tokens; the renderer only ever sees state.
+    authSignIn: () => authSession.signIn(),
+    authSignOut: () => authSession.signOut(),
+    authUsage: async () => {
+      const token = await authSession.getAccessToken();
+      if (!token) return { used: 0, limit: 0, resetIso: '' };
+      try {
+        const res = await egressCheckedFetch(`${config.backendBaseUrl}/v1/me`, { headers: { authorization: `Bearer ${token}` } });
+        if (!res.ok) return { used: 0, limit: 0, resetIso: '' };
+        const body = (await res.json()) as { usage?: { used: number; limit: number; resetIso: string } };
+        return body.usage ?? { used: 0, limit: 0, resetIso: '' };
+      } catch {
+        return { used: 0, limit: 0, resetIso: '' };
+      }
+    },
+    appMode: () => appMode,
     checkForUpdates: async () => (app.isPackaged ? { status: 'checking' as const } : { status: 'disabled' as const }),
     installUpdate: () => updaterHandle?.install(),
     resourceReport: () =>
