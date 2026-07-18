@@ -407,6 +407,42 @@ describe('batch confirmation (I3)', () => {
     await resume;
     expect(sentEmails).toHaveLength(0);
   });
+
+  // J2.3 confirmation-set generalization: a new Tier 3 supersedes a pending BATCH.
+  it('a new request while a BATCH is pending supersedes the whole set; nothing from the old batch runs', async () => {
+    const { orch, llm } = setup([
+      threeSends()[0]!, // turn 1: batch of 3 pending
+      { toolUses: [{ name: 'email.send', input: { to: ['z@x.com'], subject: 'new', body: 'n' } }] }, // turn 2: new single
+      { text: 'ok' }, // superseded old turn resumes
+      { text: 'ok' },
+    ]);
+    await say(orch, 'email a, b and c');
+    const batch = events.find((e): e is Extract<AgentEvent, { type: 'confirmRequest' }> => e.type === 'confirmRequest')!;
+    expect(orch.hasPendingConfirmation()).toBe(true);
+    await say(orch, 'actually just email z@x.com');
+    // single-pending-set invariant: the batch was superseded, the new one is pending
+    expect(JSON.stringify(llm.requests.map((r) => r.messages))).toContain('superseded');
+    // approving the DEAD batch executes nothing
+    await orch.confirm(batch.confirmationId, true);
+    expect(sentEmails).toHaveLength(0);
+    expect(orch.hasPendingConfirmation()).toBe(true); // only the new set remains
+  });
+
+  it('per-row deny then a brand-new request supersedes cleanly (single pending set throughout)', async () => {
+    const { orch } = setup([
+      threeSends()[0]!,
+      { text: 'done' }, // turn-1 resumes after partial approve
+      { toolUses: [{ name: 'email.send', input: { to: ['z@x.com'], subject: 'new', body: 'n' } }] },
+      { text: 'ok' },
+    ], { cancelWindowMs: 5 });
+    await say(orch, 'email a, b and c');
+    const c = events.find((e): e is Extract<AgentEvent, { type: 'confirmRequest' }> => e.type === 'confirmRequest')!;
+    await orch.confirm(c.confirmationId, true, [1]); // deny row b → a,c run
+    expect(sentEmails.map((e) => (e.to as string[])[0])).toEqual(['a@x.com', 'c@x.com']);
+    expect(orch.hasPendingConfirmation()).toBe(false); // set consumed, none left pending
+    await say(orch, 'now email z@x.com');
+    expect(orch.hasPendingConfirmation()).toBe(true); // the new single set
+  });
 });
 
 describe('dead-end guard (C8.10)', () => {

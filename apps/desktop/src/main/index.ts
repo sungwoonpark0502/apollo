@@ -46,6 +46,7 @@ import { createLinkTools } from './tools/link';
 import { createLinkReader } from './net/linkReader';
 import { createGCalModule } from './gcal/module';
 import { createGoogleClient } from './gcal/googleClient';
+import { isVoiceBusy, canDrainIndex } from './voice/fsmPriority';
 import { createEmailTools } from './tools/email';
 import { createBriefTool } from './tools/brief';
 import { createScreenTool, readScreenContext } from './tools/screen';
@@ -268,7 +269,7 @@ function boot(): void {
     embedder,
     historyEnabled: () => settings.get().history.enabled,
     indexEnabled: () => settings.get().memory.indexEnabled,
-    canDrain: () => activeTurns === 0 && voiceController.state() === 'idle',
+    canDrain: () => activeTurns === 0 && canDrainIndex(voiceController.state()), // J3: idle or muted, never listening/thinking/speaking/followup
     log,
   });
   const recall = createRecall({ chunks: repos.chunks, repos, embedder });
@@ -872,7 +873,7 @@ function boot(): void {
     saveSettings: (next) => settings.set(next),
     tz: () => Intl.DateTimeFormat().resolvedOptions().timeZone,
     gmailConnected: () => emailService.isConnected(),
-    voiceBusy: () => ['listening', 'thinking', 'speaking'].includes(voiceController.state()),
+    voiceBusy: () => isVoiceBusy(voiceController.state()), // J2: followup/waking defer nudges too
     // Cross-app fullscreen detection isn't exposed by Electron; conservatively false
     // (never suppress a nudge for a fullscreen we can't observe). See HUMAN_TODO.
     isFullscreen: () => false,

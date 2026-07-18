@@ -17,7 +17,19 @@ Status legend: ✅ fixed (+test) · 🟢 verified-clean (+test) · 📋 backlogg
 | A-J6.2 | S3 | renderer components | Hardcoded user-facing literals outside strings.ts: `aria-label="Color"`, `placeholder="Paste key…"`, `aria-label="You have a nudge"`, `aria-label="Copy reply"`, `title="Copy"`. | ✅ Centralized into `STRINGS.a11y.*` / `STRINGS.settings.keys.pastePlaceholder`. Re-scan clean. Full copy inventory → strings-inventory.md (J6.4, HUMAN_TODO). |
 
 ## Pass B — dynamic & integration audit (J2–J5)
-_populated during 10.2–10.5_
+
+### J2 — concurrency & FSM
+| id | sev | location | finding | disposition |
+|----|-----|----------|---------|-------------|
+| B-J2.1 | S2 | index.ts `voiceBusy` | Proactive busy-check listed only `listening/thinking/speaking` — a nudge arriving during the **follow-up** window (or `waking`) could grab the mic mid-interaction. | ✅ Fixed: `voiceBusy = isVoiceBusy(state)` with `VOICE_BUSY_STATES = waking/listening/thinking/speaking/followup` (voice/fsmPriority.ts). Governor already defers everything (incl. time-sensitive) when busy. Tests: `fsmPriority.test.ts` + existing governor busy test. |
+| B-J2.2 | S3 | (new) voice/fsmPriority.ts | FSM priority order was implicit, not encoded. | ✅ Encoded `FSM_PRIORITY = userSpeech > ringingAlarm > ttsReply > proactive` + `arbitrate` + `resolveResources` (user speech wins mic, alarm keeps visual + ducks sound, TTS ducks). Tests in `fsmPriority.test.ts`. |
+| B-J2.3 | S3 | agent/confirmations.ts | Single-pending-set + supersede already correct for single→single; batch cases untested. | 🟢 Clean. Added regression tests: a new request supersedes a pending **batch** (dead batch executes nothing, `superseded` tool_result), and per-row-deny then a new request keeps one pending set. |
+| B-J2.4 | S3 | renderer/orb/OrbApp.tsx | Ringing overlay vs voice/agent UI in the shared orb window could corrupt each other. | 🟢 Clean by construction: `ringing` and voice `state` are independent React slices fed by independent listeners (`alert.*` vs `voice.state`/`agent.events`), distinct channels. `resolveResources` proves both stay renderable concurrently. Live visual check → HUMAN_TODO. |
+
+### J3 — lifecycle & resource
+| id | sev | location | finding | disposition |
+|----|-----|----------|---------|-------------|
+| B-J3.3 | S2 | index.ts indexer `canDrain` | Indexer drained only when `state === 'idle'` — never while `muted` (mic off, indexing is safe), starving the index whenever muted. Spec: {idle, muted}. | ✅ Fixed: `canDrainIndex(state)` = idle∨muted, never listening/thinking/speaking/followup. Test in `fsmPriority.test.ts`. (Remaining J3 items land in 10.3.) |
 
 ## Pass C — regression lock & docs (J6.3)
 _populated during 10.6_
