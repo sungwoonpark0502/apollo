@@ -31,6 +31,34 @@ function setup(opts: { canDrain?: () => boolean; historyEnabled?: () => boolean;
 
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
 
+describe('J3 indexer disk-full backoff', () => {
+  it('a disk-full write leaves chunks pending, backs off, and retries after the delay', async () => {
+    const { indexer, clock } = setup();
+    indexer.start();
+    repos.notes.save({ content: 'Ideas\n\nA drone delivery startup.' });
+    clock.advance(5_000); // debounce → chunks created
+
+    // First drain: setEmbedding throws SQLITE_FULL once.
+    const real = repos.chunks.setEmbedding.bind(repos.chunks);
+    let failed = false;
+    repos.chunks.setEmbedding = ((...args: Parameters<typeof real>) => {
+      if (!failed) { failed = true; const e = new Error('SQLITE_FULL'); (e as unknown as { code: string }).code = 'SQLITE_FULL'; throw e; }
+      return real(...args);
+    }) as typeof real;
+
+    clock.advance(1); // pump drain timer
+    await flush();
+    expect(failed).toBe(true);
+    expect(repos.chunks.pendingEmbedding(10).length).toBeGreaterThan(0); // stayed pending, no crash
+
+    // Backoff elapses → retry drains successfully now the disk "frees up".
+    clock.advance(30_000);
+    await flush();
+    expect(repos.chunks.pendingEmbedding(10)).toHaveLength(0);
+    indexer.stop();
+  });
+});
+
 describe('indexer note flow (G3)', () => {
   it('debounces 5s then chunks+embeds a note', async () => {
     const { indexer, clock } = setup();

@@ -1,9 +1,11 @@
+import { isDiskFullError } from '@apollo/shared';
 import { type Repos } from '../db/repos/index';
 import { type Embedder } from './embedder';
 import { chunkFact, chunkMessage, chunkNote } from './chunker';
 
 const NOTE_DEBOUNCE_MS = 5_000;
 const EMBED_BATCH = 8;
+const DISK_FULL_BACKOFF_MS = 30_000; // J3: retry a disk-full drain after this delay
 const GROWTH_CAP = 50_000;
 
 export interface IndexerDeps {
@@ -103,6 +105,14 @@ export function createIndexer(deps: IndexerDeps) {
         await Promise.resolve(); // yield to the event loop between batches
       }
     } catch (e) {
+      if (isDiskFullError(e)) {
+        // J3: a disk-full write is transient — the chunks stay pending; back off and retry
+        // later rather than hot-looping or crashing the drain loop.
+        deps.log?.('indexer drain deferred: disk full, backing off');
+        draining = false;
+        setTimer(() => void drainNow(), DISK_FULL_BACKOFF_MS);
+        return;
+      }
       deps.log?.(`indexer drain failed: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       draining = false;

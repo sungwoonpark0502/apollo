@@ -15,6 +15,7 @@ export const ERROR_CODES = [
   'THROTTLED',
   'REAUTH_NEEDED',
   'DB_CORRUPT',
+  'DISK_FULL',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];
@@ -33,6 +34,17 @@ export class AppError extends Error {
   }
 }
 
+/** J3: SQLite write failures that mean "the disk can't accept this write". */
+const DISK_FULL_SQLITE_CODES = new Set(['SQLITE_FULL', 'SQLITE_IOERR', 'SQLITE_IOERR_WRITE', 'SQLITE_READONLY_DBMOVED']);
+
+/** True when a raw error looks like a disk-full / write-failure from better-sqlite3. */
+export function isDiskFullError(err: unknown): boolean {
+  const code = (err as { code?: unknown } | null)?.code;
+  return typeof code === 'string' && DISK_FULL_SQLITE_CODES.has(code);
+}
+
 export function toErrorCode(err: unknown): ErrorCode {
-  return err instanceof AppError ? err.code : 'INTERNAL';
+  if (err instanceof AppError) return err.code;
+  if (isDiskFullError(err)) return 'DISK_FULL'; // never a silent loss / raw crash (J3)
+  return 'INTERNAL';
 }

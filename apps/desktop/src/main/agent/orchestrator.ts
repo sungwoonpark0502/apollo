@@ -704,6 +704,10 @@ function errorCopy(code: ReturnType<typeof toErrorCode>): string {
       return STRINGS.errors.LLM_DOWN;
     case 'TIMEOUT':
       return STRINGS.errors.TIMEOUT;
+    case 'DB_CORRUPT':
+      return STRINGS.errors.DB_CORRUPT;
+    case 'DISK_FULL':
+      return STRINGS.errors.DISK_FULL;
     default:
       return STRINGS.errors.INTERNAL;
   }

@@ -74,6 +74,59 @@ describe('scheduler (C19)', () => {
     sched.stop();
   });
 
+  // J3 wall-clock jump resilience: the 60s sanity check recomputes from absolute targets.
+  it('J3: a forward wall-clock jump fires an overdue timer within one sanity tick', () => {
+    const fired: string[] = [];
+    const start = Date.now();
+    const sched = createScheduler({ repos, onTimerFire: (t) => fired.push(t.id) });
+    const t = repos.timers.start({ endsAt: start + 5 * 60_000 }); // due in 5 min
+    sched.start();
+    // Manual clock change forward 10 min WITHOUT elapsed monotonic time.
+    vi.setSystemTime(start + 10 * 60_000);
+    expect(fired).toHaveLength(0); // the armed setTimeout hasn't elapsed monotonically
+    vi.advanceTimersByTime(60_000); // one sanity tick recomputes from the absolute target
+    expect(fired).toEqual([t.id]);
+    sched.stop();
+  });
+
+  it('J3: a backward wall-clock jump does not fire early; the item still fires at its absolute target', () => {
+    const fired: string[] = [];
+    const start = Date.now();
+    const sched = createScheduler({ repos, onTimerFire: (t) => fired.push(t.id) });
+    repos.timers.start({ endsAt: start + 5 * 60_000 });
+    sched.start();
+    vi.setSystemTime(start - 60 * 60_000); // clock jumps back an hour
+    vi.advanceTimersByTime(60_000); // sanity tick
+    expect(fired).toHaveLength(0); // not yet due against the (now earlier) wall clock
+    vi.setSystemTime(start + 5 * 60_000); // reach the absolute target
+    vi.advanceTimersByTime(60_000);
+    expect(fired).toHaveLength(1);
+    sched.stop();
+  });
+
+  it('J3 resume storm: catchUp fires timer+reminder+alarm all overdue after a suspend, grouped once', () => {
+    const start = Date.now();
+    const fired: string[] = [];
+    const sched = createScheduler({
+      repos,
+      onTimerFire: (t) => fired.push(`timer:${t.id}`),
+      onReminderFire: (r) => fired.push(`rem:${r.id}`),
+      onAlarmFire: (a) => fired.push(`alarm:${a.id}`),
+    });
+    repos.timers.start({ endsAt: start + 60_000 });
+    repos.reminders.create({ text: 'r', dueTs: start + 90_000 });
+    repos.alarms.set({ atTs: start + 120_000, label: 'a' });
+    sched.start();
+    // Machine suspends; wall clock advances past all three; resume fires them together.
+    vi.setSystemTime(start + 10 * 60_000);
+    const missed = sched.catchUp();
+    expect(missed.timers.length + missed.reminders.length + missed.alarms.length).toBe(3);
+    expect(fired).toHaveLength(3);
+    // A second catchUp does not re-fire (already marked fired).
+    expect(sched.catchUp().timers).toHaveLength(0);
+    sched.stop();
+  });
+
   it('canceled timers never fire; rearm reflects mutations', () => {
     const fired: string[] = [];
     const sched = createScheduler({ repos, onTimerFire: (t) => fired.push(t.id) });

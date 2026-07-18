@@ -920,7 +920,13 @@ function boot(): void {
   proactive.start();
   proactiveRef = proactive;
   indexer.start(); // G3: boot rescan + DataBus-driven note indexing
-  powerMonitor.on('resume', () => proactive.onResume());
+  // J3 unified resume: fire missed scheduler items (grouped, recomputed from
+  // absolute targets), catch up proactive, and sync gcal if stale.
+  powerMonitor.on('resume', () => {
+    proactive.onResume();
+    scheduler.catchUp();
+    void gcal.onFocus();
+  });
 
   // H7 battery pause: when on battery and pauseWakeOnBattery, disable wake
   // detection (sensitivity 0); PTT still works. Restore on AC.

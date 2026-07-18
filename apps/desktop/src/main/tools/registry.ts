@@ -1,5 +1,5 @@
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import { type ToolCtx, type ToolDef, type ToolResult } from '@apollo/shared';
+import { AppError, isDiskFullError, type ToolCtx, type ToolDef, type ToolResult } from '@apollo/shared';
 
 export interface AnthropicToolJson {
   name: string;
@@ -79,6 +79,12 @@ export function createRegistry(tools: ToolDef[], opts: RegistryOpts = {}) {
         if (e instanceof ToolTimeoutError) {
           opts.log?.(`tool ${name} timed out after ${timeoutMs}ms`);
           return { llmText: `ERROR ${name} timed out` };
+        }
+        // J3: a disk-full / write failure is not a recoverable tool error — abort the
+        // turn honestly with DISK_FULL rather than feeding a raw SQLite message to the LLM.
+        if (isDiskFullError(e)) {
+          opts.log?.(`tool ${name} write failed: disk full`);
+          throw new AppError('DISK_FULL', `${name} write failed`, e);
         }
         const msg = e instanceof Error ? e.message : 'unknown failure';
         opts.log?.(`tool ${name} threw: ${msg}`);

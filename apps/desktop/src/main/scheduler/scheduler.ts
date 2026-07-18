@@ -43,6 +43,9 @@ export function nextOccurrence(rule: string, anchorMs: number, afterMs: number, 
 export interface SchedulerDeps {
   repos: Repos;
   now?: () => number;
+  /** Injectable for tests (fake sanity interval). Defaults to global setInterval. */
+  setInterval?: (fn: () => void, ms: number) => ReturnType<typeof setInterval>;
+  clearInterval?: (h: ReturnType<typeof setInterval>) => void;
   tz?: () => string;
   onTimerFire: (t: TimerRow) => void;
   onReminderFire?: (r: ReminderRow) => void;
@@ -52,9 +55,16 @@ export interface SchedulerDeps {
 
 const MAX_DELAY = 2 ** 31 - 1;
 
+/** J3: re-check absolute targets at least this often, so a wall-clock jump or a
+ *  long OS suspend can never leave an overdue item unfired for more than a minute. */
+const SANITY_MS = 60_000;
+
 export function createScheduler(deps: SchedulerDeps) {
   const now = deps.now ?? Date.now;
+  const setInt = deps.setInterval ?? ((fn: () => void, ms: number) => setInterval(fn, ms));
+  const clearInt = deps.clearInterval ?? ((h: ReturnType<typeof setInterval>) => clearInterval(h));
   let handle: ReturnType<typeof setTimeout> | null = null;
+  let sanity: ReturnType<typeof setInterval> | null = null;
   let stopped = false;
 
   function nextDueTs(): number | null {
@@ -111,20 +121,37 @@ export function createScheduler(deps: SchedulerDeps) {
     deps.log?.(`scheduler armed in ${delay}ms`);
   }
 
+  /** J3: fire everything now due (recomputed from absolute targets) and re-arm.
+   *  Used by boot, powerMonitor resume, and the periodic sanity check. */
+  function catchUp(): { timers: TimerRow[]; reminders: ReminderRow[]; alarms: AlarmRow[] } {
+    if (stopped) return { timers: [], reminders: [], alarms: [] };
+    const missed = fireDue();
+    arm();
+    return missed;
+  }
+
   return {
-    /** Boot / power-resume entry: fires everything missed, then arms the tick. */
+    /** Boot / power-resume entry: fires everything missed, then arms the tick + sanity interval. */
     start(): { timers: TimerRow[]; reminders: ReminderRow[]; alarms: AlarmRow[] } {
       stopped = false;
       const missed = fireDue();
       arm();
+      if (sanity) clearInt(sanity);
+      // Periodic wall-clock sanity check: recompute from absolute targets so a
+      // clock jump forward/backward or a resume can never strand an overdue item.
+      sanity = setInt(() => catchUp(), SANITY_MS);
       return missed;
     },
+    /** powerMonitor 'resume' / manual clock-change: fire missed items grouped, re-arm. */
+    catchUp,
     /** Call after any timer/reminder/alarm mutation. */
     rearm: arm,
     stop(): void {
       stopped = true;
       if (handle) clearTimeout(handle);
       handle = null;
+      if (sanity) clearInt(sanity);
+      sanity = null;
     },
   };
 }

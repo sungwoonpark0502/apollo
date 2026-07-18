@@ -66,6 +66,7 @@ export const STRINGS = {
     THROTTLED: 'That was too many requests at once. Give me a second.',
     REAUTH_NEEDED: 'I need you to reconnect your Google account in Settings > Accounts.',
     DB_CORRUPT: 'Your data file was damaged. I restored your most recent backup and kept the damaged copy aside.',
+    DISK_FULL: "I can't save right now, your disk may be full. Free up some space and try again.",
   },
 
   confirm: {
