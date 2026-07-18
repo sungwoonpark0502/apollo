@@ -7,10 +7,14 @@ import {
   loadThread,
   syncPersisted,
   emptyThread,
+  truncateFrom,
   type PersistedMessage,
+  type ThreadItem,
   type ThreadState,
 } from '../../components/chat/threadModel';
 import { ChatSidebar } from './ChatSidebar';
+
+type MsgItem = Extract<ThreadItem, { kind: 'msg' }>;
 
 export interface ChatViewProps {
   settings: Settings | null;
@@ -29,6 +33,8 @@ export function ChatView({ settings, initialConvId }: ChatViewProps): React.JSX.
   const [text, setText] = useState('');
   const [degraded, setDegraded] = useState<string | null>(null);
   const [sidebarTick, setSidebarTick] = useState(0); // bump to refresh the conversation list
+  const [editing, setEditing] = useState<{ id: string; text: string } | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const threadRef = useRef(thread);
   useEffect(() => {
     threadRef.current = thread;
@@ -114,6 +120,77 @@ export function ChatView({ settings, initialConvId }: ChatViewProps): React.JSX.
     });
   };
 
+  // ---- K2 per-message actions (11.4) ----
+  const isPersisted = (id: string): boolean => !id.startsWith('local-') && !id.startsWith('card-') && !id.startsWith('err-');
+  const lastAssistantId = [...thread.items].reverse().find((i): i is MsgItem => i.kind === 'msg' && i.role === 'assistant')?.id;
+
+  const copyMessage = (m: MsgItem): void => {
+    void navigator.clipboard.writeText(m.content).then(() => {
+      setCopiedId(m.id);
+      window.setTimeout(() => setCopiedId((c) => (c === m.id ? null : c)), 1500);
+    });
+  };
+
+  const regenerate = (m: MsgItem): void => {
+    if (!thread.convId || !isPersisted(m.id)) return;
+    setThread((s) => truncateFrom(s, m.id)); // optimistic; the new turn streams in
+    void window.apollo.call('chat.regenerate', { convId: thread.convId, messageId: m.id });
+  };
+
+  const saveEdit = (): void => {
+    if (!editing || !thread.convId) return;
+    const { id, text: newText } = editing;
+    const trimmed = newText.trim();
+    setEditing(null);
+    if (!trimmed) return;
+    setThread((s) => truncateFrom(s, id));
+    void window.apollo.call('chat.editAndResend', { convId: thread.convId, messageId: id, newText: trimmed });
+  };
+
+  const speakThis = (m: MsgItem): void => {
+    void window.apollo.call('tts.speak', { text: m.content });
+  };
+
+  const c = STRINGS.workspace.chat;
+  const renderMessageActions = (m: MsgItem): React.ReactNode => (
+    <>
+      {m.role === 'assistant' ? (
+        <button style={actionBtn} onClick={() => copyMessage(m)}>{copiedId === m.id ? c.copied : c.copy}</button>
+      ) : null}
+      {m.role === 'assistant' && m.id === lastAssistantId && isPersisted(m.id) && !thread.streaming ? (
+        <button style={actionBtn} onClick={() => regenerate(m)}>{c.regenerate}</button>
+      ) : null}
+      {m.role === 'user' && isPersisted(m.id) && !thread.streaming ? (
+        <button style={actionBtn} onClick={() => setEditing({ id: m.id, text: m.content })}>{c.edit}</button>
+      ) : null}
+      <button style={actionBtn} onClick={() => speakThis(m)}>{c.speakThis}</button>
+    </>
+  );
+
+  const renderMessage = (m: MsgItem): React.ReactNode | null => {
+    if (!editing || editing.id !== m.id) return null;
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-1)', alignItems: 'flex-end' }}>
+        <textarea
+          autoFocus
+          value={editing.text}
+          onChange={(e) => setEditing({ id: m.id, text: e.target.value })}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveEdit(); }
+            else if (e.key === 'Escape') setEditing(null);
+          }}
+          rows={Math.min(8, editing.text.split('\n').length + 1)}
+          style={editAreaStyle}
+        />
+        <div style={{ display: 'flex', gap: 'var(--sp-2)', alignItems: 'center' }}>
+          <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-3)' }}>{c.editDiscardNote}</span>
+          <button style={actionBtn} onClick={saveEdit}>{c.editSave}</button>
+          <button style={actionBtn} onClick={() => setEditing(null)}>{c.editCancel}</button>
+        </div>
+      </div>
+    );
+  };
+
   const name = settings?.profile.name ?? '';
   const emptyState = (
     <div style={{ textAlign: 'center', marginTop: '18vh' }}>
@@ -144,6 +221,8 @@ export function ChatView({ settings, initialConvId }: ChatViewProps): React.JSX.
           thread={thread}
           showToolActivity={settings?.chat.showToolActivity ?? true}
           autoScroll={settings?.chat.autoScroll ?? true}
+          renderMessageActions={renderMessageActions}
+          renderMessage={renderMessage}
           onCancelWindow={() => onStop()}
           emptyState={emptyState}
         />
@@ -165,4 +244,15 @@ export function ChatView({ settings, initialConvId }: ChatViewProps): React.JSX.
 const chipStyle: React.CSSProperties = {
   border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-2)',
   borderRadius: 999, padding: 'var(--sp-2) var(--sp-3)', cursor: 'pointer', fontSize: 'var(--fs-caption)', fontFamily: 'var(--font-sans)',
+};
+
+const actionBtn: React.CSSProperties = {
+  border: 'none', background: 'transparent', color: 'var(--text-3)', cursor: 'pointer',
+  fontSize: 'var(--fs-caption)', fontFamily: 'var(--font-sans)', padding: '0 var(--sp-1)',
+};
+
+const editAreaStyle: React.CSSProperties = {
+  width: '100%', boxSizing: 'border-box', resize: 'none', fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-body)',
+  lineHeight: 1.5, padding: 'var(--sp-2) var(--sp-3)', border: '1px solid var(--accent)', borderRadius: 'var(--radius-card)',
+  background: 'var(--surface)', color: 'var(--text-1)', outline: 'none',
 };

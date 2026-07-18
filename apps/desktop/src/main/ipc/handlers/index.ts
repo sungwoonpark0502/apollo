@@ -41,6 +41,8 @@ export interface HandlerDeps {
   googleDisconnect?: (keepLocal: boolean) => Promise<void>;
   googleSync?: () => Promise<InvokeRes<'google.sync'>>;
   googleResolveConflict?: (req: InvokeReq<'google.resolveConflict'>) => void;
+  /** K2 "Speak this": read a message aloud through the TTS pipeline. */
+  speakText?: (text: string) => void;
   checkForUpdates?: () => Promise<InvokeRes<'update.check'>>;
   installUpdate?: () => void;
   resourceReport?: () => InvokeRes<'resources.get'>;
@@ -171,6 +173,10 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
     },
     'chat.stop': (req) => {
       deps.orchestrator().cancel(req.turnId);
+      return { ok: true as const };
+    },
+    'tts.speak': (req) => {
+      deps.speakText?.(req.text);
       return { ok: true as const };
     },
     'chat.regenerate': (req) => {

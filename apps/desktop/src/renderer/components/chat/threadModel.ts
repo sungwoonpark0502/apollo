@@ -146,6 +146,27 @@ export function syncPersisted(s: ThreadState, messages: PersistedMessage[]): Thr
   return { ...s, items };
 }
 
+/**
+ * K2 regenerate/edit: optimistic local truncation mirroring the backend's
+ * deleteFromMessage — drop the message and everything after it, so the thread
+ * is consistent before the re-dispatched turn's events arrive.
+ */
+export function truncateFrom(s: ThreadState, messageId: string): ThreadState {
+  const idx = s.items.findIndex((it) => it.kind === 'msg' && it.id === messageId);
+  if (idx < 0) return s;
+  return { ...s, items: s.items.slice(0, idx) };
+}
+
+/** The namespaces of the tools a turn used, for the "Used: calendar, weather" chip. */
+export function usedToolNamespaces(usedTools: readonly string[]): string[] {
+  const out: string[] = [];
+  for (const t of usedTools) {
+    const ns = t.split('.')[0] ?? t;
+    if (!out.includes(ns)) out.push(ns);
+  }
+  return out;
+}
+
 // ---- Virtualization (K5: 1000 messages render within budget) ----
 
 export const THREAD_WINDOW = 60;

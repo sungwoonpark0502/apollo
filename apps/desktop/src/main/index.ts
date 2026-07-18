@@ -774,6 +774,12 @@ function boot(): void {
     googleDisconnect: (keepLocal) => gcal.disconnect(keepLocal),
     googleSync: () => gcal.sync(),
     googleResolveConflict: (req) => gcal.resolveConflict(req.eventId, req.choice),
+    // K2 "Speak this": a typed conversation can be listened to on demand.
+    speakText: (text) => {
+      ttsPipeline.beginTurn();
+      ttsPipeline.feedToken(text);
+      ttsPipeline.endTurn();
+    },
     checkForUpdates: async () => (app.isPackaged ? { status: 'checking' as const } : { status: 'disabled' as const }),
     installUpdate: () => updaterHandle?.install(),
     resourceReport: () =>

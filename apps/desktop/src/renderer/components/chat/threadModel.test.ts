@@ -7,6 +7,8 @@ import {
   localStreamId,
   syncPersisted,
   THREAD_WINDOW,
+  truncateFrom,
+  usedToolNamespaces,
   visibleSlice,
   type PersistedMessage,
   type ThreadState,
@@ -161,5 +163,24 @@ describe('helpers', () => {
   it('localStreamId is stable per turn', () => {
     expect(localStreamId('t1')).toBe('local-t1');
     expect(emptyThread().items).toEqual([]);
+  });
+});
+
+describe('K5 message actions — local truncation + used-tools chip', () => {
+  it('truncateFrom drops the message and everything after it (regenerate/edit mirror)', () => {
+    let s = loadThread('c1', [
+      { id: 'm1', role: 'user', content: 'a', ts: 1 },
+      { id: 'm2', role: 'assistant', content: 'b', ts: 2 },
+      { id: 'm3', role: 'user', content: 'c', ts: 3 },
+      { id: 'm4', role: 'assistant', content: 'd', ts: 4 },
+    ]);
+    s = truncateFrom(s, 'm3');
+    expect(msgs(s).map((m) => m.content)).toEqual(['a', 'b']);
+    expect(truncateFrom(s, 'ghost')).toBe(s); // unknown id is a no-op
+  });
+
+  it('usedToolNamespaces dedupes to namespaces in first-use order', () => {
+    expect(usedToolNamespaces(['calendar.list', 'calendar.create', 'weather.now'])).toEqual(['calendar', 'weather']);
+    expect(usedToolNamespaces([])).toEqual([]);
   });
 });

@@ -106,6 +106,9 @@ export const invokeChannels = {
     req: z.object({ convId: z.string(), messageId: z.string(), newText: z.string().min(1) }),
     res: z.object({ turnId: z.string() }),
   },
+  // K2 "Speak this": reads a message aloud on demand so a typed conversation
+  // can be listened to. Same TTS pipeline as voice replies.
+  'tts.speak': { req: z.object({ text: z.string().min(1).max(4000) }), res: ackSchema },
   'events.list': {
     req: z.object({ startMs: z.number(), endMs: z.number() }),
     res: z.array(occurrenceDTOSchema),
