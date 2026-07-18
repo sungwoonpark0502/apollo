@@ -19,7 +19,9 @@ describe('J4 large-input chunking (no OOM, within caps)', () => {
     const big = 'lorem ipsum '.repeat(450_000); // ~5.4MB, no blank lines
     const t0 = Date.now();
     const chunks = chunkNote(big);
-    expect(Date.now() - t0).toBeLessThan(4000); // does not hang the loop
+    // Hang detection, not a perf benchmark: generous bound so parallel-suite
+    // machine load can't flake it (it sat at 4001ms vs a 4000ms budget once).
+    expect(Date.now() - t0).toBeLessThan(15_000);
     expect(chunks.length).toBeGreaterThan(1000);
     // each chunk is within the cap (+ prepended title budget)
     for (const c of chunks) expect(c.length).toBeLessThanOrEqual(CAP + 81);
