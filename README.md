@@ -109,6 +109,43 @@ phrase stripped), a leading `todo` or trailing `!` forces a to-do — and Tab
 cycles the type. It saves through the same repos, so a captured note is live in
 the Workspace and available to voice instantly, and it works fully offline.
 
+## Calendars & Google Calendar sync (opt-in)
+
+Events belong to **local calendar collections** (name + color from a fixed
+palette), managed in **Settings → Calendars**; new events land on your default
+calendar and every surface shows the calendar's color. **Google Calendar sync**
+is a strictly opt-in module (**Settings → Accounts → Connect Google Calendar**)
+that is completely inert until you enable it — no scopes requested, no background
+work, no UI beyond the connect entry. Once connected you pick which calendars to
+sync and the direction (read-only default, or two-way). Sync is incremental
+(Google `syncToken`, full re-sync on 410), expands recurrence into the same
+RRULE/EXDATE model, converts timezones, and pushes two-way edits with etag
+preconditions; an etag conflict never overwrites silently — it surfaces a
+**Keep mine / theirs / both** card. Disconnecting asks whether to keep synced
+events as local copies or remove them, then revokes the scope. It reuses the
+existing Google hosts and safeStorage — no new secret store. (Live Google sign-in
+is wired via the incremental PKCE flow; see HUMAN_TODO.)
+
+## Links & lightweight web reading
+
+When **you** give Apollo a URL and ask about it, the tier-1 `link.read` tool
+fetches and summarizes it — the **only** path allowed to reach arbitrary public
+hosts, and only for links you typed (same user-substring rule as email
+recipients). It is bounded in code: an **SSRF guard** resolves the host and
+rejects any private/loopback/link-local/metadata address, **re-validating at
+connect time and on every redirect hop** (DNS-rebinding safe); http/https only;
+2 fetches per turn; 5s timeout; 2MB cap; HTML reduced to readable text; non-HTML
+described, never returned raw. The result is wrapped `<data source="link">` and
+marked untrusted, so a hostile page can't trigger a Tier-3 action without your
+confirmation. Bare URLs in Notes get an inline **Preview** affordance.
+
+## Keyboard shortcuts
+
+A single **`?`** (or **Cmd/Ctrl+/**) anywhere in the Workspace opens a help sheet
+listing every shortcut, grouped by scope (Global, Workspace, Calendar, Notes,
+Voice). The list is generated from a single shortcuts registry that also drives
+the actual key bindings, so help and behavior can never drift.
+
 ## Semantic memory & recall (on-device)
 
 Apollo remembers meaning, not just keywords. Your **notes, past conversations,
@@ -230,8 +267,16 @@ apollo/
 
 ## Status & remaining human steps
 
+Phases 0–10 are complete and committed. Phase 10 was a dedicated **audit &
+stabilize** pass (no new features): a three-pass review of the whole codebase
+that fixed every S1/S2 defect it found — disk-full write handling, wall-clock /
+resume resilience, DNS-rebinding protection for `link.read`, unicode-safe
+truncation, an O(n²) chunking blow-up, malformed-RRULE rejection, and the
+follow-up/nudge FSM priority — each locked by a regression test. The findings and
+their dispositions are in **AUDIT.md**; a committed fresh-DB schema snapshot,
+`strings-inventory.md`, and `BACKLOG.md` accompany it.
+
 Everything the agent could build and self-verify is done and tested. The only
-open items require a human account, payment, certificate, or a physical
-microphone — they are listed precisely in **HUMAN_TODO.md**. Design and
-implementation decisions are logged in **DECISIONS.md**; milestone status in
-**PROGRESS.md**.
+open items require a human account, payment, certificate, physical microphone, or
+subjective copy/a11y judgment — listed precisely in **HUMAN_TODO.md**. Decisions
+are logged in **DECISIONS.md**; milestone status in **PROGRESS.md**.

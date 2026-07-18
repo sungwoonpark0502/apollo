@@ -29,6 +29,22 @@ build (electron-builder), which this environment can't produce (and Windows need
   geolocation/notifications/openExternal except where explicitly allowed; the audio session allows only media.
 - Egress in the packaged app: observe that only the C14.9 allowlist hosts (+ www.googleapis.com) are ever contacted.
 
+## Phase 10 / J6.4 copy & tone review (subjective)
+`strings-inventory.md` (generated, 477 strings) is the full inventory of user-facing copy. Give it a
+C10/C18 tone pass: sentence case, no corporate filler, present tense, warm-but-brief. Flag any stragglers
+that read as robotic or inconsistent. The centralization itself is enforced (all copy lives in strings.ts).
+
+## Phase 10 / J6.5 accessibility checklist (keyboard + screen reader)
+Structural a11y is in place (aria-labels centralized, focus-visible, voice-state announced). Do a manual
+pass on each interactive surface:
+- **Keyboard-only traversal** of every window/overlay: Palette, Orb nudge/ring cards, Workspace (Today/
+  Calendar/Week/Agenda/Notes/Chats/Omnisearch), Settings (all tabs incl. Calendars/Accounts), Onboarding,
+  Quick Capture, the shortcuts help sheet, batch-confirm & sync-conflict cards. Tab order sane, no traps,
+  Esc closes overlays.
+- **Screen-reader announcements**: voice state (listening/thinking/speaking/follow-up), alert ringing,
+  nudge arrival, and confirmation prompts are announced; cards expose their text.
+- **Contrast & focus rings** in both light and dark themes.
+
 ## Phase 9 / I6 empty states, onboarding, help — visual QA
 Structural pieces are done and tested (shortcuts registry single-source + help sheet, welcome-note
 seed, first-nudge explainer flag, keys-skipped banner, onboarding step indicator + sample-note opt-in).

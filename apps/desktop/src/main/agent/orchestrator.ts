@@ -691,7 +691,7 @@ export function createOrchestrator(deps: OrchestratorDeps) {
   };
 }
 
-function errorCopy(code: ReturnType<typeof toErrorCode>): string {
+export function errorCopy(code: ReturnType<typeof toErrorCode>): string {
   switch (code) {
     case 'KEY_MISSING':
     case 'KEY_INVALID':
@@ -708,6 +708,8 @@ function errorCopy(code: ReturnType<typeof toErrorCode>): string {
       return STRINGS.errors.DB_CORRUPT;
     case 'DISK_FULL':
       return STRINGS.errors.DISK_FULL;
+    case 'CANCELED':
+      return STRINGS.errors.CANCELED; // J6.3: a user cancel shows no error copy, never the INTERNAL fallback
     default:
       return STRINGS.errors.INTERNAL;
   }

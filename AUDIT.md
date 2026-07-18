@@ -52,5 +52,12 @@ Status legend: ✅ fixed (+test) · 🟢 verified-clean (+test) · 📋 backlogg
 | B-J5.4 | S3 | net/egressCanary.test.ts | Egress lane integrity across subsystems. | 🟢 Clean. Canary asserts observed hosts ⊆ allowlist, the user-link lane is constructed only in index.ts and imported only by index.ts + tools/link.ts; gcal's raw fetch is egress-guarded (www.googleapis.com only). |
 | B-J5.5 | S3 | scripts/fuses.* , security/permissions.ts | Fuse config + permission lockdown re-verification. | 🟢 Config/logic tests green (`fuses.test.ts`, permissions/injection suites). Packaged-binary fuse **readback** + permission-denial on the built app + cross-platform installable artifacts → HUMAN_TODO (needs electron-builder on macOS + Windows CI). |
 
-## Pass C — regression lock & docs (J6.3)
-_populated during 10.6_
+## Pass C — regression lock & docs (J6.3–J6.5)
+| id | sev | location | finding | disposition |
+|----|-----|----------|---------|-------------|
+| C-J6.3 | S3 | agent/orchestrator.ts `errorCopy` | `errorCopy('CANCELED')` fell through to the INTERNAL copy — a user cancel could show "Something went wrong". | ✅ Added the CANCELED case (empty copy). Coverage test `errorTaxonomy.test.ts`: every ErrorCode maps to non-empty user copy (except CANCELED), no raw token/`[object`/`SQLITE_` leak. |
+| C-J6.4 | S3 | strings.ts | No generated copy inventory for the tone review. | 🟢 Generated `strings-inventory.md` (477 strings). Subjective C10/C18 tone pass → HUMAN_TODO. |
+| C-J6.5 | S3 | renderer | Accessibility spot audit. | 🟢 Interactive-surface + screen-reader checklist → HUMAN_TODO. |
+| C-regress | — | whole repo | Lock every A/B fix + re-run all phases. | ✅ Regression tests added for every A/B fix (linked above). Full cross-phase suite green; docs (README/PROGRESS/DECISIONS/HUMAN_TODO/AUDIT/BACKLOG) reconciled. |
+
+**Open S1/S2:** none. All S1 (disk-full, DNS-rebinding) and S2 (calendar default, taint ergonomics, resume/wall-clock, indexer gating, chunker O(n²), unicode truncation, RRULE validation, export completeness, IPC fuzz) fixed with regression tests. S3s fixed inline or backlogged.
