@@ -4,7 +4,7 @@ import { useFormatInit, useNavigate, useSettings } from '../../lib/useLive';
 import { TodayView } from './TodayView';
 import { CalendarView } from './CalendarView';
 import { NotesView } from './NotesView';
-import { ChatsView } from './ChatsView';
+import { ChatView } from './ChatView';
 import { OmniSearch } from './OmniSearch';
 import { ShortcutsHelp } from './ShortcutsHelp';
 
@@ -14,20 +14,29 @@ function isShortcut(id: string, e: KeyboardEvent): boolean {
   return !!b && matchesBinding(b, e);
 }
 
-type View = 'chat' | 'today' | 'calendar' | 'notes' | 'chats';
+type View = 'chat' | 'today' | 'calendar' | 'notes';
 
 const RAIL_W = 64;
 
 export function WorkspaceApp(): React.JSX.Element {
   useFormatInit();
-  const [view, setView] = useState<View>('today');
+  const [view, setView] = useState<View>('chat'); // K1: workspace.defaultView default
   const [navDateIso, setNavDateIso] = useState<string | undefined>(undefined);
   const [navNoteId, setNavNoteId] = useState<string | undefined>(undefined);
+  const [navConvId, setNavConvId] = useState<string | undefined>(undefined);
   const [omniOpen, setOmniOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [undoToast, setUndoToast] = useState<string | null>(null);
   const [keysBanner, setKeysBanner] = useState(false);
+  const [appliedDefault, setAppliedDefault] = useState(false);
   const settings = useSettings();
+
+  // K1: land on the configured default view once settings arrive (deep links
+  // win; adjust-during-render keeps this cascade-free).
+  if (!appliedDefault && settings) {
+    setAppliedDefault(true);
+    setView((v) => (v === 'chat' ? settings.workspace.defaultView : v));
+  }
 
   // I6: a persistent, dismissible banner when required keys are missing, instead of silent degradation.
   useEffect(() => {
@@ -46,16 +55,18 @@ export function WorkspaceApp(): React.JSX.Element {
     });
   }, []);
 
-  useNavigate((v, dateIso, noteId) => {
+  useNavigate((v, dateIso, noteId, convId) => {
     setView(v);
     setNavDateIso(dateIso);
     setNavNoteId(noteId);
+    setNavConvId(convId);
   });
 
   const go = useCallback((v: View) => {
     setView(v);
     setNavDateIso(undefined);
     setNavNoteId(undefined);
+    setNavConvId(undefined);
   }, []);
 
   useEffect(() => {
@@ -64,6 +75,7 @@ export function WorkspaceApp(): React.JSX.Element {
       if (isShortcut('workspace.omnisearch', e)) { setOmniOpen((v) => !v); e.preventDefault(); }
       else if ((isShortcut('workspace.help', e) || isShortcut('workspace.helpAlt', e)) && !isTyping(e)) { setHelpOpen((v) => !v); e.preventDefault(); }
       else if (isShortcut('workspace.undo', e) && !isTyping(e)) { undoLatest(); e.preventDefault(); }
+      else if (isShortcut('workspace.chat', e)) { go('chat'); e.preventDefault(); }
       else if (isShortcut('workspace.today', e)) { go('today'); e.preventDefault(); }
       else if (isShortcut('workspace.calendar', e)) { go('calendar'); e.preventDefault(); }
       else if (isShortcut('workspace.notes', e)) { go('notes'); e.preventDefault(); }
@@ -95,12 +107,10 @@ export function WorkspaceApp(): React.JSX.Element {
           gap: 'var(--sp-2)',
         }}
       >
+        <RailButton label={STRINGS.workspace.nav.chat} active={view === 'chat'} onClick={() => go('chat')} glyph="✻" />
         <RailButton label={STRINGS.workspace.nav.today} active={view === 'today'} onClick={() => go('today')} glyph="◉" />
         <RailButton label={STRINGS.workspace.nav.calendar} active={view === 'calendar'} onClick={() => go('calendar')} glyph="▦" />
         <RailButton label={STRINGS.workspace.nav.notes} active={view === 'notes'} onClick={() => go('notes')} glyph="≡" />
-        {settings?.history.enabled ? (
-          <RailButton label={STRINGS.workspace.nav.chats} active={view === 'chats'} onClick={() => go('chats')} glyph="✻" />
-        ) : null}
         <div style={{ flex: 1 }} />
         <RailButton
           label={STRINGS.workspace.nav.settings}
@@ -109,13 +119,13 @@ export function WorkspaceApp(): React.JSX.Element {
           glyph="⚙"
         />
       </nav>
-      <main style={{ flex: 1, overflow: 'auto' }}>
-        {view === 'today' ? (
+      <main style={{ flex: 1, overflow: view === 'chat' ? 'hidden' : 'auto', display: view === 'chat' ? 'flex' : undefined }}>
+        {view === 'chat' ? (
+          <ChatView settings={settings} initialConvId={navConvId} />
+        ) : view === 'today' ? (
           <TodayView settings={settings} onOpenCalendar={(dateIso) => { setView('calendar'); setNavDateIso(dateIso); }} />
         ) : view === 'calendar' ? (
           <CalendarView settings={settings} initialDateIso={navDateIso} />
-        ) : view === 'chats' ? (
-          <ChatsView />
         ) : (
           <NotesView initialNoteId={navNoteId} />
         )}
