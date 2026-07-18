@@ -1,6 +1,7 @@
 import { DateTime } from 'luxon';
 import { calendarColor, type EventDTO, type InvokeReq, type InvokeRes } from '@apollo/shared';
 import { type Repos, type EventRow } from '../../db/repos/index';
+import { isValidRrule } from '../../db/repos/events';
 import { applyUndoEntry, registerInverse, undoLabel } from '../../tools/undo';
 
 /**
@@ -56,7 +57,10 @@ export function buildWorkspaceHandlers(deps: WorkspaceHandlerDeps) {
     const out: Partial<EventRow> = {};
     if (patch.title !== undefined) out.title = patch.title;
     if (patch.allDay !== undefined) out.allDay = patch.allDay;
-    if (patch.rrule !== undefined) out.rrule = patch.rrule;
+    if (patch.rrule !== undefined) {
+      if (patch.rrule !== null && !isValidRrule(patch.rrule)) throw new Error('invalid recurrence rule'); // J4
+      out.rrule = patch.rrule;
+    }
     if (patch.location !== undefined) out.location = patch.location;
     if (patch.notes !== undefined) out.notes = patch.notes;
     if (patch.reminderMin !== undefined) out.reminderMin = patch.reminderMin;
@@ -102,6 +106,8 @@ export function buildWorkspaceHandlers(deps: WorkspaceHandlerDeps) {
       if (!start.isValid) throw new Error('invalid start time');
       const end = req.endIso ? DateTime.fromISO(req.endIso, { zone: tz }) : start.plus({ hours: 1 });
       if (!end.isValid) throw new Error('invalid end time');
+      if (!(req.allDay ?? false) && end <= start) throw new Error('end must be after start'); // J4 degenerate: reject end≤start
+      if (req.rrule && !isValidRrule(req.rrule)) throw new Error('invalid recurrence rule'); // J4: reject malformed RRULE before persist
       const ev = repos.events.create({
         title: req.title, startTs: start.toMillis(), endTs: end.toMillis(), tz,
         allDay: req.allDay ?? false, rrule: req.rrule ?? null, location: req.location ?? null,

@@ -1,5 +1,6 @@
 export * from './ids';
 export * from './time';
+export * from './text';
 export * from './errors';
 export * from './strings';
 export * from './format';

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { DateTime } from 'luxon';
 import { calendarColor, fmtDate, fmtDateTime, MS, type EventDTO, type OccurrenceDTO, type ToolDef } from '@apollo/shared';
-import { type EventRow, type EventsRepo } from '../db/repos/events';
+import { isValidRrule, type EventRow, type EventsRepo } from '../db/repos/events';
 import { type UndoRepo } from '../db/repos/undo';
 import { registerInverse } from './undo';
 
@@ -106,6 +106,7 @@ export function createCalendarTools(deps: CalendarToolDeps): ToolDef[] {
       if (!start.isValid) return { llmText: 'ERROR invalid start time' };
       const end = a.endIso ? DateTime.fromISO(a.endIso, { zone: tz }) : start.plus({ hours: 1 });
       if (!end.isValid || end <= start) return { llmText: 'ERROR invalid end time' };
+      if (a.rrule && !isValidRrule(a.rrule)) return { llmText: 'ERROR invalid recurrence rule' }; // J4: reject malformed RRULE before persist
       const overlaps = deps.events.findOverlapping(start.toMillis(), end.toMillis());
       const ev = deps.events.create({
         title: a.title, startTs: start.toMillis(), endTs: end.toMillis(), tz,

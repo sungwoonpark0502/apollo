@@ -6,6 +6,23 @@ const { RRule } = (rrulePkg as { default?: typeof rrulePkg }).default ?? rrulePk
 import { newId, nowMs, MS, type OccurrenceDTO } from '@apollo/shared';
 import { type Db } from '../connection';
 
+/**
+ * J4: validate an RRULE string before persisting it, so a malformed custom-field
+ * rule is rejected up front rather than silently stored and skipped at expansion.
+ * Requires a parseable RFC-5545 rule with a FREQ.
+ */
+export function isValidRrule(rrule: string): boolean {
+  if (!rrule.trim()) return false;
+  try {
+    const opts = RRule.parseString(rrule);
+    if (opts.freq === undefined || opts.freq === null) return false;
+    new RRule({ ...opts, dtstart: new Date(0) });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export type SyncStatus = 'synced' | 'local-dirty' | 'remote-deleted';
 
 export interface EventRow {

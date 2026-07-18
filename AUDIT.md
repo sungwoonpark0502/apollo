@@ -26,6 +26,14 @@ Status legend: ✅ fixed (+test) · 🟢 verified-clean (+test) · 📋 backlogg
 | B-J2.3 | S3 | agent/confirmations.ts | Single-pending-set + supersede already correct for single→single; batch cases untested. | 🟢 Clean. Added regression tests: a new request supersedes a pending **batch** (dead batch executes nothing, `superseded` tool_result), and per-row-deny then a new request keeps one pending set. |
 | B-J2.4 | S3 | renderer/orb/OrbApp.tsx | Ringing overlay vs voice/agent UI in the shared orb window could corrupt each other. | 🟢 Clean by construction: `ringing` and voice `state` are independent React slices fed by independent listeners (`alert.*` vs `voice.state`/`agent.events`), distinct channels. `resolveResources` proves both stay renderable concurrently. Live visual check → HUMAN_TODO. |
 
+### J4 — edge cases & data integrity
+| id | sev | location | finding | disposition |
+|----|-----|----------|---------|-------------|
+| B-J4.1 | **S2** | memory/chunker.ts | Chunking a large single-paragraph note was **O(n²)** (repeated front-slicing + re-segmenting the whole string): a ~5MB note took ~12s, blocking the loop. | ✅ Fixed: index-based hard-split (O(n)) and `truncateGraphemes` bounds its segmentation window to `max+32` chars. 5MB note now chunks in <1s. Test: `memory/largeInput.test.ts`. |
+| B-J4.2 | S2 | chunker.ts, db/repos/notes.ts | Title/snippet/chunk truncation used `.slice(0,N)` on UTF-16 units — splits surrogate pairs (emoji) and combining sequences into broken glyphs. | ✅ Fixed: new `truncateGraphemes`/`graphemeCount` (Intl.Segmenter) used for titles (80), snippets (120), and all chunk caps + the internal hard-split boundary. Tests: `text.test.ts`, `largeInput.test.ts` (emoji/CJK/RTL/ZWJ, no lone surrogate). |
+| B-J4.3 | S2 | tools/calendar.ts, ipc/handlers/workspace.ts | A malformed RRULE from the custom field was persisted and only silently skipped at expansion; the UI create path also allowed `end ≤ start`. | ✅ Fixed: `isValidRrule` rejects before persist on both AI (`calendar.create`) and UI (`events.create/update`) paths; UI create rejects `end ≤ start` (AI path already did). Tests: `calendar.test.ts` degenerate block, `recurrenceCorners.test.ts`. |
+| B-J4.4 | S3 | events expansion | Recurrence corner cases lacked explicit coverage. | 🟢 Added `recurrenceCorners.test.ts`: DST spring-forward/fall-back keep wall time, COUNT/UNTIL bounds, monthly-on-31st skips short months, all-day multi-day spans a month boundary. Degenerate: timer `min(1)`, note `min(1)`, recall `min(2)` already zod-enforced. |
+
 ### J3 — lifecycle & resource
 | id | sev | location | finding | disposition |
 |----|-----|----------|---------|-------------|

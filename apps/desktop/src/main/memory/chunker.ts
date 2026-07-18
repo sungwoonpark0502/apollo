@@ -4,12 +4,14 @@
  * every chunk for context. Messages: one chunk per message, capped 1000. Facts:
  * one chunk each, prefixed with category.
  */
+import { truncateGraphemes } from '@apollo/shared';
+
 const CAP = 1000;
 
 function firstNonEmptyLine(text: string): string {
   for (const line of text.split('\n')) {
     const t = line.trim();
-    if (t) return t.slice(0, 80);
+    if (t) return truncateGraphemes(t, 80);
   }
   return '';
 }
@@ -32,17 +34,24 @@ function packParagraphs(paras: string[]): string[] {
       const overlap = lastSentence(cur);
       cur = overlap && overlap.length < CAP / 2 ? `${overlap} ` : '';
     }
-    // a single oversized paragraph is hard-split at CAP
-    let remaining = block;
-    while ((cur.length + remaining.length) > CAP) {
+    // a single oversized paragraph is hard-split at CAP (on grapheme boundaries).
+    // Walk with an index pointer so a multi-MB block is O(n), not O(n²).
+    let pos = 0;
+    while (cur.length + (block.length - pos) > CAP) {
       const room = CAP - cur.length;
-      cur += remaining.slice(0, room);
+      const head = truncateGraphemes(block.slice(pos, pos + room + 32), room);
+      if (head.length === 0) {
+        if (cur.trim()) { chunks.push(cur.trim()); cur = ''; continue; } // free the full CAP of room
+        break; // a single grapheme wider than CAP: give up splitting it
+      }
+      cur += head;
       chunks.push(cur.trim());
       const overlap = lastSentence(cur);
-      remaining = remaining.slice(room);
+      pos += head.length;
       cur = overlap && overlap.length < CAP / 2 ? `${overlap} ` : '';
     }
-    cur += (cur ? '\n' : '') + remaining;
+    const tail = block.slice(pos);
+    cur += (cur ? '\n' : '') + tail;
   }
   if (cur.trim()) chunks.push(cur.trim());
   return chunks;
@@ -54,19 +63,19 @@ export function chunkNote(content: string): string[] {
   const title = firstNonEmptyLine(content);
   const paras = content.split(/\n\s*\n/);
   const packed = packParagraphs(paras);
-  return packed.map((c) => (title && !c.startsWith(title) ? `${title}\n${c}` : c)).map((c) => c.slice(0, CAP + title.length + 1));
+  return packed.map((c) => (title && !c.startsWith(title) ? `${title}\n${c}` : c)).map((c) => truncateGraphemes(c, CAP + title.length + 1));
 }
 
 /** One chunk per message, capped at CAP. */
 export function chunkMessage(content: string): string[] {
   const t = content.trim();
   if (!t) return [];
-  return [t.slice(0, CAP)];
+  return [truncateGraphemes(t, CAP)];
 }
 
 /** One chunk per fact, prefixed with its category. */
 export function chunkFact(category: string, fact: string): string[] {
   const t = fact.trim();
   if (!t) return [];
-  return [`${category}: ${t}`.slice(0, CAP)];
+  return [truncateGraphemes(`${category}: ${t}`, CAP)];
 }

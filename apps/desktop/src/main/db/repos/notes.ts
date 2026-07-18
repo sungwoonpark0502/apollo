@@ -1,4 +1,4 @@
-import { newId, nowMs, type NoteListItem } from '@apollo/shared';
+import { newId, nowMs, truncateGraphemes, type NoteListItem } from '@apollo/shared';
 import { type Db } from '../connection';
 
 export interface NoteRow {
@@ -34,9 +34,10 @@ export function deriveTitleSnippet(content: string): { title: string; snippet: s
   const lines = content.split('\n');
   const firstIdx = lines.findIndex((l) => l.trim().length > 0);
   if (firstIdx === -1) return { title: 'Untitled', snippet: '' };
-  const title = (lines[firstIdx] as string).trim().slice(0, 80);
+  const title = truncateGraphemes((lines[firstIdx] as string).trim(), 80);
   const rest = lines.slice(firstIdx + 1).join('\n').trim();
-  return { title, snippet: rest.slice(0, 120) };
+  return { title, snippet: truncateGraphemes(rest, 120) }; // J4: never split a surrogate pair
+
 }
 
 function toListItem(r: Raw): NoteListItem {

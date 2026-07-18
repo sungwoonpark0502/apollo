@@ -20,6 +20,22 @@ beforeEach(() => {
   reg = createRegistry([...createCalendarTools({ events: repos.events, undo: repos.undo }), createUndoTool(repos)]);
 });
 
+describe('J4 degenerate calendar inputs rejected before persist', () => {
+  it('rejects a malformed RRULE without creating an event', async () => {
+    const res = await reg.execute('calendar.create', { title: 'x', startIso: '2026-07-14T09:00:00', rrule: 'not a rule' }, makeCtx());
+    expect(res.llmText).toContain('ERROR');
+    expect(res.card).toBeUndefined();
+  });
+  it('rejects an end before start', async () => {
+    const res = await reg.execute('calendar.create', { title: 'x', startIso: '2026-07-14T09:00:00', endIso: '2026-07-14T08:00:00' }, makeCtx());
+    expect(res.llmText).toContain('ERROR');
+  });
+  it('accepts a valid RRULE', async () => {
+    const res = await reg.execute('calendar.create', { title: 'x', startIso: '2026-07-14T09:00:00', rrule: 'FREQ=WEEKLY;BYDAY=MO' }, makeCtx());
+    expect(res.card).toMatchObject({ kind: 'event' });
+  });
+});
+
 describe('J1.2 EventDTO calendar defaults', () => {
   it('an event created via the Phase-0-era calendar.create path lands with a valid calendarId and derived color', async () => {
     const res = await reg.execute('calendar.create', { title: 'Standup', startIso: '2026-07-14T09:00:00' }, makeCtx());
