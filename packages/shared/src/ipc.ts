@@ -109,6 +109,9 @@ export const invokeChannels = {
   // K2 "Speak this": reads a message aloud on demand so a typed conversation
   // can be listened to. Same TTS pipeline as voice replies.
   'tts.speak': { req: z.object({ text: z.string().min(1).max(4000) }), res: ackSchema },
+  // K2 dictation-into-composer: STT transcribes into the textarea, never auto-sends.
+  'dictation.start': { req: z.object({}), res: z.object({ ok: z.boolean() }) },
+  'dictation.stop': { req: z.object({}), res: ackSchema },
   'events.list': {
     req: z.object({ startMs: z.number(), endMs: z.number() }),
     res: z.array(occurrenceDTOSchema),
@@ -401,6 +404,8 @@ export const pushChannels = {
   'update.state': z.object({ status: z.enum(['idle', 'checking', 'downloading', 'ready']), version: z.string().optional() }), // H7
   // I7 Google Calendar sync status → Calendar header indicator
   'google.state': z.object({ status: z.enum(['idle', 'syncing', 'error']), lastSyncTs: z.number().nullable(), message: z.string().optional() }),
+  // K2 dictation transcript stream → the Chat composer (final=true ends the session)
+  'dictation.text': z.object({ text: z.string(), final: z.boolean() }),
 } as const satisfies Record<string, z.ZodType>;
 
 export type InvokeChannelName = keyof typeof invokeChannels;

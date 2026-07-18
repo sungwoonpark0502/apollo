@@ -39,6 +39,12 @@ export function createVoiceController(deps: VoiceControllerDeps) {
   let hardCapTimer: ReturnType<typeof setTimeout> | null = null;
   let followupTimer: ReturnType<typeof setTimeout> | null = null;
 
+  // K2 dictation-into-composer: reuses the audio worker + STT adapter but NEVER
+  // dispatches to the orchestrator — transcripts stream to the composer instead.
+  let dictation: { onText: (text: string, final: boolean) => void } | null = null;
+  let dictSession: SttSession | null = null;
+  let dictTranscript = '';
+
   function setState(next: VoiceState): void {
     state = next;
     deps.pushState(next);
@@ -146,11 +152,24 @@ export function createVoiceController(deps: VoiceControllerDeps) {
     deps.workerSend({ t: 'mode', mode: 'passive' });
   }
 
+  function finishDictation(): void {
+    if (!dictation) return;
+    const cb = dictation;
+    const text = dictTranscript.trim();
+    dictation = null;
+    dictSession?.close();
+    dictSession = null;
+    dictTranscript = '';
+    if (text) cb.onText(text, true);
+    toIdle();
+  }
+
   return {
     state: (): VoiceState => state,
 
     /** idle + wake / hotkey / PTT → listening (C12.3 row 1). */
     onWake(): void {
+      if (dictation) return; // the mic belongs to the composer right now
       if (state === 'idle' || state === 'speaking') void enterListening();
     },
     onHotkey(): void {
@@ -163,6 +182,10 @@ export function createVoiceController(deps: VoiceControllerDeps) {
           this.onWake();
           return;
         case 'frame': {
+          if (dictation) {
+            dictSession?.sendFrame(msg.pcm);
+            return;
+          }
           if (state !== 'listening' || !session) return;
           const pcm = new Int16Array(msg.pcm);
           let sum = 0;
@@ -221,8 +244,51 @@ export function createVoiceController(deps: VoiceControllerDeps) {
       if (state === 'thinking') toIdle();
     },
 
+    /**
+     * K2 dictation-into-composer. Opens STT and streams transcripts to onText
+     * (partials with final=false, then once with final=true); never dispatches.
+     * Returns false when voice is unavailable or the mic is busy with a turn.
+     */
+    async startDictation(onText: (text: string, final: boolean) => void): Promise<boolean> {
+      if (voiceDisabled || dictation || state !== 'idle') return false;
+      dictation = { onText };
+      dictTranscript = '';
+      setState('listening'); // the orb honestly shows a hot mic
+      deps.workerSend({ t: 'mode', mode: 'stream' });
+      try {
+        dictSession = await deps.stt.open({
+          onPartial: (text, isFinal) => {
+            if (!dictation) return;
+            dictTranscript = isFinal && dictTranscript && !text.startsWith(dictTranscript) ? `${dictTranscript} ${text}` : text;
+            dictation.onText(dictTranscript, false);
+          },
+          onEndpoint: () => finishDictation(), // utterance done → finalize, no dispatch
+          onError: (code) => {
+            deps.log?.(`dictation stt error: ${code}`);
+            finishDictation();
+          },
+        });
+        return true;
+      } catch (e) {
+        deps.log?.(`dictation open failed: ${e instanceof Error ? e.message : String(e)}`);
+        dictation = null;
+        toIdle();
+        return false;
+      }
+    },
+
+    /** Stop dictating early (mic tap): emits the transcript so far as final. */
+    stopDictation(): void {
+      finishDictation();
+    },
+
+    isDictating(): boolean {
+      return dictation !== null;
+    },
+
     setMuted(on: boolean): void {
       if (on) {
+        if (dictation) finishDictation(); // mute wins; composer keeps what was heard
         if (state !== 'muted') stateBeforeMute = state === 'listening' || state === 'speaking' || state === 'followup' ? 'idle' : state;
         clearTimers();
         closeSession();

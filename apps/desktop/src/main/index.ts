@@ -780,6 +780,14 @@ function boot(): void {
       ttsPipeline.feedToken(text);
       ttsPipeline.endTurn();
     },
+    // K2 dictation-into-composer: transcripts stream to the Chat composer, never auto-send.
+    dictationStart: async () => {
+      ensureWorker(); // H8: dictation spawns the audio worker on demand, like PTT
+      return voiceController.startDictation((text, final) => {
+        for (const win of BrowserWindow.getAllWindows()) if (!win.isDestroyed()) pushTo(win.webContents, 'dictation.text', { text, final });
+      });
+    },
+    dictationStop: () => voiceController.stopDictation(),
     checkForUpdates: async () => (app.isPackaged ? { status: 'checking' as const } : { status: 'disabled' as const }),
     installUpdate: () => updaterHandle?.install(),
     resourceReport: () =>

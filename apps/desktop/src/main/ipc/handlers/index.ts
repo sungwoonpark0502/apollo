@@ -43,6 +43,9 @@ export interface HandlerDeps {
   googleResolveConflict?: (req: InvokeReq<'google.resolveConflict'>) => void;
   /** K2 "Speak this": read a message aloud through the TTS pipeline. */
   speakText?: (text: string) => void;
+  /** K2 dictation-into-composer: returns false when STT/mic is unavailable. */
+  dictationStart?: () => Promise<boolean>;
+  dictationStop?: () => void;
   checkForUpdates?: () => Promise<InvokeRes<'update.check'>>;
   installUpdate?: () => void;
   resourceReport?: () => InvokeRes<'resources.get'>;
@@ -177,6 +180,11 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
     },
     'tts.speak': (req) => {
       deps.speakText?.(req.text);
+      return { ok: true as const };
+    },
+    'dictation.start': async () => ({ ok: (await deps.dictationStart?.()) ?? false }),
+    'dictation.stop': () => {
+      deps.dictationStop?.();
       return { ok: true as const };
     },
     'chat.regenerate': (req) => {

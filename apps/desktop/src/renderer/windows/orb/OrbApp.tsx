@@ -49,6 +49,8 @@ export function OrbApp(): React.JSX.Element {
   const [caption, setCaption] = useState('');
   const [rms, setRms] = useState(0);
   const [turnId, setTurnId] = useState<string | null>(null);
+  const [convId, setConvId] = useState<string | null>(null); // K3: deep-link "Open in chat"
+  const [orbMenu, setOrbMenu] = useState(false); // K3 right-click menu
   const [cancelWindow, setCancelWindow] = useState<{ endsAt: number } | null>(null);
   const [spokenIndex, setSpokenIndex] = useState(-1);
   const [activity, setActivity] = useState<string | null>(null); // I5 tool-activity line
@@ -87,6 +89,7 @@ export function OrbApp(): React.JSX.Element {
         case 'turnStart':
           setState('thinking');
           setTurnId(e.turnId);
+          setConvId(e.convId); // the conversation this turn belongs to (K3 deep link)
           voiceTurnRef.current = false; // reset; voice.state will flip it if this is a voice turn
           setSpokenIndex(-1);
           setActivity(null);
@@ -199,10 +202,26 @@ export function OrbApp(): React.JSX.Element {
       </div>
       {/* orb, docked toward the screen edge (right) */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+        {orbMenu ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 'var(--sp-1)', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-ctl)', boxShadow: 'var(--shadow-card)', overflow: 'hidden' }}>
+            <button
+              onClick={() => { setOrbMenu(false); void window.apollo.call('workspace.open', { view: 'chat', ...(convId ? { convId } : {}) }); }}
+              style={{ border: 'none', background: 'transparent', color: 'var(--text-1)', cursor: 'pointer', fontSize: 'var(--fs-caption)', fontFamily: 'var(--font-sans)', padding: 'var(--sp-1) var(--sp-3)', textAlign: 'left' }}
+            >
+              {STRINGS.orbControls.openChat}
+            </button>
+            <button
+              onClick={() => { setOrbMenu(false); void window.apollo.call('workspace.open', { view: 'today' }); }}
+              style={{ border: 'none', background: 'transparent', color: 'var(--text-1)', cursor: 'pointer', fontSize: 'var(--fs-caption)', fontFamily: 'var(--font-sans)', padding: 'var(--sp-1) var(--sp-3)', textAlign: 'left' }}
+            >
+              {STRINGS.orbControls.openApollo}
+            </button>
+          </div>
+        ) : null}
         {state === 'listening' ? (
           <Waveform rms={rms} />
         ) : (
-          <div style={{ position: 'relative', marginTop: 4 }}>
+          <div style={{ position: 'relative', marginTop: 4 }} onContextMenu={(e) => { e.preventDefault(); setOrbMenu((v) => !v); }}>
             <div
               aria-label={`Apollo is ${state}`}
               style={{
@@ -347,7 +366,10 @@ export function OrbApp(): React.JSX.Element {
           {cards.map((c) => (
             <div key={c.id} style={{ position: 'relative' }}>
               {c.stage ? (
-                <StageCard card={c.card} spokenIndex={spokenIndex} />
+                <div style={{ position: 'relative' }}>
+                  <StageCard card={c.card} spokenIndex={spokenIndex} />
+                  <OpenInChatButton convId={convId} right={30} />
+                </div>
               ) : (
                 <CardShell>
                   <button
@@ -366,6 +388,7 @@ export function OrbApp(): React.JSX.Element {
                   >
                     ⦿
                   </button>
+                  <OpenInChatButton convId={convId} right={30} />
                   <CardView card={c.card} />
                 </CardShell>
               )}
@@ -374,6 +397,31 @@ export function OrbApp(): React.JSX.Element {
         </div>
       ) : null}
     </div>
+  );
+}
+
+/** K3: continue a voice answer by typing — deep-links to the turn's conversation. */
+function OpenInChatButton({ convId, right }: { convId: string | null; right: number }): React.JSX.Element | null {
+  if (!convId) return null;
+  return (
+    <button
+      aria-label={STRINGS.orbControls.openInChat}
+      title={STRINGS.orbControls.openInChat}
+      onClick={() => void window.apollo.call('workspace.open', { view: 'chat', convId })}
+      style={{
+        position: 'absolute',
+        top: 'var(--sp-2)',
+        right,
+        border: 'none',
+        background: 'transparent',
+        cursor: 'pointer',
+        fontSize: 'var(--fs-caption)',
+        color: 'var(--text-3)',
+        zIndex: 2,
+      }}
+    >
+      ✻
+    </button>
   );
 }
 

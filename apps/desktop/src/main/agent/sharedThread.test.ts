@@ -277,6 +277,40 @@ describe('K5 shared thread — one brain, two surfaces', () => {
     expect(events.map((e) => e.type)).not.toContain('error');
   });
 
+  it('dictation-into-composer streams transcripts and never dispatches a turn', async () => {
+    vi.useFakeTimers();
+    const r = rig([]);
+    const texts: Array<{ text: string; final: boolean }> = [];
+
+    const ok = await r.vc.startDictation((text, final) => texts.push({ text, final }));
+    expect(ok).toBe(true);
+    expect(r.vc.isDictating()).toBe(true);
+    r.vc.onWake(); // wake must not steal the mic from the composer
+    expect(r.vc.isDictating()).toBe(true);
+
+    await vi.advanceTimersByTimeAsync(600); // fixture: partials then final + endpoint
+    expect(texts.some((t) => !t.final && t.text.length > 0)).toBe(true); // streamed partials
+    expect(texts.at(-1)).toEqual({ text: "what's the weather like", final: true });
+
+    // The whole point: nothing was sent to the orchestrator.
+    expect(completions).toHaveLength(0);
+    expect(events).toHaveLength(0);
+    expect(r.vc.isDictating()).toBe(false);
+    expect(r.vc.state()).toBe('idle');
+  });
+
+  it('stopDictation ends the session early and emits what was heard as final', async () => {
+    vi.useFakeTimers();
+    const r = rig([]);
+    const texts: Array<{ text: string; final: boolean }> = [];
+    await r.vc.startDictation((text, final) => texts.push({ text, final }));
+    await vi.advanceTimersByTimeAsync(250); // only the first partial has arrived
+    r.vc.stopDictation();
+    expect(texts.at(-1)).toEqual({ text: "what's the", final: true });
+    expect(completions).toHaveLength(0);
+    expect(r.vc.isDictating()).toBe(false);
+  });
+
   it('New chat from the sidebar rotates the shared conversation for BOTH surfaces', async () => {
     vi.useFakeTimers();
     const r = rig([{ text: 'First.' }, { text: 'Second.' }]);

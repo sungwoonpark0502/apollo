@@ -136,6 +136,8 @@ const invokeFixtures: Record<InvokeChannelName, { req: unknown; res: unknown }> 
   'chat.regenerate': { req: { convId: 'c1', messageId: 'm2' }, res: { turnId: 't2' } },
   'chat.editAndResend': { req: { convId: 'c1', messageId: 'm1', newText: 'set a timer for 5 minutes' }, res: { turnId: 't3' } },
   'tts.speak': { req: { text: 'Timer set for 10 minutes.' }, res: { ok: true } },
+  'dictation.start': { req: {}, res: { ok: true } },
+  'dictation.stop': { req: {}, res: { ok: true } },
   'devices.list': { req: {}, res: { inputs: [{ deviceId: 'default', label: 'Built-in Mic' }], outputs: [{ deviceId: 'default', label: 'Built-in Speakers' }] } },
   'alert.action': { req: { kind: 'alarm', id: 'a1', action: 'snooze', snoozeMin: 10 }, res: { ok: true } },
   'keys.info': { req: {}, res: [{ provider: 'anthropic', configured: true, last4: 'x123', setAt: 1 }] },
@@ -181,6 +183,7 @@ const pushFixtures: Record<PushChannelName, unknown> = {
   'alert.stop': { id: 't1' },
   'update.state': { status: 'ready', version: '1.2.3' },
   'google.state': { status: 'idle', lastSyncTs: 1_800_000_000_000 },
+  'dictation.text': { text: 'note that the dentist moved', final: false },
 };
 
 describe('invoke channel round-trips', () => {

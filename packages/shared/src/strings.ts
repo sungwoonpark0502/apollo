@@ -128,6 +128,10 @@ export const STRINGS = {
     skip: 'Skip',
     replay: 'Replay',
     progress: (i: number, n: number) => `${i} of ${n}`,
+    // K3 orb right-click menu + card deep link
+    openChat: 'Open chat',
+    openApollo: 'Open Apollo',
+    openInChat: 'Open in chat',
   },
 
   cards: {

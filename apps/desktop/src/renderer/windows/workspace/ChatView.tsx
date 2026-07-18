@@ -35,6 +35,8 @@ export function ChatView({ settings, initialConvId }: ChatViewProps): React.JSX.
   const [sidebarTick, setSidebarTick] = useState(0); // bump to refresh the conversation list
   const [editing, setEditing] = useState<{ id: string; text: string } | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [micState, setMicState] = useState<'idle' | 'dictating' | 'unavailable'>('idle');
+  const dictBaseRef = useRef('');
   const threadRef = useRef(thread);
   useEffect(() => {
     threadRef.current = thread;
@@ -71,8 +73,30 @@ export function ChatView({ settings, initialConvId }: ChatViewProps): React.JSX.
     void window.apollo.call('keys.info', {}).then((info) => {
       const has = (p: string): boolean => info.some((k) => k.provider === p && k.configured);
       setDegraded(has('anthropic') ? null : STRINGS.workspace.chat.degradedBanner(STRINGS.workspace.chat.degradedLlm));
+      if (!has('deepgram')) setMicState('unavailable'); // K2: disabled mic with tooltip
     });
   }, []);
+
+  // K2 dictation stream: transcripts land in the composer, never auto-send.
+  useEffect(() => {
+    const off = window.apollo.on('dictation.text', ({ text: t, final }) => {
+      const base = dictBaseRef.current;
+      const joined = base ? `${base}${base.endsWith(' ') ? '' : ' '}${t}` : t;
+      setText(final ? `${joined} ` : joined);
+      if (final) setMicState((m) => (m === 'dictating' ? 'idle' : m));
+    });
+    return off;
+  }, []);
+
+  const toggleDictation = (): void => {
+    if (micState === 'dictating') {
+      void window.apollo.call('dictation.stop', {});
+      setMicState('idle');
+      return;
+    }
+    dictBaseRef.current = text;
+    void window.apollo.call('dictation.start', {}).then(({ ok }) => setMicState(ok ? 'dictating' : 'unavailable'));
+  };
 
   // Live agent events: the shared thread follows voice and typed turns alike.
   useEffect(() => {
@@ -232,6 +256,7 @@ export function ChatView({ settings, initialConvId }: ChatViewProps): React.JSX.
           inputHistory={inputHistory}
           onSend={onSend}
           onStop={onStop}
+          mic={{ state: micState, onToggle: toggleDictation }}
           degraded={degraded}
           text={text}
           onTextChange={setText}
