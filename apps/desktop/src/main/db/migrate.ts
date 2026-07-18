@@ -5,6 +5,7 @@ import m0003 from './migrations/0003_proactive.sql?raw';
 import m0004 from './migrations/0004_memory.sql?raw';
 import m0005 from './migrations/0005_hardening.sql?raw';
 import m0006 from './migrations/0006_gcal.sql?raw';
+import m0007 from './migrations/0007_chat.sql?raw';
 
 const MIGRATIONS: ReadonlyArray<{ version: number; sql: string }> = [
   { version: 1, sql: m0001 },
@@ -13,6 +14,7 @@ const MIGRATIONS: ReadonlyArray<{ version: number; sql: string }> = [
   { version: 4, sql: m0004 },
   { version: 5, sql: m0005 },
   { version: 6, sql: m0006 },
+  { version: 7, sql: m0007 },
 ];
 
 export const LATEST_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

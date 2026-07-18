@@ -25,15 +25,6 @@ export function GeneralTab(): React.JSX.Element {
         <input type="checkbox" checked={settings.launchAtLogin} onChange={(e) => patch({ ...settings, launchAtLogin: e.target.checked })} />
       </Row>
 
-      <Row label={STRINGS.settings.general.hotkey}>
-        <input
-          value={settings.hotkey}
-          onChange={(e) => patch({ ...settings, hotkey: e.target.value })}
-          style={{ ...inputStyle, width: 160 }}
-          aria-label={STRINGS.settings.general.hotkey}
-        />
-      </Row>
-
       <Row label={STRINGS.settings.general.orbEdge}>
         <select
           value={settings.orb.edge}
@@ -49,7 +40,32 @@ export function GeneralTab(): React.JSX.Element {
       </Row>
 
       <Row label={STRINGS.settings.general.openWorkspaceOnLaunch}>
-        <input type="checkbox" checked={settings.openWorkspaceOnLaunch} onChange={(e) => patch({ ...settings, openWorkspaceOnLaunch: e.target.checked })} />
+        <input type="checkbox" checked={settings.workspace.openOnLaunch} onChange={(e) => patch({ ...settings, workspace: { ...settings.workspace, openOnLaunch: e.target.checked } })} />
+      </Row>
+
+      <Row label={STRINGS.settings.general.defaultView}>
+        <select
+          value={settings.workspace.defaultView}
+          onChange={(e) => patch({ ...settings, workspace: { ...settings.workspace, defaultView: e.target.value as Settings['workspace']['defaultView'] } })}
+          style={{ ...inputStyle, width: 160 }}
+        >
+          <option value="chat">{STRINGS.workspace.nav.chat}</option>
+          <option value="today">{STRINGS.workspace.nav.today}</option>
+          <option value="calendar">{STRINGS.workspace.nav.calendar}</option>
+          <option value="notes">{STRINGS.workspace.nav.notes}</option>
+        </select>
+      </Row>
+
+      <Row label={STRINGS.settings.general.chatSendOnEnter}>
+        <input type="checkbox" checked={settings.chat.sendOnEnter} onChange={(e) => patch({ ...settings, chat: { ...settings.chat, sendOnEnter: e.target.checked } })} />
+      </Row>
+
+      <Row label={STRINGS.settings.general.chatShowToolActivity}>
+        <input type="checkbox" checked={settings.chat.showToolActivity} onChange={(e) => patch({ ...settings, chat: { ...settings.chat, showToolActivity: e.target.checked } })} />
+      </Row>
+
+      <Row label={STRINGS.settings.general.chatAutoScroll}>
+        <input type="checkbox" checked={settings.chat.autoScroll} onChange={(e) => patch({ ...settings, chat: { ...settings.chat, autoScroll: e.target.checked } })} />
       </Row>
 
       <Row label={STRINGS.settings.general.quickCaptureHotkey}>

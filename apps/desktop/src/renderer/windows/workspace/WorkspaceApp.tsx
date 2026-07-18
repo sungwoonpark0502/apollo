@@ -14,7 +14,7 @@ function isShortcut(id: string, e: KeyboardEvent): boolean {
   return !!b && matchesBinding(b, e);
 }
 
-type View = 'today' | 'calendar' | 'notes' | 'chats';
+type View = 'chat' | 'today' | 'calendar' | 'notes' | 'chats';
 
 const RAIL_W = 64;
 

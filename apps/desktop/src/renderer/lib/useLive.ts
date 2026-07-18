@@ -83,9 +83,9 @@ export function useDataSync<T>(
 }
 
 /** Subscribes to main → workspace navigation (deep links, app.open tool). */
-export function useNavigate(onNavigate: (view: 'today' | 'calendar' | 'notes', dateIso?: string, noteId?: string) => void): void {
+export function useNavigate(onNavigate: (view: 'chat' | 'today' | 'calendar' | 'notes', dateIso?: string, noteId?: string, convId?: string) => void): void {
   useEffect(() => {
-    const off = window.apollo.on('workspace.navigate', (n) => onNavigate(n.view, n.dateIso, n.noteId));
+    const off = window.apollo.on('workspace.navigate', (n) => onNavigate(n.view, n.dateIso, n.noteId, n.convId));
     return off;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

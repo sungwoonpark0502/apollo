@@ -2,6 +2,7 @@ import { type Handlers } from '../router';
 import { type Orchestrator } from '../../agent/orchestrator';
 import { type Repos } from '../../db/repos/index';
 import { buildWorkspaceHandlers } from './workspace';
+import { createChatActions } from '../../agent/chatActions';
 import { applyCalendarCrud } from '../../calendars/service';
 import { newId, shortcutList, type InvokeReq, type InvokeRes } from '@apollo/shared';
 import { type SettingsService } from '../../settingsService';
@@ -44,9 +45,10 @@ export interface HandlerDeps {
   installUpdate?: () => void;
   resourceReport?: () => InvokeRes<'resources.get'>;
   // F1 proactive + quick capture (wired in 6.2/6.3/6.5)
-  activeConvId?: () => string; // H5 main-owned conversation id
+  activeConvId?: () => string; // H5 main-owned conversation id (rotates when stale)
+  currentConvId?: () => string; // K2: pure read of the active id (no rotation side effect)
   setActiveConversation?: (id: string) => void;
-  newConversation?: () => void;
+  newConversation?: () => string; // K2: returns the fresh conversation id
   alertAction?: (kind: 'timer' | 'alarm', id: string, action: 'dismiss' | 'snooze', snoozeMin?: number) => void;
   listDevices?: () => Promise<InvokeRes<'devices.list'>>;
   suggestionAction?: (suggestionId: string, actionId: string) => void;
@@ -67,6 +69,15 @@ export interface HandlerDeps {
 }
 
 export function buildHandlers(deps: HandlerDeps): Handlers {
+  // PART K: regenerate/edit truncate the thread, purge index chunks, and
+  // re-dispatch through the identical one-brain agent path.
+  const chatActions = createChatActions({
+    repos: deps.repos,
+    dispatch: ({ text, convId }) => {
+      const { turnId } = deps.orchestrator().handleUserMessage({ text, source: 'text', convId });
+      return { turnId };
+    },
+  });
   return {
     ...buildWorkspaceHandlers({
       repos: deps.repos,
@@ -150,6 +161,27 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
     'agent.cancel': (req) => {
       deps.orchestrator().cancel(req.turnId);
       return { ok: true as const };
+    },
+    // PART K chat verbs: thin aliases over the identical one-brain agent path.
+    'chat.send': (req) => {
+      deps.onUserActivity?.();
+      const convId = deps.activeConvId ? deps.activeConvId() : req.convId;
+      const { turnId } = deps.orchestrator().handleUserMessage({ text: req.text, source: 'text', convId });
+      return { turnId };
+    },
+    'chat.stop': (req) => {
+      deps.orchestrator().cancel(req.turnId);
+      return { ok: true as const };
+    },
+    'chat.regenerate': (req) => {
+      deps.onUserActivity?.();
+      deps.setActiveConversation?.(req.convId);
+      return chatActions.regenerate(req.convId, req.messageId);
+    },
+    'chat.editAndResend': (req) => {
+      deps.onUserActivity?.();
+      deps.setActiveConversation?.(req.convId);
+      return chatActions.editAndResend(req.convId, req.messageId, req.newText);
     },
     'agent.confirm': async (req) => {
       await deps.orchestrator().confirm(req.confirmationId, req.approved, req.deniedIndices);
@@ -256,7 +288,7 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
       month: deps.repos.usageLog.month().map((u) => ({ provider: u.provider, metric: u.metric, amount: u.amount })),
     }),
     'conversations.list': (req) => deps.repos.conversations.listSummaries(req.limit),
-    'conversations.get': (req) => ({ messages: deps.repos.conversations.messagesOf(req.id) as Array<{ role: 'user' | 'assistant'; content: string; ts: number }> }),
+    'conversations.get': (req) => ({ messages: deps.repos.conversations.messagesOf(req.id) as Array<{ id: string; role: 'user' | 'assistant'; content: string; ts: number }> }),
     'conversations.delete': (req) => {
       deps.repos.chunks.purgeConversation(req.id); // H5: purge indexed message chunks + vectors
       deps.repos.conversations.deleteConversation(req.id);
@@ -266,8 +298,14 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
       deps.setActiveConversation?.(req.id);
       return { ok: true as const };
     },
-    'conversations.new': () => {
-      deps.newConversation?.();
+    'conversations.new': () => ({ ok: true as const, id: deps.newConversation?.() ?? '' }),
+    'conversations.active': () => ({ id: deps.currentConvId?.() ?? '' }),
+    'conversations.rename': (req) => {
+      deps.repos.conversations.rename(req.id, req.title);
+      return { ok: true as const };
+    },
+    'conversations.pin': (req) => {
+      deps.repos.conversations.setPinned(req.id, req.pinned);
       return { ok: true as const };
     },
     'alert.action': (req) => {

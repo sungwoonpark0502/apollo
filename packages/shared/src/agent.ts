@@ -35,7 +35,9 @@ export interface ConfirmAction {
 }
 
 export type AgentEvent =
-  | { type: 'turnStart'; turnId: string }
+  // K2 shared thread: convId lets the Chat tab follow a live turn (voice or
+  // typed) into the conversation it belongs to.
+  | { type: 'turnStart'; turnId: string; convId: string }
   | { type: 'token'; text: string }
   | { type: 'toolStart'; tool: string }
   | { type: 'toolResult'; tool: string; ok: boolean }
@@ -46,7 +48,7 @@ export type AgentEvent =
   | { type: 'error'; code: ErrorCode; userMessage: string };
 
 export const agentEventSchema: z.ZodType<AgentEvent> = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('turnStart'), turnId: z.string() }),
+  z.object({ type: z.literal('turnStart'), turnId: z.string(), convId: z.string() }),
   z.object({ type: z.literal('token'), text: z.string() }),
   z.object({ type: z.literal('toolStart'), tool: z.string() }),
   z.object({ type: z.literal('toolResult'), tool: z.string(), ok: z.boolean() }),

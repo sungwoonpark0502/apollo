@@ -84,11 +84,27 @@ export const invokeChannels = {
   // ---- E1 Workspace channels ----
   'workspace.open': {
     req: z.object({
-      view: z.enum(['today', 'calendar', 'notes']),
+      view: z.enum(['chat', 'today', 'calendar', 'notes']), // K1: 'chat' added
       dateIso: z.string().optional(),
       noteId: z.string().optional(),
+      convId: z.string().optional(), // K3: deep-link Chat to a specific conversation
     }),
     res: ackSchema,
+  },
+  // PART K Chat tab verbs: thin aliases over the one-brain agent path so
+  // throttling and UI state stay chat-specific (K1).
+  'chat.send': {
+    req: z.object({ text: z.string().min(1), convId: z.string() }),
+    res: z.object({ turnId: z.string() }),
+  },
+  'chat.stop': { req: z.object({ turnId: z.string() }), res: ackSchema },
+  'chat.regenerate': {
+    req: z.object({ convId: z.string(), messageId: z.string() }),
+    res: z.object({ turnId: z.string() }),
+  },
+  'chat.editAndResend': {
+    req: z.object({ convId: z.string(), messageId: z.string(), newText: z.string().min(1) }),
+    res: z.object({ turnId: z.string() }),
   },
   'events.list': {
     req: z.object({ startMs: z.number(), endMs: z.number() }),
@@ -278,15 +294,19 @@ export const invokeChannels = {
   // ---- H5 conversation lifecycle ----
   'conversations.list': {
     req: z.object({ limit: z.number().int().min(1).max(200).default(50) }),
-    res: z.array(z.object({ id: z.string(), title: z.string(), startedAt: z.number(), lastTs: z.number(), messageCount: z.number() })),
+    res: z.array(z.object({ id: z.string(), title: z.string(), startedAt: z.number(), lastTs: z.number(), messageCount: z.number(), pinned: z.boolean() })),
   },
   'conversations.get': {
+    // K1: message ids drive chat.regenerate / chat.editAndResend targeting.
     req: z.object({ id: z.string() }),
-    res: z.object({ messages: z.array(z.object({ role: z.enum(['user', 'assistant']), content: z.string(), ts: z.number() })) }),
+    res: z.object({ messages: z.array(z.object({ id: z.string(), role: z.enum(['user', 'assistant']), content: z.string(), ts: z.number() })) }),
   },
   'conversations.delete': { req: z.object({ id: z.string() }), res: ackSchema },
   'conversations.setActive': { req: z.object({ id: z.string() }), res: ackSchema },
-  'conversations.new': { req: z.object({}), res: ackSchema }, // Cmd/Ctrl+N
+  'conversations.new': { req: z.object({}), res: z.object({ ok: z.literal(true), id: z.string() }) }, // K2 New chat
+  'conversations.active': { req: z.object({}), res: z.object({ id: z.string() }) }, // K2 shared activeConvId
+  'conversations.rename': { req: z.object({ id: z.string(), title: z.string().max(120) }), res: ackSchema }, // K2 sidebar
+  'conversations.pin': { req: z.object({ id: z.string(), pinned: z.boolean() }), res: ackSchema }, // K2 sidebar
   // H7 audio device pickers (labels available via the audio window's mic session)
   'devices.list': {
     req: z.object({}),
@@ -334,9 +354,10 @@ export const invokeChannels = {
 } as const satisfies Record<string, ChannelDef>;
 
 export const workspaceNavigateSchema = z.object({
-  view: z.enum(['today', 'calendar', 'notes']),
+  view: z.enum(['chat', 'today', 'calendar', 'notes']), // K1: 'chat' added
   dateIso: z.string().optional(),
   noteId: z.string().optional(),
+  convId: z.string().optional(), // K3: open Chat on a specific conversation
 });
 export type WorkspaceNavigate = z.infer<typeof workspaceNavigateSchema>;
 

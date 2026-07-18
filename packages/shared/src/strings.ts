@@ -252,7 +252,19 @@ export const STRINGS = {
       noRecent: 'No nudges yet.',
       outcomeLabels: { acted: 'acted', dismissed: 'dismissed', snoozed: 'snoozed', expired: 'expired' } as Record<string, string>,
     },
-    general: { launchAtLogin: 'Launch at login', hotkey: 'Global hotkey', orbEdge: 'Orb edge', homeLocation: 'Location', openWorkspaceOnLaunch: 'Open Workspace on launch', resetOrbPosition: 'Reset orb position', quickCaptureHotkey: 'Quick Capture hotkey', quickCaptureType: 'Quick Capture default' },
+    general: {
+      launchAtLogin: 'Launch at login',
+      orbEdge: 'Orb edge',
+      homeLocation: 'Location',
+      openWorkspaceOnLaunch: 'Open Workspace on launch',
+      defaultView: 'Workspace opens to',
+      chatSendOnEnter: 'Enter sends chat messages',
+      chatShowToolActivity: 'Show tool activity in chat',
+      chatAutoScroll: 'Chat follows new messages',
+      resetOrbPosition: 'Reset orb position',
+      quickCaptureHotkey: 'Quick Capture hotkey',
+      quickCaptureType: 'Quick Capture default',
+    },
     profile: {
       title: 'Your profile',
       name: 'Name',
@@ -289,7 +301,7 @@ export const STRINGS = {
       openLogs: 'Open logs folder',
     },
     voice: {
-      wake: 'Wake word', sensitivity: 'Sensitivity', ptt: 'Push to talk', voice: 'Voice', preview: 'Preview', dnd: 'Do not disturb',
+      wake: 'Wake word', sensitivity: 'Sensitivity', ptt: 'Push to talk', pttHotkey: 'Push-to-talk hotkey', voice: 'Voice', preview: 'Preview', dnd: 'Do not disturb',
       inputDevice: 'Microphone', outputDevice: 'Speaker', systemDefault: 'System default',
       ttsRate: 'Speech rate', earconVolume: 'Sound volume', followup: 'Follow-up window', off: 'Off', pauseWakeOnBattery: 'Pause wake word on battery',
     },
@@ -451,7 +463,7 @@ export const STRINGS = {
   },
 
   workspace: {
-    nav: { today: 'Today', calendar: 'Calendar', notes: 'Notes', chats: 'Chats', settings: 'Settings' },
+    nav: { chat: 'Chat', today: 'Today', calendar: 'Calendar', notes: 'Notes', chats: 'Chats', settings: 'Settings' },
     undo: { undid: (label: string) => `Undid: ${label}`, nothing: 'Nothing to undo' },
     chats: {
       filter: 'Filter conversations…',

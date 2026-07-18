@@ -158,7 +158,7 @@ function boot(): void {
   let quickCaptureRef: ReturnType<typeof createQuickCaptureService> | null = null;
   let reRegisterHotkeys: (() => void) | null = null;
   const onHotkeyPress = (): void => {
-    togglePalette();
+    // PART K: the hotkey is push-to-talk only; typed input lives in the Chat tab.
     if (settings.get().ptt.enabled && !voiceController.isVoiceDisabled()) {
       ensureWorker(); // H8: PTT spawns the audio worker on demand
       voiceController.onHotkey();
@@ -177,7 +177,7 @@ function boot(): void {
   const settings = createSettingsService(repos.settings, {
     onChange: (next, prev) => {
       applyFormat(next);
-      if (next.hotkey !== prev.hotkey || next.quickCapture.hotkey !== prev.quickCapture.hotkey) reRegisterHotkeys?.();
+      if (next.voice.pttHotkey !== prev.voice.pttHotkey || next.quickCapture.hotkey !== prev.quickCapture.hotkey) reRegisterHotkeys?.();
       if (next.wake.sensitivity !== prev.wake.sensitivity) workerHost.send({ t: 'setSensitivity', v: next.wake.sensitivity });
       if (JSON.stringify(next.proactive) !== JSON.stringify(prev.proactive)) proactiveRef?.reconfigure();
       if (next.history.enabled !== prev.history.enabled) indexer.onHistoryToggled(next.history.enabled); // G3/G7 immediate purge
@@ -595,10 +595,8 @@ function boot(): void {
     testKey,
     setMuted: (on) => voiceController.setMuted(on),
     activeConvId: () => conversationManager.forTurn(), // H5 one-brain
-    setActiveConversation: (id) => {
-      conversationManager.setActive(id);
-      togglePalette(); // "Continue": open the palette on the active conversation
-    },
+    currentConvId: () => conversationManager.current(), // K2: pure read for the Chat tab
+    setActiveConversation: (id) => conversationManager.setActive(id),
     newConversation: () => conversationManager.startNew(),
     listDevices: async () => {
       // H7: the audio window holds mic permission, so enumerateDevices returns labels.
@@ -817,12 +815,11 @@ function boot(): void {
   repos.perf.record('boot', 'boot_db_ready', bootDbReadyMs);
   const trayMs = Date.now() - bootStart;
   repos.perf.record('boot', 'boot_to_tray', trayMs);
-  const palette = createPaletteWindow();
   repos.perf.record('boot', 'boot_windows_lazy', Date.now() - bootStart);
-  // B1: the hotkey activates Apollo — palette for typing, and (PTT) listening when voice is up
-  // H7: the app never silently loses its hotkey — on conflict, notify with advice.
-  if (!registerHotkey(settings.get().hotkey, onHotkeyPress, log)) {
-    new Notification({ title: STRINGS.app.name, body: hotkeyConflictAdvice(settings.get().hotkey, process.platform) }).show();
+  // PART K: the global hotkey is push-to-talk only (the palette is gone; typing
+  // lives in the Workspace Chat tab). H7: never silently lose the hotkey.
+  if (!registerHotkey(settings.get().voice.pttHotkey, onHotkeyPress, log)) {
+    new Notification({ title: STRINGS.app.name, body: hotkeyConflictAdvice(settings.get().voice.pttHotkey, process.platform) }).show();
   }
 
   // First run (C18): show the 4-step onboarding until completed.
@@ -949,10 +946,10 @@ function boot(): void {
     onReminderArmed: () => scheduler.rearm(),
   });
   quickCaptureRef = quickCapture;
-  // registerHotkey() unregisters all shortcuts then registers the palette hotkey,
+  // registerHotkey() unregisters all shortcuts then registers the PTT hotkey,
   // so the capture hotkey must be (re-)added right after. reRegisterHotkeys does both.
   reRegisterHotkeys = (): void => {
-    registerHotkey(settings.get().hotkey, onHotkeyPress, log);
+    registerHotkey(settings.get().voice.pttHotkey, onHotkeyPress, log);
     try {
       globalShortcut.register(settings.get().quickCapture.hotkey, () => openCaptureWindow());
     } catch (e) {
@@ -962,14 +959,16 @@ function boot(): void {
   reRegisterHotkeys();
 
   if (process.env['APOLLO_SMOKE'] === '1') {
-    palette.webContents.once('did-finish-load', () => {
+    orbWindow.webContents.once('did-finish-load', () => {
       // Drives a real turn over the bridge: IPC → router → orchestrator →
-      // fast path → timer tool → agent.events back to the renderer.
+      // fast path → timer tool → agent.events back to the renderer. PART K:
+      // the typed path is chat.send (the palette is gone).
       const script = `(async () => {
         if (typeof window.apollo !== 'object' || typeof window.apollo.call !== 'function') return 'no-bridge';
         const events = [];
         window.apollo.on('agent.events', (e) => events.push(e.type));
-        const res = await window.apollo.call('agent.userMessage', { text: 'set a timer for 5 minutes', source: 'text', convId: 'smoke' });
+        const active0 = await window.apollo.call('conversations.active', {});
+        const res = await window.apollo.call('chat.send', { text: 'set a timer for 5 minutes', convId: active0.id });
         await new Promise((r) => setTimeout(r, 500));
         const active = events.includes('turnStart') && events.includes('card') && events.includes('done');
         if (!(res.turnId && active)) return 'turn-bad:' + events.join(',');
@@ -990,7 +989,7 @@ function boot(): void {
         return captureOk ? 'turn-ok' : 'capture-bad:cls=' + cls.suggestedType + ',ok=' + cap.ok;
       })()`;
       const idleClickThrough = orbController.isClickThrough(); // sampled before the turn activates the orb
-      void palette.webContents
+      void orbWindow.webContents
         .executeJavaScript(script)
         .then((result: string) => {
           const orbOk = !orbWindow.isDestroyed() && orbWindow.isAlwaysOnTop() && !orbWindow.isFocused();
@@ -1003,7 +1002,7 @@ function boot(): void {
             .then((rendered: boolean) => {
               // eslint-disable-next-line no-console
               console.log(
-                `SMOKE_OK tray=${getTray() !== null} palette=${!palette.isDestroyed()} e2e=${result} orb=${orbOk} clickThroughIdle=${idleClickThrough} interactiveActive=${activeInteractive} workspace=${wsOk} wsRendered=${rendered} boot_to_tray=${trayMs}`,
+                `SMOKE_OK tray=${getTray() !== null} e2e=${result} orb=${orbOk} clickThroughIdle=${idleClickThrough} interactiveActive=${activeInteractive} workspace=${wsOk} wsRendered=${rendered} boot_to_tray=${trayMs}`,
               );
               app.exit(result === 'turn-ok' && orbOk && idleClickThrough && activeInteractive && wsOk && rendered ? 0 : 1);
             });

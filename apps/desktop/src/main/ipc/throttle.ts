@@ -6,6 +6,10 @@ import { type InvokeChannelName } from '@apollo/shared';
  */
 const PER_MINUTE: Partial<Record<InvokeChannelName, number>> = {
   'agent.userMessage': 20,
+  // PART K chat verbs (K1)
+  'chat.send': 20,
+  'chat.regenerate': 10,
+  'chat.editAndResend': 10,
   'capture.submit': 30,
   'keys.test': 10,
   // local mutation channels

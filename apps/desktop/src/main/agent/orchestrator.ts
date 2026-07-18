@@ -590,11 +590,13 @@ export function createOrchestrator(deps: OrchestratorDeps) {
       activeTurns.set(turnId, { abort });
 
       const completion = (async () => {
-        emit({ type: 'turnStart', turnId });
         userUtterances(input.convId).push(input.text);
         userOwnedRecallByConv.set(input.convId, []); // J1.3: note/fact clearing is scoped to this turn
         const history = historyMessages(input.convId); // before persisting this turn's text
+        // K2 shared thread: persist the user row before turnStart so the Chat tab's
+        // reload-on-turnStart sees it; convId lets the tab follow the live turn.
         persist(input.convId, 'user', input.text);
+        emit({ type: 'turnStart', turnId, convId: input.convId });
 
         // Pending confirmation + approve/deny lexicon resolves without an LLM call (C8.1)
         const pending = confirmations.get();

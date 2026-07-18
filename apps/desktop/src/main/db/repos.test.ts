@@ -14,9 +14,9 @@ beforeEach(() => {
 });
 
 describe('migrations', () => {
-  it('applies to version 6 and is idempotent', () => {
-    expect(migrate(db)).toBe(6);
-    expect(migrate(db)).toBe(6);
+  it('applies to version 7 and is idempotent', () => {
+    expect(migrate(db)).toBe(7);
+    expect(migrate(db)).toBe(7);
     const tables = (db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as Array<{ name: string }>).map((t) => t.name);
     for (const t of ['events', 'reminders', 'timers', 'alarms', 'notes', 'todos', 'contacts', 'conversations', 'messages', 'memory_facts', 'oauth_accounts', 'capability_misses', 'feeds', 'perf_spans', 'undo_log', 'settings', 'sync_state', 'sync_queue']) {
       expect(tables).toContain(t);
@@ -24,6 +24,9 @@ describe('migrations', () => {
     // I2: events carries calendar_id + gcal sync columns.
     const cols = (db.prepare('PRAGMA table_info(events)').all() as Array<{ name: string }>).map((c) => c.name);
     for (const c of ['calendar_id', 'remote_id', 'etag', 'sync_status']) expect(cols).toContain(c);
+    // K2: conversations carries rename/pin columns.
+    const convCols = (db.prepare('PRAGMA table_info(conversations)').all() as Array<{ name: string }>).map((c) => c.name);
+    for (const c of ['title', 'pinned']) expect(convCols).toContain(c);
   });
 });
 

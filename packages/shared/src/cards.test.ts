@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { cardPayloadSchema, type CardPayload } from './cards';
 import { agentEventSchema, type AgentEvent } from './agent';
-import { SettingsSchema, defaultSettings } from './settings';
+import { SettingsSchema, defaultSettings, migrateLegacySettings } from './settings';
 
 const event = {
   id: 'e1', title: 'Dentist', startTs: 1_800_000_000_000, endTs: 1_800_003_600_000,
@@ -88,7 +88,7 @@ describe('card payload round-trips (every kind)', () => {
 
 describe('agent events', () => {
   const events: AgentEvent[] = [
-    { type: 'turnStart', turnId: 't' },
+    { type: 'turnStart', turnId: 't', convId: 'c1' },
     { type: 'token', text: 'Sure' },
     { type: 'toolStart', tool: 'timer.start' },
     { type: 'toolResult', tool: 'timer.start', ok: true },
@@ -115,11 +115,25 @@ describe('settings', () => {
   it('defaults parse and round-trip', () => {
     const s = defaultSettings();
     expect(SettingsSchema.parse(s)).toEqual(s);
-    expect(s.hotkey).toBe('Alt+Space');
+    expect(s.voice.pttHotkey).toBe('Alt+Space'); // K1: PTT binding lives under voice now
+    expect(s.chat.sendOnEnter).toBe(true);
+    expect(s.workspace.defaultView).toBe('chat');
     expect(s.anthropic.model).toBe('claude-sonnet-4-6');
+    expect('hotkey' in s).toBe(false); // K1: palette hotkey removed
   });
   it('rejects out-of-range values', () => {
     expect(SettingsSchema.safeParse({ ...defaultSettings(), dnd: { startHH: 25, endHH: 8 } }).success).toBe(false);
     expect(SettingsSchema.safeParse({ ...defaultSettings(), wake: { enabled: true, sensitivity: 2 } }).success).toBe(false);
+  });
+  it('K1 migration: stored palette hotkey drops silently; openWorkspaceOnLaunch folds into workspace', () => {
+    const legacy = { hotkey: 'Ctrl+Space', openWorkspaceOnLaunch: true, launchAtLogin: true };
+    const parsed = SettingsSchema.parse(migrateLegacySettings(legacy));
+    expect('hotkey' in parsed).toBe(false); // dropped, never re-registered
+    expect(parsed.voice.pttHotkey).toBe('Alt+Space'); // NOT inherited from the palette key
+    expect(parsed.workspace.openOnLaunch).toBe(true); // folded into the new home
+    expect(parsed.launchAtLogin).toBe(true); // unrelated keys untouched
+    // an already-migrated blob passes through unchanged
+    const modern = defaultSettings();
+    expect(SettingsSchema.parse(migrateLegacySettings(modern))).toEqual(modern);
   });
 });

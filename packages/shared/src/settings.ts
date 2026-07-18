@@ -13,7 +13,8 @@ export type Feed = z.infer<typeof feedSchema>;
 export const orbEdgeSchema = z.enum(['left', 'right', 'top', 'bottom']);
 
 export const SettingsSchema = z.object({
-  hotkey: z.string().default('Alt+Space'), // Option+Space on macOS, Alt+Space on Windows
+  // PART K: the palette hotkey is gone. Legacy stored `hotkey` values are
+  // silently stripped by zod on parse and never re-registered (K1).
   orb: z
     .object({
       edge: orbEdgeSchema.default('right'),
@@ -38,6 +39,24 @@ export const SettingsSchema = z.object({
       earconVolume: z.number().min(0).max(1).default(0.7),
       followupWindowSec: z.number().int().min(0).max(15).default(6), // 0 = off
       pauseWakeOnBattery: z.boolean().default(false),
+      // PART K: PTT keeps a global binding of its own now that the palette
+      // hotkey is gone (K1 "retained: PTT binding under voice").
+      pttHotkey: z.string().default('Alt+Space'),
+    })
+    .default({}),
+  // PART K: Chat tab behavior
+  chat: z
+    .object({
+      sendOnEnter: z.boolean().default(true), // false = Cmd/Ctrl+Enter sends
+      showToolActivity: z.boolean().default(true), // inline "Checking your calendar…" lines
+      autoScroll: z.boolean().default(true),
+    })
+    .default({}),
+  // PART K: Workspace launch behavior (absorbs the legacy top-level openWorkspaceOnLaunch)
+  workspace: z
+    .object({
+      defaultView: z.enum(['chat', 'today', 'calendar', 'notes']).default('chat'),
+      openOnLaunch: z.boolean().default(false),
     })
     .default({}),
   usage: z
@@ -144,7 +163,6 @@ export const SettingsSchema = z.object({
   // I6: one-time proactivity explainer has been shown
   firstNudgeSeen: z.boolean().default(false),
   launchAtLogin: z.boolean().default(false),
-  openWorkspaceOnLaunch: z.boolean().default(false), // E7 General tab
   workspaceBounds: z
     .object({ x: z.number(), y: z.number(), width: z.number(), height: z.number() })
     .nullable()
@@ -160,21 +178,35 @@ export function defaultSettings(): Settings {
   return SettingsSchema.parse({});
 }
 
-/** Folds pre-Part-E stored settings (top-level home/units) into profile. */
+/** Folds pre-Part-E stored settings (top-level home/units) into profile, and
+ *  pre-Part-K stored settings (hotkey, openWorkspaceOnLaunch) into their new
+ *  homes. The palette `hotkey` is dropped silently and never re-registered (K1). */
 export function migrateLegacySettings(raw: unknown, localTz = 'local'): unknown {
   if (typeof raw !== 'object' || raw === null) return raw;
-  const o = raw as Record<string, unknown> & {
+  let o = raw as Record<string, unknown> & {
     home?: { name: string; lat: number; lon: number } | null;
     units?: 'imperial' | 'metric';
     profile?: Record<string, unknown>;
+    hotkey?: string;
+    openWorkspaceOnLaunch?: boolean;
+    workspace?: Record<string, unknown>;
   };
-  if (o['profile'] !== undefined || (o['home'] === undefined && o['units'] === undefined)) return raw;
-  const { home, units, ...rest } = o;
-  return {
-    ...rest,
-    profile: {
-      ...(home ? { homePlace: { label: home.name, lat: home.lat, lon: home.lon, tz: localTz } } : {}),
-      ...(units ? { units } : {}),
-    },
-  };
+  if (o['profile'] === undefined && (o['home'] !== undefined || o['units'] !== undefined)) {
+    const { home, units, ...rest } = o;
+    o = {
+      ...rest,
+      profile: {
+        ...(home ? { homePlace: { label: home.name, lat: home.lat, lon: home.lon, tz: localTz } } : {}),
+        ...(units ? { units } : {}),
+      },
+    };
+  }
+  if (o['hotkey'] !== undefined || (o['openWorkspaceOnLaunch'] !== undefined && o['workspace'] === undefined)) {
+    const { hotkey: _dropped, openWorkspaceOnLaunch, ...rest } = o;
+    o = {
+      ...rest,
+      ...(openWorkspaceOnLaunch !== undefined ? { workspace: { openOnLaunch: openWorkspaceOnLaunch } } : {}),
+    };
+  }
+  return o;
 }

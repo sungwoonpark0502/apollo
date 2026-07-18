@@ -58,7 +58,7 @@ describe('migration integrity (J1.1)', () => {
     expect(freshSchema(db)).toEqual(before);
     // schema_version has exactly one row per applied migration (no double-insert)
     const versions = (db.prepare('SELECT version FROM schema_version ORDER BY version').all() as Array<{ version: number }>).map((r) => r.version);
-    expect(versions).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(versions).toEqual([1, 2, 3, 4, 5, 6, 7]);
   });
 
   it('backfills calendar_id=default for events that predate 0006', () => {

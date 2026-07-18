@@ -54,6 +54,15 @@ export function VoiceTab(): React.JSX.Element {
         />
       </Row>
 
+      <Row label={STRINGS.settings.voice.pttHotkey}>
+        <input
+          value={settings.voice.pttHotkey}
+          onChange={(e) => patch({ ...settings, voice: { ...settings.voice, pttHotkey: e.target.value } })}
+          style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-body)', padding: 'var(--sp-1) var(--sp-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-ctl)', background: 'var(--surface)', color: 'var(--text-1)', width: 160 }}
+          aria-label={STRINGS.settings.voice.pttHotkey}
+        />
+      </Row>
+
       <Row label={STRINGS.settings.voice.voice}>
         <input
           type="text"

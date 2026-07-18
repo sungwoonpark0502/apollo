@@ -10,9 +10,18 @@ describe('I6 shortcuts registry (single source)', () => {
 
   it('is the only source for the Workspace keyboard bindings the app matches', () => {
     // The Workspace window reads these exact ids from the registry (WorkspaceApp.isShortcut).
-    for (const id of ['workspace.omnisearch', 'workspace.today', 'workspace.calendar', 'workspace.notes', 'workspace.undo', 'workspace.help']) {
+    for (const id of ['workspace.omnisearch', 'workspace.chat', 'workspace.today', 'workspace.calendar', 'workspace.notes', 'workspace.undo', 'workspace.help']) {
       expect(shortcut(id)?.binding, `${id} must declare a binding`).toBeDefined();
     }
+  });
+
+  it('K2: Chat is Mod+1 and the others shift; the palette hotkey entry is gone', () => {
+    expect(shortcut('workspace.chat')?.binding).toEqual({ key: '1', mod: true });
+    expect(shortcut('workspace.today')?.binding).toEqual({ key: '2', mod: true });
+    expect(shortcut('workspace.calendar')?.binding).toEqual({ key: '3', mod: true });
+    expect(shortcut('workspace.notes')?.binding).toEqual({ key: '4', mod: true });
+    expect(shortcut('global.toggle')).toBeUndefined(); // palette hotkey removed
+    expect(shortcut('global.ptt')?.keys).toBe('Alt+Space'); // PTT retained (K0)
   });
 
   it('formatShortcut renders platform-correct key hints', () => {

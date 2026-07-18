@@ -1,4 +1,4 @@
-APOLLO Master Build Specification v3.5 (Implementation Grade)
+APOLLO Master Build Specification v3.6 (Implementation Grade)
 Status: normative. This document is the single source of truth. If code and spec disagree, the spec wins. If the spec is silent, choose the simplest option consistent with Part B invariants and record it in DECISIONS.md.
 PART A: Agent operating protocol
 You are the sole principal engineer on this project. You own architecture, implementation, tests, security, and quality. Work autonomously through the milestone plan in Part D. Do not wait for permission between milestones. Do not ask questions this document answers.
@@ -959,3 +959,87 @@ Milestones (Phase 10, strict order):
 10.6 Pass C regression lock (J6.3 + full run): error-taxonomy coverage test, regression tests for every fix, entire Phase 0 through 9 suite re-run, docs reconciled, strings-inventory + a11y checklists to HUMAN_TODO. Verify: Phase 10 gate.
 
 Phase 10 gate: AUDIT.md shows every S1/S2 fixed with a linked regression test and every S3 fixed or backlogged; the full cross-phase test, eval, injection, egress, perf, boot, and new Phase 10 suites all pass; the fresh-DB schema snapshot matches; formatting and strings lints are clean repo-wide; the packaged build passes fuse/permission/egress re-verification; pnpm build produces installable artifacts on both CI platforms; Global DoD re-verified; no known S1/S2 defect remains open.
+
+PART K: Two-Surface Consolidation (v3.6 addendum, Phase 11)
+Status: normative extension. Parts A through J remain in force except where explicitly superseded below. Prerequisite: Phase 10 gate passed. This phase removes a surface and upgrades another; it adds no new capability.
+K0. Decision and scope
+Apollo has three input surfaces: the orb (voice), the palette window (global hotkey text launcher), and the Workspace. The palette is superseded. Final architecture is two surfaces:
+
+Orb: the ambient voice surface. Summoned by "Hey Apollo" or push-to-talk. Small, translucent, docked at the screen edge, answers by voice plus Stage/compact cards. Unchanged in purpose.
+Chat tab: a full conversational surface inside the Workspace, ChatGPT-style. Persistent message thread, streaming replies, inline cards, conversation history in a sidebar. This is where all typed interaction lives.
+
+Superseded and removed: the palette window (src/renderer/windows/palette/), its global hotkey registration and its Settings hotkey recorder, and the C18 palette specification. The Chats read-only view from H5.5 is superseded by the Chat tab, which absorbs its history list and adds composing.
+Retained deliberately (do not remove): push-to-talk (voice fallback path, C12.5), Quick Capture (F4, non-LLM instant save), the tray menu, and all orb behavior.
+Invariant preserved: one brain. The Chat tab dispatches through the identical agent.userMessage path, the same orchestrator, tools, memory, and confirmation gates as voice. No parallel logic.
+K1. Contract changes
+Removed from settings: hotkey (palette). Retained: quickCapture.hotkey, PTT binding under voice. Migration for settings: on boot, if a stored hotkey value exists, drop it silently; never re-register it.
+Removed IPC: none (palette used shared channels). Removed windows: palette.
+Settings additions:
+tschat: z.object({
+  sendOnEnter: z.boolean().default(true),          // false = Cmd/Ctrl+Enter sends
+  showToolActivity: z.boolean().default(true),     // inline "Checking your calendar…" lines
+  autoScroll: z.boolean().default(true),
+}),
+workspace: z.object({
+  defaultView: z.enum(['chat','today','calendar','notes']).default('chat'),
+  openOnLaunch: z.boolean().default(false),        // existing key; default view now includes chat
+}),
+IPC additions:
+ChannelDirRequest → Responsechat.sendR→M{text, convId} → {turnId} (thin alias over agent.userMessage with source text; exists so throttling and UI state stay chat-specific)chat.stopR→M{turnId} → ack (alias of agent.cancel, for the visible stop button)chat.regenerateR→M{convId, messageId} → {turnId} (re-runs the last user message; drops the prior assistant turn from the thread and from indexing)chat.editAndResendR→M{convId, messageId, newText} → {turnId} (truncates the thread after that message, resends)
+workspace.open gains 'chat' in its view enum. app.open (E8) gains 'chat' and its description updates so "open chat", "let me type", "show our conversation" route there.
+All new strings in strings.ts. Throttle buckets: chat.send 20/min, chat.regenerate 10/min, chat.editAndResend 10/min.
+K2. Chat tab specification
+Rail: Chat becomes the first item in the Workspace left rail (Chat, Today, Calendar, Notes, spacer, Settings). Cmd/Ctrl+1 maps to Chat; existing numbers shift; the shortcuts registry (I6.3) is the single source and the help sheet must reflect the new mapping.
+Layout, two panes:
+Left sidebar, 260px, collapsible (persisted): a New chat button at top; a filter input; the conversation list from conversations.list (title derived per H5, relative time via format.ts, message count); grouping by Today / Yesterday / Previous 7 days / Older; per-row context menu with Rename, Delete (confirm; purges messages and their chunks/vectors per H5.5), and Pin. Active conversation highlighted. When history is disabled, the sidebar collapses to a notice explaining the setting with a link to Privacy; chatting still works, it just is not saved.
+Right pane, message thread:
+
+Messages rendered as role-styled rows: user messages right-aligned in a subtle --accent-soft bubble, assistant messages left-aligned on plain surface (no bubble) for readability, max content width 720px centered.
+Assistant content streams token by token, cursor block while streaming.
+Cards render inline in the thread exactly as their components do elsewhere (EventCard, WeatherCard, NewsListCard, ConfirmCard, batchConfirm, recallList, linkPreview, nudge, etc.), full width of the content column. This replaces the palette's "reply plus cards below" model: the thread is the transcript.
+Tool activity lines (I5.1) render as compact dim italic lines above the assistant reply while running, then collapse into a single "Used: calendar, weather" chip that expands on click. Honors chat.showToolActivity.
+Per-message actions on hover: Copy (assistant), Regenerate (last assistant only), Edit (user messages; opens inline editor, confirms it will discard subsequent turns), Speak this (sends the text through TTS on demand, so a typed conversation can be listened to).
+Confirmations appear inline as ConfirmCard/batchConfirm in the thread; approving from chat drives the same agent.confirm path. The 5s cancel window renders as the same countdown bar.
+Auto-scroll follows the stream while pinned to bottom; scrolling up detaches and shows a "Jump to latest" pill. Honors chat.autoScroll.
+Empty state (new chat): centered greeting using profile name, plus 4 example prompt chips drawn from real capability ("What's on my calendar tomorrow", "Set a timer for 10 minutes", "What's the weather", "Note: …"), clicking one fills the composer without sending.
+
+Composer, bottom, sticky:
+
+Auto-growing textarea, 1 to 8 rows, placeholder from strings.ts.
+Enter sends / Shift+Enter newline when sendOnEnter; inverted otherwise (composer hint line shows the active binding).
+Left affordance: a mic button that runs a dictation-into-composer flow (opens STT, transcribes into the textarea, does not auto-send) so voice and typing mix naturally. Reuses the audio worker and STT adapter; unavailable state is disabled with a tooltip when keys are missing.
+Right affordance: Send, which becomes Stop with a square icon while a turn is streaming (drives chat.stop).
+Up-arrow on an empty composer loads the previous user message for editing (parity with the old palette behavior).
+Attachment of a URL is just typing it; link.read gating (I4) applies unchanged.
+Offline or missing-key state: composer shows an inline banner naming what is degraded, still allows local-tool requests (timers, notes) because the fast path runs without the LLM.
+
+Conversation lifecycle: the Chat tab and voice share activeConvId (H5.1). A voice exchange appears in the open Chat thread live via the existing agent event stream, and typing continues that same conversation. "New chat" creates a new conversation for both surfaces. This shared thread is the visible proof of the one-brain invariant and must be tested as such.
+K3. Orb changes
+The orb loses nothing. Two small adjustments:
+
+Its right-click menu replaces "Open Apollo" with "Open chat" (opens Workspace at Chat) and keeps "Open Apollo" as a second item pointing at Today.
+The Stage and compact cards gain an "Open in chat" affordance that deep-links to the conversation containing that turn, so a voice answer can be continued by typing.
+
+K4. Migration and cleanup
+
+Delete the palette window, its renderer entry, its build config entry, its hotkey registration, its Settings recorder row, and its tests. Any shared component the palette owned (streaming reply renderer, card list) moves to components/chat/ and is reused by the Chat tab; nothing is duplicated.
+Documentation sweep: README, onboarding step 6, empty states, help sheet, and any string referencing the palette or its hotkey is rewritten to describe the two surfaces. The onboarding finish screen now suggests both "Say Hey Apollo" and "Or type in the Chat tab", and opens the Workspace at Chat.
+Spec sweep inside the repo docs: note in DECISIONS.md that C18's palette section and H5.4/H5.5 are superseded by PART K, with the rationale (Workspace made the launcher redundant; consolidating removes a surface and its hotkey conflict class).
+Any test referencing the palette is rewritten against the Chat tab rather than deleted, preserving coverage of streaming, cards, confirmations, and cancellation.
+
+K5. Testing and gates
+Unit: composer key bindings under both sendOnEnter modes; up-arrow recall; auto-grow bounds; auto-scroll detach/reattach logic; thread virtualization for long conversations (1000 messages renders and scrolls within budget); tool-activity collapse chip; regenerate drops the prior assistant turn from the thread and from the memory index (assert chunk count); editAndResend truncates correctly and purges orphaned chunks; sidebar grouping and filter; history-disabled sidebar state; conversation delete purges chunks (regression from H5.5).
+Integration: shared-thread proof, a voice turn driven through FakeSTT appears in the open Chat thread and a typed follow-up continues the same conversation with context (two-turn continuity assertion); confirmation approved from the Chat thread executes the same path as from the orb; cancel from Chat aborts an in-flight stream; dictation-into-composer fills text without sending; fast path works in Chat with the LLM adapter disabled (timer created offline).
+Cleanup verification: a test asserts no palette window is registered, no palette hotkey is requested, and grep gates fail the build on references to the removed module. Shortcuts registry test asserts Cmd/Ctrl+1 maps to Chat and the help sheet matches the registry.
+Eval additions (minimum 6 rows): 3 app.open phrasings for chat ("open chat", "let me type", "show our conversation"), 2 forbid_tools rows proving normal questions do not call app.open, 1 row asserting a typed request and its voice equivalent produce the same tool sequence.
+Regression: full Phase 0 through 10 suites re-run clean (injection 100%, egress, perf, boot).
+Milestones (Phase 11, strict order):
+
+11.1 Contracts: settings changes and cleanup, new IPC channels with throttles, app.open/workspace.open enum extension, shortcuts registry remap. Verify: IPC round-trips, registry test.
+11.2 Chat tab core: rail placement, thread rendering, streaming, inline cards, composer with both send modes, stop button, empty state. Verify: unit suite for composer/thread.
+11.3 Conversation sidebar: list, grouping, filter, rename/delete/pin, history-disabled state, active-conversation sharing with voice. Verify: sidebar + shared-thread integration tests.
+11.4 Message actions: copy, regenerate, edit-and-resend with index purge, speak-this, tool-activity chip, jump-to-latest. Verify: purge and action tests.
+11.5 Dictation into composer + orb menu/deep-link changes. Verify: dictation integration test.
+11.6 Palette removal and doc sweep: delete module, migrate shared components, rewrite palette tests against Chat, update README/onboarding/help/strings. Verify: cleanup grep gates, no orphaned references, full regression.
+
+Phase 11 gate: all new suites green; palette provably absent (grep + no window/hotkey registration); shared-thread integration proves voice and chat are one conversation; full Phase 0 through 10 regression clean; pnpm build produces installable artifacts on both CI platforms; DECISIONS records the supersession; Global DoD re-verified.

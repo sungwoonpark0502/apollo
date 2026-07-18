@@ -23,14 +23,16 @@ export interface Shortcut {
 
 export const SHORTCUTS: readonly Shortcut[] = [
   // Global (OS-level hotkeys, registered in main; not matched inside a window)
-  { id: 'global.toggle', scope: 'Global', keys: 'Alt+Space', description: 'Show or hide Apollo' },
+  // PART K: the palette hotkey is gone; Alt+Space is now push-to-talk only.
+  { id: 'global.ptt', scope: 'Global', keys: 'Alt+Space', description: 'Push to talk' },
   { id: 'global.capture', scope: 'Global', keys: 'Mod+Shift+N', description: 'Quick capture a note or to-do' },
 
-  // Workspace
+  // Workspace (K2: Chat is first in the rail; Mod+1 maps to Chat, others shift)
   { id: 'workspace.omnisearch', scope: 'Workspace', keys: 'Mod+K', description: 'Search everything', binding: { key: 'k', mod: true } },
-  { id: 'workspace.today', scope: 'Workspace', keys: 'Mod+1', description: 'Go to Today', binding: { key: '1', mod: true } },
-  { id: 'workspace.calendar', scope: 'Workspace', keys: 'Mod+2', description: 'Go to Calendar', binding: { key: '2', mod: true } },
-  { id: 'workspace.notes', scope: 'Workspace', keys: 'Mod+3', description: 'Go to Notes', binding: { key: '3', mod: true } },
+  { id: 'workspace.chat', scope: 'Workspace', keys: 'Mod+1', description: 'Go to Chat', binding: { key: '1', mod: true } },
+  { id: 'workspace.today', scope: 'Workspace', keys: 'Mod+2', description: 'Go to Today', binding: { key: '2', mod: true } },
+  { id: 'workspace.calendar', scope: 'Workspace', keys: 'Mod+3', description: 'Go to Calendar', binding: { key: '3', mod: true } },
+  { id: 'workspace.notes', scope: 'Workspace', keys: 'Mod+4', description: 'Go to Notes', binding: { key: '4', mod: true } },
   { id: 'workspace.undo', scope: 'Workspace', keys: 'Mod+Z', description: 'Undo the last change', binding: { key: 'z', mod: true } },
   { id: 'workspace.help', scope: 'Workspace', keys: '?', description: 'Show keyboard shortcuts', binding: { key: '?' } },
   { id: 'workspace.helpAlt', scope: 'Workspace', keys: 'Mod+/', description: 'Show keyboard shortcuts', binding: { key: '/', mod: true } },
