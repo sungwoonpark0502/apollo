@@ -3,6 +3,24 @@
 Items below are truly human-only (account logins, payments, certificates, physical acoustics).
 Everything else has been done or self-verified by the agent.
 
+## Phase 11 / PART K Chat tab — subjective visual judgment
+Everything behavioral is covered by tests (shared thread, composer bindings, sidebar
+grouping, message actions, dictation, cleanup gates). What needs human eyes on a
+running app (`env -u ELECTRON_RUN_AS_NODE pnpm dev`, Workspace opens on Chat):
+- Thread feel: user bubbles right / assistant plain left at 720px, streaming cursor,
+  cards inline at full column width, auto-scroll + "Jump to latest" pill, the
+  "Used: …" chip expansion, "Show N earlier" on long threads.
+- Composer: 1→8 row auto-grow, Enter vs Cmd/Ctrl+Enter hint line matches the setting,
+  up-arrow recall, Send↔Stop swap while streaming, mic button states (idle /
+  listening pulse / disabled tooltip without a Deepgram key).
+- Sidebar: group headers, pinned section, inline rename, delete confirm, collapse.
+- One-brain demo: speak "Hey Apollo, set a timer" with the Chat tab open — the
+  exchange should appear live; type "cancel it" to continue the same conversation.
+- Orb: right-click menu (Open chat / Open Apollo), the ✻ Open-in-chat affordance on
+  Stage and compact cards lands on the right conversation.
+- Onboarding finish now lands on Chat with the welcome note seeded; confirm the new
+  "Say Hey Apollo / type in the Chat tab" copy reads well.
+
 ## Phase 9 / I5 conversation polish — visual QA
 Implemented and unit-covered where testable (tool-activity label map, retry-with-memory).
 The following are wired but need a human eye on a running app (open the orb + palette, run a

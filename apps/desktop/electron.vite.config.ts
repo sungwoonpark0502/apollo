@@ -44,7 +44,6 @@ export default defineConfig({
     build: {
       rollupOptions: {
         input: {
-          palette: resolve(__dirname, 'src/renderer/windows/palette/index.html'),
           settings: resolve(__dirname, 'src/renderer/windows/settings/index.html'),
           orb: resolve(__dirname, 'src/renderer/windows/orb/index.html'),
           audio: resolve(__dirname, 'src/renderer/windows/audio/index.html'),

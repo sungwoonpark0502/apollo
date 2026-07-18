@@ -2,7 +2,7 @@ import { newId } from '@apollo/shared';
 
 /**
  * H5 conversation lifecycle. Main owns the active conversation id, shared across
- * voice and palette (one-brain). A new conversation begins when the previous
+ * voice and the Chat tab (one-brain). A new conversation begins when the previous
  * activity is older than 30 minutes, on setActive, or on explicit user request.
  */
 const ROTATE_AFTER_MS = 30 * 60_000;

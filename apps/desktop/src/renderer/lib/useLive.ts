@@ -25,7 +25,7 @@ export function useFormatInit(): void {
 /**
  * E2/E7 renderer live-sync helpers. useSettings tracks the live settings blob
  * (re-renders on settings.changed); useDataSync re-runs a loader whenever a
- * matching entity changes anywhere (voice, palette, or another Workspace pane).
+ * matching entity changes anywhere (voice, chat, or another Workspace pane).
  */
 export function useSettings(): Settings | null {
   const [settings, setSettings] = useState<Settings | null>(null);

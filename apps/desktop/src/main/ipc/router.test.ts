@@ -15,7 +15,7 @@ describe('ipc router pipeline', () => {
   it('accepts a valid payload from a trusted frame and validates the response', async () => {
     const handler = vi.fn().mockResolvedValue({ turnId: 't1' });
     const pipeline = makeChannelHandler('agent.userMessage', handler, opts());
-    const res = await pipeline('http://localhost:5173/windows/palette/index.html', {
+    const res = await pipeline('http://localhost:5173/windows/workspace/index.html', {
       text: 'hi',
       source: 'text',
       convId: 'c1',

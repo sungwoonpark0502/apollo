@@ -228,7 +228,7 @@ function WakeWord(): React.JSX.Element {
 function TryIt({ onDone, seedWelcome, onSeedChange }: { onDone: () => void; seedWelcome: boolean; onSeedChange: (v: boolean) => void }): React.JSX.Element {
   return (
     <Panel title={STRINGS.onboarding.tryTitle}>
-      <p style={body}>{STRINGS.onboarding.tryBody('Option+Space')}</p>
+      <p style={body}>{STRINGS.onboarding.tryBody}</p>
       <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', marginTop: 'var(--sp-3)', fontSize: 'var(--fs-body)', color: 'var(--text-2)' }}>
         <input type="checkbox" checked={seedWelcome} onChange={(e) => onSeedChange(e.target.checked)} />
         {STRINGS.onboarding.sampleNote}

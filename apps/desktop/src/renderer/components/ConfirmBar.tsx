@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { STRINGS } from '@apollo/shared';
-import { useStore } from '../state/store';
 
 /** Presentational 5s cancel bar (C8.9 / C18); shrinking bar + Cancel button. */
 export function CancelWindowBar({ endsAt, onCancel }: { endsAt: number; onCancel: () => void }): React.JSX.Element {
@@ -54,13 +53,3 @@ export function CancelWindowBar({ endsAt, onCancel }: { endsAt: number; onCancel
   );
 }
 
-/** Store-connected wrapper used by the palette. */
-export function ConfirmBar(): React.JSX.Element | null {
-  const cancelWindow = useStore((s) => s.cancelWindow);
-  if (!cancelWindow) return null;
-  const cancel = (): void => {
-    if (cancelWindow.turnId) void window.apollo.call('agent.cancel', { turnId: cancelWindow.turnId });
-    useStore.setState({ cancelWindow: null });
-  };
-  return <CancelWindowBar endsAt={cancelWindow.endsAt} onCancel={cancel} />;
-}

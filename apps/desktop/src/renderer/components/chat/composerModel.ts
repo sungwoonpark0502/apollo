@@ -17,7 +17,7 @@ export type ComposerAction = 'send' | 'newline' | 'historyPrev' | 'historyNext' 
 /**
  * sendOnEnter: Enter sends, Shift+Enter newline.
  * !sendOnEnter: Mod+Enter sends, Enter newline.
- * ArrowUp on an empty composer recalls the previous user message (palette parity).
+ * ArrowUp on an empty composer recalls the previous user message.
  */
 export function composerKeyAction(
   e: ComposerKeyEvent,

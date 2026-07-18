@@ -134,3 +134,9 @@
 {"id":"forbid-locale-01","utterance":"do you show me times in 12-hour or 24-hour format?","forbid_tools":["calendar.list","search.web","recall.search"],"forbid_bare_refusal":true}
 {"id":"forbid-locale-02","utterance":"what character do you use to separate thousands in numbers?","forbid_tools":["search.web","recall.search"],"forbid_bare_refusal":true}
 {"id":"forbid-context-01","prior_user":"what's on my calendar today?","utterance":"which calendar is the standup on?","forbid_tools":["calendar.search","recall.search","search.web"],"forbid_bare_refusal":true}
+{"id":"chat-open-01","utterance":"open chat","expect_tools":[{"name":"app.open","args_include":{"view":"chat"}}]}
+{"id":"chat-open-02","utterance":"let me type instead","expect_tools":[{"name":"app.open","args_include":{"view":"chat"}}]}
+{"id":"chat-open-03","utterance":"show our conversation","expect_tools":[{"name":"app.open","args_include":{"view":"chat"}}]}
+{"id":"chat-forbid-01","utterance":"what did we talk about earlier?","forbid_tools":["app.open"],"forbid_bare_refusal":true}
+{"id":"chat-forbid-02","utterance":"what's on my calendar tomorrow?","forbid_tools":["app.open"]}
+{"id":"chat-parity-01","utterance":"set a timer for 10 minutes","source":"text","expect_tools":[{"name":"timer.start"}],"note":"typed request produces the same tool sequence as the voice fixture voice-timer-01"}

@@ -1,5 +1,21 @@
 # PROGRESS
 
+## Phase 11 (Part K — Two-Surface Consolidation)
+
+### [x] PHASE 11 GATE — PASS. All new suites green (thread/composer/sidebar models 40+, chatActions purge 7, shared-thread integration 7 incl. dictation, palette-removal gates 6, IPC round-trips for every new channel). Palette provably absent: source dir deleted, grep gate over apps/desktop/src + packages/shared/src forbids createPaletteWindow/togglePalette/windows-palette/palettePlaceholder/tray.palette; no palette hotkey (settings has no top-level hotkey; Alt+Space is PTT-only under voice.pttHotkey); build config has no palette entry (verified: pnpm build renderer outputs = audio/capture/onboarding/orb/settings/workspace). Shared-thread integration proves voice and chat are ONE conversation (FakeSTT voice turn appears in the simulated open Chat tab; typed follow-up continues the same convId with LLM context; confirm/cancel/fast-path/new-chat all through the real handlers). Full Phase 0–10 regression clean: shared 175 + desktop 765 tests, injection 10/10, egress canaries, lint, typecheck, eval 142 rows loads (self-skips keyless), smoke SMOKE_OK wsRendered boot_to_tray≈300ms, production build OK. DECISIONS records the C18/H5.4/H5.5 supersession + every contract addition beyond K1's list. PTT and Quick Capture retained deliberately (gate-tested).
+
+### [x] 11.6 Palette removal + doc sweep — deleted windows/palette/, ChatsView (absorbed by Chat), state/store.ts + the store-connected ConfirmBar wrapper (CancelWindowBar kept, presentational); windows.ts palette fns gone; tray gains "Open chat", second-instance/activate open the Workspace; onboarding copy rewritten ("Say Hey Apollo / type in the Chat tab"), finish lands on Chat; README rewritten to two surfaces; cleanup grep-gate test; 6 K5 eval rows (3 app.open chat phrasings, 2 forbid_tools, 1 typed/voice parity).
+
+### [x] 11.5 Dictation into composer (VoiceController startDictation/stopDictation, dictation.start/stop + dictation.text push, mic button with keyless-disabled state, wake ignored while dictating, never dispatches — integration-tested) + orb right-click menu (Open chat / Open Apollo) + Open-in-chat deep links on Stage/compact cards via turnStart.convId.
+
+### [x] 11.4 Message actions — Copy/Copied, Regenerate (last assistant, optimistic truncateFrom + backend purge), Edit-and-resend (inline editor, discard note), Speak this (tts.speak through the voice pipeline), tool-activity collapse chip (Used: namespaces → expands to friendly labels).
+
+### [x] 11.3 Sidebar (grouping Pinned/Today/Yesterday/7d/Older, filter, rename/pin/delete with chunk purge, collapse persisted, history-disabled notice) + the shared-thread one-brain integration proof.
+
+### [x] 11.2 Chat tab core — threadModel/composerModel pure reducers (20 tests), ChatThread (role-styled rows, streaming cursor, inline cards, windowed rendering, jump-to-latest), Composer (both send modes, auto-grow 1-8, history recall, Send↔Stop), ChatView wiring agent.events live, empty-state greeting + example chips, rail Chat-first with Mod+1.
+
+### [x] 11.1 Contracts — settings (hotkey dropped + migration, chat/workspace objects, voice.pttHotkey), chat.send/stop/regenerate/editAndResend with K1 throttles, conversations.active/rename/pin + message ids, migration 0007 (title/pinned) + schema snapshot v7, turnStart carries convId (user row persists before emit), app.open/workspace.open/navigate gain 'chat', shortcuts remap (Chat=Mod+1, global.ptt), chatActions truncate+purge module, smoke driver moved to the orb window over chat.send.
+
 ## Phase 10 (Part J — Audit and Stabilize)
 
 Three-pass audit-and-fix over Phases 0–9; no new features. Full findings + dispositions in AUDIT.md; deferred items in BACKLOG.md. Zero open S1/S2.

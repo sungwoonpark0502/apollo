@@ -5,8 +5,7 @@
 export const STRINGS = {
   app: {
     name: 'Apollo',
-    tray: { open: 'Open Apollo', quickCapture: 'Quick capture', palette: 'Command palette', settings: 'Settings…', mute: 'Mute microphone', unmute: 'Unmute microphone', quit: 'Quit Apollo' },
-    palettePlaceholder: 'Ask Apollo…',
+    tray: { open: 'Open Apollo', chat: 'Open chat', quickCapture: 'Quick capture', settings: 'Settings…', mute: 'Mute microphone', unmute: 'Unmute microphone', quit: 'Quit Apollo' },
   },
 
   // I5 tool-activity affordance: a friendly line shown while a tool runs. Never
@@ -190,7 +189,7 @@ export const STRINGS = {
     keysTitle: 'Connect your keys',
     keysBody: 'Anthropic and Deepgram keys are required. The others unlock extras and can wait.',
     finishTitle: "You're set",
-    finishBody: (hotkey: string) => `Try: press ${hotkey} and type "set a timer for 5 minutes".`,
+    finishBody: 'Say "Hey Apollo", or type in the Chat tab: "set a timer for 5 minutes".',
     next: 'Next',
     back: 'Back',
     skip: 'Skip',
@@ -207,8 +206,9 @@ export const STRINGS = {
     wakeToggle: 'Enable wake word',
     wakeSensitivity: 'Sensitivity',
     tryTitle: 'Try it',
-    tryBody: (hotkey: string) => `Press ${hotkey}, then try "set a timer for 5 minutes" or "what's the weather".`,
-    tryFinish: 'Open Apollo',
+    // PART K: two surfaces — say it, or type it in the Chat tab.
+    tryBody: 'Say "Hey Apollo", or type in the Chat tab. Try "set a timer for 5 minutes" or "what\'s the weather".',
+    tryFinish: 'Open chat',
     stepIndicator: (i: number, n: number) => `Step ${i} of ${n}`,
     sampleNote: 'Add a welcome note with example prompts',
     keysSkippedBanner: 'Some features are limited until you add your Anthropic and Deepgram keys.',
@@ -467,13 +467,12 @@ export const STRINGS = {
   },
 
   workspace: {
-    nav: { chat: 'Chat', today: 'Today', calendar: 'Calendar', notes: 'Notes', chats: 'Chats', settings: 'Settings' },
+    nav: { chat: 'Chat', today: 'Today', calendar: 'Calendar', notes: 'Notes', settings: 'Settings' },
     undo: { undid: (label: string) => `Undid: ${label}`, nothing: 'Nothing to undo' },
+    // K2: the Chat sidebar (the H5.5 read-only Chats view is superseded by PART K)
     chats: {
       filter: 'Filter conversations…',
       empty: 'No conversations yet.',
-      selectHint: 'Select a conversation to read it.',
-      continue: 'Continue',
       delete: 'Delete',
       deleteConfirm: 'Delete this conversation and its indexed messages?',
     },

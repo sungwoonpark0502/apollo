@@ -1,11 +1,14 @@
 # Apollo
 
-An always-available desktop AI assistant. A small orb docks at the edge of your
-screen; activate it by saying **"Hey Apollo"** or pressing the global hotkey
-(**Option+Space** on macOS, **Alt+Space** on Windows), then speak or type any
-request — calendar, reminders, timers, alarms, notes, todos, email, news,
-weather, web questions, opening apps, system control. Voice and text are equal:
-everything you can do by voice you can do by text.
+An always-available desktop AI assistant with exactly two surfaces. A small orb
+docks at the edge of your screen — say **"Hey Apollo"** or hold push-to-talk
+(**Option+Space** on macOS, **Alt+Space** on Windows) and speak. For typing,
+the Workspace opens on a **Chat** tab: a persistent conversational thread with
+streaming replies, inline cards, and your conversation history. Voice and text
+are one brain: a spoken exchange shows up live in the open Chat thread, and a
+typed follow-up continues the same conversation — calendar, reminders, timers,
+alarms, notes, todos, email, news, weather, web questions, opening apps,
+system control.
 
 Local-first: all your data lives in a local SQLite database. Apollo only reaches
 the network for the allowlisted hosts shown in **Settings → Privacy**.
@@ -20,7 +23,7 @@ the network for the allowlisted hosts shown in **Settings → Privacy**.
 
 ```bash
 pnpm install
-pnpm dev            # launches the tray app + palette
+pnpm dev            # launches the tray app (orb + Workspace)
 ```
 
 > If your shell sets `ELECTRON_RUN_AS_NODE` (some CI/agent shells do), unset it for
@@ -31,7 +34,8 @@ any keys, Apollo still runs on **Fake adapters**: timers, notes, calendar,
 reminders, the fast path, and text replies all work locally; networked and
 LLM-backed features show a clear "add a key" message until you provide one.
 
-Press the hotkey and type **"set a timer for 5 minutes"** to see a live card.
+Open the Workspace (tray icon) and type **"set a timer for 5 minutes"** in the
+Chat tab to see a live card.
 
 ## Keys (Settings → Keys, or a `.env` at the repo root)
 
@@ -64,23 +68,26 @@ account are in **HUMAN_TODO.md**.
 - TTS defaults to the keyless `msedge-tts` voice `en-US-JennyNeural`
   (configurable in Settings → Voice).
 
-## Three surfaces, one brain
+## Two surfaces, one brain
 
-Apollo has three ways in, all reading and writing the **same** local repos:
+Apollo has exactly two ways in, both reading and writing the **same** local repos:
 
 - **Orb** (voice) — docked at the screen edge; wake word or push-to-talk. Voice
   answers for weather, news, briefs, and schedules render on the **Response
   Stage**: a wider translucent panel with staggered rows, a temperature count-up,
-  and a best-effort accent bar on the line being spoken. "Open in Apollo"
-  deep-links into the Workspace.
-- **Palette** (text) — the global-hotkey command bar for quick typed requests.
+  and a best-effort accent bar on the line being spoken. **Open in chat**
+  deep-links a voice answer into its conversation so you can continue by typing;
+  the right-click menu offers **Open chat** and **Open Apollo** (Today).
 - **Workspace** — a full window (tray click, orb menu, `app.open`, or a card deep
-  link). **Today** (up-next, schedule, reminders, todos, weather, latest brief),
-  **Calendar** (Month / Week with drag create-move-resize / Agenda; recurring
-  edits prompt *this event* vs *all events*), and **Notes** (FTS search,
-  autosave, pin, delete-with-undo).
+  link). **Chat** (the typed surface: message thread with streaming replies,
+  inline cards, per-message copy/regenerate/edit/speak, a conversation sidebar
+  with rename/pin/delete, dictation into the composer, Mod+1), **Today**
+  (up-next, schedule, reminders, todos, weather, latest brief), **Calendar**
+  (Month / Week with drag create-move-resize / Agenda; recurring edits prompt
+  *this event* vs *all events*), and **Notes** (FTS search, autosave, pin,
+  delete-with-undo).
 
-Because voice tools, the palette, and the Workspace all mutate the same repos,
+Because voice tools, the Chat tab, and the Workspace views all mutate the same repos,
 changes propagate live: an event created by voice appears in an open Calendar
 within one event-loop tick (a `DataBus` broadcasts `data.changed` to every
 window). Settings edits broadcast the same way — no restart to change units,
@@ -209,7 +216,7 @@ apollo/
       quickCapture/        classifier + save-path service (note/todo/reminder, zero LLM)
       workspace/           Today-view data provider (weather strip + latest brief)
     src/preload/           the single typed window.apollo bridge
-    src/renderer/          orb, palette, workspace, settings, onboarding, audio windows
+    src/renderer/          orb, workspace (Chat/Today/Calendar/Notes), settings, onboarding, audio windows
                            (React + zustand); lib/ holds pure calendar/stage/debounce logic
   eval/                    golden.jsonl (agent eval), injection/ (prompt-injection suite)
 ```
@@ -255,10 +262,10 @@ apollo/
   canary** proves no unexpected host is ever contacted.
 - **Usage metering** (Anthropic tokens, Deepgram seconds, TTS characters) with a
   Diagnostics panel and an optional once-a-day over-limit warning.
-- **Conversations** rotate after 30 min idle (one shared brain for voice + palette),
+- **Conversations** rotate after 30 min idle (one shared brain for voice + chat),
   a **follow-up window** lets you keep talking without the wake word, "repeat that"
-  replays the last reply, and a **Chats** view reads/continues/deletes history
-  (delete purges its semantic-index chunks too).
+  replays the last reply, and the **Chat** tab reads/continues/renames/pins/deletes
+  history (delete purges its semantic-index chunks too).
 - **Alerts** that actually alert: a ringing overlay with snooze/dismiss, a volume
   ramp for alarms, DND-aware silence, and notification routing.
 - Boot budget `boot_to_tray` p95 < 2500 ms (measured ~260 ms), asserted by

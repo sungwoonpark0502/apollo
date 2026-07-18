@@ -3,7 +3,7 @@ import { lockDownSession, defaultSessionAllows, audioSessionAllows } from './sec
 import { join } from 'node:path';
 import { configureCalendars, configureFormat, localDateKey, STRINGS, type AgentEvent, type Settings } from '@apollo/shared';
 import { createTray, getTray } from './tray';
-import { AUDIO_SESSION_PARTITION, createAudioWindow, createOnboardingWindow, closeOnboardingWindow, createOrbWindow, createPaletteWindow, openCaptureWindow, openSettingsWindow, openWorkspaceWindow, getWorkspaceWindow, togglePalette } from './windows';
+import { AUDIO_SESSION_PARTITION, createAudioWindow, createOnboardingWindow, closeOnboardingWindow, createOrbWindow, openCaptureWindow, openSettingsWindow, openWorkspaceWindow, getWorkspaceWindow } from './windows';
 import { createTodayProvider } from './workspace/today';
 import { type CardPayload, type WorkspaceNavigate } from '@apollo/shared';
 import { createOrbController } from './orbController';
@@ -77,22 +77,26 @@ import { registerHotkey, unregisterAll } from './shortcuts';
 import { hotkeyConflictAdvice } from './hotkeyAdvice';
 import { userInfo } from 'node:os';
 
+// PART K: second-instance/activate open the Workspace (the palette is gone);
+// boot() fills this in once settings-backed bounds are available.
+let openWorkspaceRef: (() => void) | null = null;
+
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
 } else {
-  // H7 single instance: a second launch focuses the Workspace (or palette), then exits.
+  // H7 single instance: a second launch focuses/opens the Workspace, then exits.
   app.on('second-instance', () => {
     const ws = getWorkspaceWindow();
     if (ws && !ws.isDestroyed()) { ws.show(); ws.focus(); }
-    else togglePalette();
+    else openWorkspaceRef?.();
   });
   void app.whenReady().then(boot);
   app.on('window-all-closed', () => {
     /* tray app: keep running */
   });
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createPaletteWindow();
+    if (BrowserWindow.getAllWindows().length === 0) openWorkspaceRef?.();
   });
   app.on('will-quit', () => unregisterAll());
 }
@@ -344,6 +348,7 @@ function boot(): void {
     if (win.webContents.isLoading()) win.webContents.once('did-finish-load', nav);
     else nav();
   }
+  openWorkspaceRef = () => openWorkspace({ view: settings.get().workspace.defaultView });
 
   // H4 usage warn card: at most once per local day when Anthropic tokens cross the limit.
   let lastUsageWarnDay: string | null = null;
@@ -717,7 +722,7 @@ function boot(): void {
         repos.notes.save({ content: STRINGS.onboarding.welcomeNote });
       }
       closeOnboardingWindow();
-      openWorkspace({ view: 'today' }); // E6: finish opens the Workspace Today view
+      openWorkspace({ view: 'chat' }); // K4: finish opens the Workspace at Chat
     },
     requestPermission: async (kind) => {
       if (process.platform !== 'darwin') return true;
@@ -824,7 +829,12 @@ function boot(): void {
     log,
   });
 
-  createTray({ onOpenSettings: () => openSettingsWindow(), onOpenWorkspace: () => openWorkspace({ view: 'today' }), onQuickCapture: () => openCaptureWindow() });
+  createTray({
+    onOpenSettings: () => openSettingsWindow(),
+    onOpenWorkspace: () => openWorkspace({ view: 'today' }),
+    onOpenChat: () => openWorkspace({ view: 'chat' }),
+    onQuickCapture: () => openCaptureWindow(),
+  });
   // H8 boot spans: tray + db-ready + windows recorded to perf_spans (budget: boot_to_tray p95 < 2500ms).
   repos.perf.record('boot', 'boot_db_ready', bootDbReadyMs);
   const trayMs = Date.now() - bootStart;
