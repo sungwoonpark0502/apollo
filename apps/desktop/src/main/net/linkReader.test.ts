@@ -32,6 +32,19 @@ describe('I4 link reader (user-link lane)', () => {
     expect(fetchFn).not.toHaveBeenCalled(); // guarded before any network
   });
 
+  it('J5: blocks DNS rebinding — public on the first lookup, private on the connect-time re-check', async () => {
+    const fetchFn = vi.fn(async () => res(html('<p>secret</p>')));
+    let call = 0;
+    // Same host rebinds: first resolution public (initial guard), second private (connect-time).
+    const rebinding = async (): Promise<string[]> => (++call === 1 ? ['93.184.216.34'] : ['169.254.169.254']);
+    const reader = createLinkReader({ fetchFn: fetchFn as unknown as typeof fetch, resolver: rebinding });
+    const r = await reader.read('https://rebind.evil.com/');
+    expect(r.ok).toBe(false);
+    expect(r.error).toMatch(/private|reserved/i);
+    expect(fetchFn).not.toHaveBeenCalled(); // rejected before any connect
+    expect(call).toBeGreaterThanOrEqual(2); // it re-resolved at connect time
+  });
+
   it('re-checks the SSRF guard on each redirect hop', async () => {
     let call = 0;
     // hop 0: public host 302 → hop 1 target resolves private

@@ -18,6 +18,17 @@ few turns):
   A generic copy affordance on Stage/orb cards other than events is NOT yet added (deferred).
 Confirm these read well and the deferred items are acceptable or file follow-ups.
 
+## Phase 10 / J5.5 packaged-build security re-verification (needs CI packaging)
+The fuse config and permission-lockdown logic are unit-tested and green. What needs a real packaged
+build (electron-builder), which this environment can't produce (and Windows needs Windows CI):
+- Run `pnpm --filter @apollo/desktop package` on macOS and Windows; confirm it emits installable
+  artifacts (.dmg/.zip, .exe/.nsis).
+- Fuse **readback** on the packaged binary: verify EnableNodeCliInspectArguments=off,
+  OnlyLoadAppFromAsar=on, RunAsNode=off, EnableNodeOptionsEnvironmentVariable=off, cookie encryption on.
+- Permission-denial on the built app: mic/accessibility prompts behave; the default session denies
+  geolocation/notifications/openExternal except where explicitly allowed; the audio session allows only media.
+- Egress in the packaged app: observe that only the C14.9 allowlist hosts (+ www.googleapis.com) are ever contacted.
+
 ## Phase 9 / I6 empty states, onboarding, help — visual QA
 Structural pieces are done and tested (shortcuts registry single-source + help sheet, welcome-note
 seed, first-nudge explainer flag, keys-skipped banner, onboarding step indicator + sample-note opt-in).

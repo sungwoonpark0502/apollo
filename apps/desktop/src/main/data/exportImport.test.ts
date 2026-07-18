@@ -52,16 +52,25 @@ describe('export (H2)', () => {
     });
     secrets.set('anthropic', 'sk-ant-SUPERSECRET-TOKEN-123');
     secrets.set('deepgram', 'dg-SECRET-KEY-456');
+    // J5.2: also seed a Google OAuth row and a gcal sync token — neither may leak.
+    repos.oauth.upsert({ provider: 'google', address: 'me@gmail.com', tokenRef: 'GCAL-REFRESH-TOKEN-XYZ' });
+    repos.sync.setToken('google:primary', 'GCAL-SYNC-TOKEN-SECRET', Date.now());
 
     const { buffer } = exportZip(repos, defaultSettings(), { includeConversations: true });
     const zip = new AdmZip(buffer);
+    const forbidden = ['sk-ant-SUPERSECRET-TOKEN-123', 'dg-SECRET-KEY-456', 'SUPERSECRET', 'GCAL-REFRESH-TOKEN-XYZ', 'GCAL-SYNC-TOKEN-SECRET'];
     for (const entry of zip.getEntries()) {
       const text = entry.getData().toString('utf8');
-      expect(text).not.toContain('sk-ant-SUPERSECRET-TOKEN-123');
-      expect(text).not.toContain('dg-SECRET-KEY-456');
-      expect(text).not.toContain('SUPERSECRET');
-      expect(text.toLowerCase()).not.toContain('secret.anthropic');
+      for (const needle of forbidden) expect(text, `${entry.entryName} leaked ${needle}`).not.toContain(needle);
+      expect(text.toLowerCase()).not.toContain('secret.anthropic'); // no keymeta/store keys either
+      expect(text.toLowerCase()).not.toContain('token_ref');
+      expect(text.toLowerCase()).not.toContain('sync_token');
     }
+    // The export set is a fixed allowlist of non-sensitive artifacts (no oauth/sync/usage tables).
+    const names = zip.getEntries().map((e) => e.entryName);
+    expect(names).not.toContain('oauth_accounts.json');
+    expect(names).not.toContain('usage_log.json'); // usage_log is telemetry (aggregate counts), never exported — documented in DECISIONS
+    expect(names).not.toContain('sync_state.json');
   });
 
   it('includes conversations.jsonl only when asked', () => {

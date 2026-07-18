@@ -32,6 +32,10 @@ export function createLinkReader(deps: LinkReaderDeps) {
   async function fetchFollowing(startUrl: string, signal: AbortSignal): Promise<{ res: Response; finalUrl: string }> {
     let current = await assertPublicUrl(startUrl, deps.resolver); // guard the initial URL
     for (let hop = 0; hop <= LINK_MAX_REDIRECTS; hop++) {
+      // J5 DNS-rebinding guard: re-resolve and re-validate immediately before every
+      // connect. A host that rebinds public→private between the first check and this
+      // connect-time check is rejected before any request reaches it.
+      await assertPublicUrl(current.toString(), deps.resolver);
       const res = await deps.fetchFn(current.toString(), { redirect: 'manual', signal, headers: { accept: 'text/html,*/*' } });
       if (res.status >= 300 && res.status < 400) {
         if (hop === LINK_MAX_REDIRECTS) throw new SsrfError('too many redirects');
