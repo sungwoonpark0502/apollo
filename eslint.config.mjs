@@ -66,4 +66,9 @@ export default tseslint.config(
       globals: { AudioWorkletProcessor: 'readonly', registerProcessor: 'readonly', sampleRate: 'readonly' },
     },
   },
+  {
+    // MV3 service worker: `chrome` is the platform, not an undefined global.
+    files: ['apps/chrome-extension/*.js'],
+    languageOptions: { globals: { chrome: 'readonly' } },
+  },
 );

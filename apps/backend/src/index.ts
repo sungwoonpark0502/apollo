@@ -65,6 +65,7 @@ async function main(): Promise<void> {
     stt: createDeepgramProvider(required('DEEPGRAM_API_KEY'), required('DEEPGRAM_PROJECT_ID')),
     search: createBraveProvider(required('BRAVE_API_KEY')),
     sessionSecret: new TextEncoder().encode(required('SESSION_SECRET')),
+    ...(process.env['APOLLO_WEB_ORIGIN'] ? { webOrigin: process.env['APOLLO_WEB_ORIGIN'] } : {}),
     logger: true,
   });
 

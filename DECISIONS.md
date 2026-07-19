@@ -278,3 +278,35 @@ Gemini function calls carry no ids, so the adapter synthesizes gem_N and the
 request translator re-keys tool results from the id back to the function name
 via conversation history. That join is what makes Gemini tool calling work with
 an orchestrator that speaks Anthropic-shaped blocks.
+
+## Phase 13 web client v1: chat-only, and history stays in the browser
+
+The agreed shape was a web client on the existing backend with the desktop app
+keeping voice/orb/local features. The open question was data. v1 resolves it by
+NOT moving user content server-side: web chat history lives in that browser's
+localStorage, which keeps the backend's standing property (it stores no user
+content) literally true and defers the sync product decision instead of
+sneaking it in. The cost is stated in the UI — "History stays in this browser"
+— rather than discovered.
+
+Web chat sends `tools: []`. Every Apollo tool executes against device-local
+state (notes, calendar, files, timers) that a browser tab does not have; the
+system prompt says so and instructs the model to point at the desktop app in
+one clause rather than hallucinating the user's data. Server-side tools (web
+search via /v1/search) are a natural v2.
+
+Web tokens: the refresh token sits in localStorage, readable by any XSS on the
+web origin. Accepted for v1 with a strict backend CORS posture (exact
+configured origin, never an echo, never a wildcard; preflight refused for other
+origins; CORS grants nothing without a bearer session). Moving to httpOnly
+cookie sessions is listed in HUMAN_TODO for when the web client is deployed.
+
+## Chrome extension v1: it can read almost nothing, on purpose
+
+"Apollo in Chrome" ships as a context-menu launcher: no host_permissions, no
+content scripts, no `scripting` permission — the extension cannot read any
+page. It forwards only what Chrome's own APIs hand it (tab title/URL, the text
+the user highlighted) into the web client's `?q=` prefill, which never
+auto-sends, so no page can spend the user's quota by being clicked from. Tests
+in apps/web pin the manifest to this posture, so adding a permission later
+means consciously deleting a test that documents why it was absent.

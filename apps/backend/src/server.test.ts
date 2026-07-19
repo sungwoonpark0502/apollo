@@ -527,3 +527,37 @@ describe('multi-provider dispatch', () => {
     expect((await app.inject({ method: 'GET', url: '/v1/models' })).statusCode).toBe(401);
   });
 });
+
+describe('Phase 13 CORS for the web client', () => {
+  const ORIGIN = 'https://app.apollo.test';
+
+  it('without webOrigin configured there are no CORS headers at all', async () => {
+    const app = server();
+    const res = await app.inject({ method: 'GET', url: '/healthz', headers: { origin: ORIGIN } });
+    expect(res.headers['access-control-allow-origin']).toBeUndefined();
+  });
+
+  it('allows exactly the configured origin, and only that origin', async () => {
+    const app = server({ webOrigin: ORIGIN });
+    const ok = await app.inject({ method: 'GET', url: '/healthz', headers: { origin: ORIGIN } });
+    expect(ok.headers['access-control-allow-origin']).toBe(ORIGIN);
+    // Any other origin gets nothing back — never an echo, never a wildcard.
+    const evil = await app.inject({ method: 'GET', url: '/healthz', headers: { origin: 'https://evil.example' } });
+    expect(evil.headers['access-control-allow-origin']).toBeUndefined();
+  });
+
+  it('answers preflight for the configured origin and refuses others', async () => {
+    const app = server({ webOrigin: ORIGIN });
+    const ok = await app.inject({ method: 'OPTIONS', url: '/v1/llm', headers: { origin: ORIGIN } });
+    expect(ok.statusCode).toBe(204);
+    expect(ok.headers['access-control-allow-headers']).toContain('authorization');
+    const evil = await app.inject({ method: 'OPTIONS', url: '/v1/llm', headers: { origin: 'https://evil.example' } });
+    expect(evil.statusCode).toBe(403);
+  });
+
+  it('CORS does not weaken auth: a cross-origin request still needs a session', async () => {
+    const app = server({ webOrigin: ORIGIN });
+    const res = await app.inject({ method: 'GET', url: '/v1/models', headers: { origin: ORIGIN } });
+    expect(res.statusCode).toBe(401);
+  });
+});

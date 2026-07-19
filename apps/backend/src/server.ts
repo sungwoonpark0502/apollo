@@ -39,6 +39,10 @@ export interface ServerDeps {
   stt: SttProvider;
   search: SearchProvider;
   sessionSecret: Uint8Array;
+  /** Exact origin of the Apollo web client (e.g. https://app.apolloassistant.app).
+   *  Unset = no CORS headers at all, which is correct for a desktop-only
+   *  deployment: browsers cannot call the API and nothing else changes. */
+  webOrigin?: string;
   now?: () => number;
   logger?: boolean;
 }
@@ -65,14 +69,35 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
   });
 
   // L6 standard web hardening headers (helmet-class, hand-rolled to avoid a dep).
-  app.addHook('onSend', async (_req, reply, payload) => {
+  app.addHook('onSend', async (req, reply, payload) => {
     reply.header('x-content-type-options', 'nosniff');
     reply.header('x-frame-options', 'DENY');
     reply.header('referrer-policy', 'no-referrer');
     reply.header('content-security-policy', "default-src 'none'; frame-ancestors 'none'");
     reply.header('strict-transport-security', 'max-age=63072000; includeSubDomains');
+    // Phase 13 web client. One exact origin, never a wildcard and never an
+    // echo of the request Origin — echoing would grant every website on earth
+    // scripted access to a signed-in user's API.
+    if (deps.webOrigin && req.headers.origin === deps.webOrigin) {
+      reply.header('access-control-allow-origin', deps.webOrigin);
+      reply.header('vary', 'origin');
+    }
     return payload;
   });
+
+  if (deps.webOrigin) {
+    // Preflight for the JSON POSTs and the authorization header.
+    app.options('/*', async (req, reply) => {
+      if (req.headers.origin !== deps.webOrigin) return reply.code(403).send();
+      return reply
+        .header('access-control-allow-origin', deps.webOrigin)
+        .header('access-control-allow-methods', 'GET, POST')
+        .header('access-control-allow-headers', 'authorization, content-type')
+        .header('access-control-max-age', '86400')
+        .code(204)
+        .send();
+    });
+  }
 
   /** Authenticates a request from the bearer session JWT. 401 on any failure. */
   async function requireUser(req: FastifyRequest, reply: FastifyReply): Promise<User | null> {

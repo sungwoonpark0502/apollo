@@ -179,15 +179,19 @@ model **once at build time** (it is never downloaded at runtime):
 - [ ] Single instance: launching a second copy focuses the existing window and exits.
 
 ## Product decisions needed before these can be built
-- [ ] **Skills / plugins.** Requested for Settings → Customize. Needs a decision on the execution model (do they run in-process, sandboxed, or as backend-side tools?), the permission model (a plugin that can read notes is a data-exfiltration path), and distribution (bundled, or installable from somewhere?). Not shipped as an empty tab on purpose.
-- [ ] **Apollo in Chrome / Chrome extension.** Requested. Needs scope: is it a page-context capture ("summarize this tab"), a launcher for the desktop app, or a full client? Each is a different security story around host permissions. A Settings entry for it was deliberately not added while nothing is behind it.
-- [ ] **Web client (Phase 13).** Agreed shape: a browser client on the existing backend for Chat/Notes/Calendar, with the desktop app keeping voice, the orb, and local file/screen access. The blocking decision is data: today all user content is local-first on the device, and a web client requires it server-side. Decide what syncs, what stays device-only, and how that is shown in the UI, because it reverses the current privacy claim.
+- [ ] **Skills v2 (code-executing) / plugins.** Prompt-pack skills shipped in Customize. Anything that executes needs the sandbox/permission/distribution decisions before a screen for it means anything.
+- [ ] **Cross-device sync.** Web chat history is browser-local by design (DECISIONS), so it does not follow the user or reach the desktop app. Syncing any content reverses the backend's no-user-content property — decide what syncs, with what encryption story, before building it.
 
 ## Multi-provider live pass (built; needs real keys at deployment)
 - [ ] Set `OPENAI_API_KEY` and/or `GOOGLE_AI_API_KEY` on the backend; confirm `/v1/models` lists them and the picker shows the groups.
 - [ ] Verify the pinned model ids in `packages/shared/src/providerCatalog.ts` against live provider docs (OpenAI and Gemini ids drift); update the catalog if renamed.
 - [ ] Run one tool-using turn per provider live (e.g. "set a timer for 5 minutes") and confirm the tool fires and the reply attributes correctly; the translation layer is fully unit-tested but the live wire format is verified in deployment only, like the Deepgram adapter.
 - [ ] Decide per-provider quota pricing: turns are metered identically today regardless of provider cost.
+
+## Web client + extension deployment (Phase 13, built; needs hosting)
+- [ ] Deploy `apps/web` (static; `pnpm --filter @apollo/web build`, `APOLLO_BACKEND_URL` baked at build) and set `APOLLO_WEB_ORIGIN` on the backend so CORS opens for exactly that origin.
+- [ ] Move web sessions to httpOnly cookies once deployed: localStorage refresh tokens are readable by any XSS on the origin (accepted for v1, recorded in DECISIONS).
+- [ ] Chrome extension: generate a real `icon128.png`, verify against the deployed web origin (edit `APOLLO_WEB` in background.js if self-hosting), then submit to the Chrome Web Store.
 
 ## Backend deployment (Phase 12 / L1 — BLOCKS managed sign-in)
 - [ ] Nothing is deployed at `api.apolloassistant.app` (the placeholder default in config.ts), so managed sign-in cannot succeed on any machine yet. Deploy `apps/backend` (Fastify; needs `SESSION_SECRET` ≥32 bytes, `DATABASE_URL` for Postgres, and the provider keys ANTHROPIC/DEEPGRAM/BRAVE), then set `APOLLO_BACKEND_URL`. Until then, run with `APOLLO_ALLOW_BYOK=true` plus a local `ANTHROPIC_API_KEY` to exercise the app.

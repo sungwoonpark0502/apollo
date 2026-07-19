@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "Apollo",
+  "version": "0.1.0",
+  "description": "Ask Apollo about the page you're reading.",
+  "permissions": ["contextMenus"],
+  "background": { "service_worker": "background.js" },
+  "action": { "default_title": "Open Apollo" },
+  "icons": { "128": "icon128.png" }
+}
