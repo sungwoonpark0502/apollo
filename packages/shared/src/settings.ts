@@ -99,6 +99,24 @@ export const SettingsSchema = z.object({
     .default({}),
   brief: z.object({ timeHHMM: z.string().regex(/^\d{2}:\d{2}$/).default('08:30') }).default({}),
   history: z.object({ enabled: z.boolean().default(true) }).default({}),
+  /**
+   * Skills: the user's own standing instructions, appended to the system
+   * prompt when enabled. Same trust tier as a typed message — the user
+   * instructing their own assistant — so this crosses no data/instruction
+   * boundary; the C11 confirmation gates are code-enforced and no prompt text
+   * can waive them. Caps keep a runaway skill from starving the context.
+   */
+  skills: z
+    .array(
+      z.object({
+        id: z.string(),
+        name: z.string().min(1).max(60),
+        prompt: z.string().min(1).max(2000),
+        enabled: z.boolean().default(true),
+      }),
+    )
+    .max(20)
+    .default([]),
   approvedDirs: z.array(z.string()).default([]), // seeded with Documents/Desktop/Downloads at boot
   feeds: z.array(feedSchema).default([]),
   adapters: z

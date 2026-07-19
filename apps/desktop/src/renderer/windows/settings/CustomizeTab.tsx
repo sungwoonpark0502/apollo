@@ -1,6 +1,7 @@
 import React from 'react';
 import { STRINGS } from '@apollo/shared';
 import { AccountsTab } from './AccountsTab';
+import { SkillsSection } from './SkillsSection';
 import { Section } from './TimeFocusTab';
 
 /**
@@ -18,6 +19,10 @@ export function CustomizeTab(): React.JSX.Element {
     <div>
       <h2 style={{ fontSize: 'var(--fs-display)', margin: '0 0 var(--sp-1)' }}>{c.title}</h2>
       <p style={{ fontSize: 'var(--fs-body)', color: 'var(--text-2)', margin: '0 0 var(--sp-5)' }}>{c.subtitle}</p>
+
+      <Section title={c.skills} body={c.skillsBody}>
+        <SkillsSection />
+      </Section>
 
       <Section title={c.connectors} body={c.connectorsBody}>
         <AccountsTab embedded />

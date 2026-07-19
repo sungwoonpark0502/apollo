@@ -66,7 +66,7 @@ import { createBreakScheduler } from './proactive/breaks';
 import { createDailyBrief } from './scheduler/dailyBrief';
 import { createOrchestrator, type Orchestrator } from './agent/orchestrator';
 import { createConversationManager } from './agent/conversationManager';
-import { buildSystemPrompt } from './agent/systemPrompt';
+import { applySkills, buildSystemPrompt } from './agent/systemPrompt';
 import { createAnthropicLlm } from './agent/llmAnthropic';
 import { resolveModelChoice, availableModels, availableModelsSchema } from '@apollo/shared';
 import { createBackendLlm } from './agent/llmBackend';
@@ -482,7 +482,7 @@ function boot(): void {
     registry,
     repos,
     llm,
-    systemPrompt: () => buildSystemPrompt(userInfo().username || 'the user'),
+    systemPrompt: () => applySkills(buildSystemPrompt(userInfo().username || 'the user'), settings.get().skills),
     emit: emitToAll,
     tz: () => Intl.DateTimeFormat().resolvedOptions().timeZone,
     historyEnabled: () => settings.get().history.enabled,

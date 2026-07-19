@@ -5,7 +5,7 @@ Use this for the C10/C18 tone review (sentence case, no corporate filler, presen
 
 Regenerate with `node apps/desktop/scripts/gen-strings-inventory.mjs` after changing strings.ts.
 
-Total user-facing strings: 564 (485 literal, 79 templated)
+Total user-facing strings: 625 (543 literal, 82 templated)
 
 | key | copy |
 |-----|------|
@@ -170,16 +170,58 @@ Total user-facing strings: 564 (485 literal, 79 templated)
 | `onboarding.byokKeysAction` | "Open Keys" |
 | `onboarding.dismiss` | "Dismiss" |
 | `onboarding.welcomeNote` | "Things you can ask Apollo\n\n• \"Set a timer for 10 minutes\"\n• \"What's the weather this weekend?\"\n• \"Put dentist on my calendar Tuesday at 3\"\n• \"Remind me to call mom tomorrow at 6\"\n• \"Take a note: the wifi password is hunter2\"\n• \"What did I say about the drone idea?\"\n• Paste a link and ask \"what does this say?\"\n\nThis is a normal note — edit it or delete it whenever you like." |
-| `settings.tabs.account` | "Account" |
-| `settings.tabs.profile` | "Profile" |
 | `settings.tabs.general` | "General" |
-| `settings.tabs.calendars` | "Calendars" |
-| `settings.tabs.voice` | "Voice" |
-| `settings.tabs.assistant` | "Assistant" |
-| `settings.tabs.accounts` | "Integrations" |
-| `settings.tabs.keys` | "Keys" |
+| `settings.tabs.account` | "Account" |
+| `settings.tabs.capabilities` | "Capabilities" |
+| `settings.tabs.timeFocus` | "Time and Focus" |
+| `settings.tabs.customize` | "Customize" |
 | `settings.tabs.privacy` | "Privacy" |
 | `settings.tabs.about` | "About" |
+| `settings.tabs.keys` | "Keys" |
+| `settings.search.placeholder` | "Search settings" |
+| `settings.search.noResults` | _(template, 1 arg)_ |
+| `settings.search.resultsLabel` | "Search results" |
+| `settings.timeFocus.title` | "Time and Focus" |
+| `settings.timeFocus.subtitle` | "When Apollo may interrupt you, and when it should stay quiet." |
+| `settings.timeFocus.quietHours` | "Quiet hours" |
+| `settings.timeFocus.quietHoursBody` | "Nudges stay silent and alerts do not speak during this window. Timers and alarms still ring." |
+| `settings.timeFocus.quietFrom` | "From" |
+| `settings.timeFocus.quietTo` | "To" |
+| `settings.timeFocus.breaks` | "Break reminders" |
+| `settings.timeFocus.breaksBody` | "A quiet nudge to step away. Off by default, skipped during quiet hours, and never mid-conversation." |
+| `settings.timeFocus.breakEvery` | "Remind me every" |
+| `settings.timeFocus.breakOnlyActive` | "Only while I am using the computer" |
+| `settings.timeFocus.breakOnlyActiveHint` | "Skips the reminder if you have been away anyway." |
+| `settings.timeFocus.minutes` | _(template, 1 arg)_ |
+| `settings.timeFocus.dailyBrief` | "Daily brief" |
+| `settings.timeFocus.dailyBriefBody` | "The morning summary of your day." |
+| `settings.timeFocus.briefTime` | "Deliver at" |
+| `settings.timeFocus.followUp` | "Follow-up window" |
+| `settings.timeFocus.followUpBody` | "How long Apollo keeps listening after it answers, so you can reply without the wake word." |
+| `settings.capabilities.title` | "Capabilities" |
+| `settings.capabilities.subtitle` | "What Apollo is allowed to do, and how it talks." |
+| `settings.capabilities.voiceSection` | "Voice" |
+| `settings.capabilities.proactiveSection` | "Proactive nudges" |
+| `settings.capabilities.calendarSection` | "Calendars" |
+| `settings.capabilities.filesSection` | "Files it may read" |
+| `settings.capabilities.filesBody` | "Apollo can only search and read inside these folders." |
+| `settings.customize.title` | "Customize" |
+| `settings.customize.subtitle` | "Connect other services and tailor what Apollo can reach." |
+| `settings.customize.skills` | "Skills" |
+| `settings.customize.skillsBody` | "Standing instructions Apollo follows in every conversation — how to talk, what language, what to always do. Apollo's safety rules still apply." |
+| `settings.customize.skillsEmpty` | "No skills yet. Try one like \"Keep replies under two sentences.\"" |
+| `settings.customize.skillAdd` | "Add a skill" |
+| `settings.customize.skillName` | "Skill name" |
+| `settings.customize.skillNamePlaceholder` | "Name (e.g. Terse mode)" |
+| `settings.customize.skillPrompt` | "Instructions" |
+| `settings.customize.skillPromptPlaceholder` | "What should Apollo always do?" |
+| `settings.customize.skillSave` | "Save" |
+| `settings.customize.skillCancel` | "Cancel" |
+| `settings.customize.skillDelete` | "Delete skill" |
+| `settings.customize.connectors` | "Connectors" |
+| `settings.customize.connectorsBody` | "Accounts Apollo can read from, with your permission." |
+| `settings.customize.feeds` | "News sources" |
+| `settings.customize.feedsBody` | "The feeds behind your daily brief and news card." |
 | `settings.account.title` | "Your Apollo account" |
 | `settings.account.signedInAs` | _(template, 1 arg)_ |
 | `settings.account.plan` | _(template, 1 arg)_ |
@@ -352,6 +394,8 @@ Total user-facing strings: 564 (485 literal, 79 templated)
 | `settings.diagnostics.logs` | "Recent log" |
 | `settings.diagnostics.copy` | "Copy diagnostics" |
 | `settings.diagnostics.resources` | "Resources (RSS)" |
+| `notifications.breakTitle` | "Time for a break" |
+| `notifications.breakBody` | "You've been at it a while. Stretch, look away, get some water." |
 | `notifications.whileAwayTitle` | "While you were away" |
 | `notifications.voiceDisabled` | "Voice is disabled after repeated audio errors. Text still works." |
 | `notifications.updateReady` | "An update is ready. It will apply on next launch." |
@@ -429,16 +473,28 @@ Total user-facing strings: 564 (485 literal, 79 templated)
 | `permissions.accessibilityHint` | "I need Accessibility permission to see the active window. Grant it in System Settings > Privacy & Security > Accessibility, then enable Apollo." |
 | `permissions.micHint` | "I need microphone permission to hear you. Grant it in System Settings > Privacy & Security > Microphone." |
 | `workspace.nav.chat` | "Chat" |
-| `workspace.nav.today` | "Today" |
+| `workspace.nav.today` | "Home" |
 | `workspace.nav.calendar` | "Calendar" |
 | `workspace.nav.notes` | "Notes" |
 | `workspace.nav.settings` | "Settings" |
+| `workspace.accountMenu.trigger` | "Account and settings" |
+| `workspace.accountMenu.settings` | "Settings" |
+| `workspace.accountMenu.settingsShortcut` | "⌘," |
+| `workspace.accountMenu.help` | "Get help" |
+| `workspace.accountMenu.signOut` | "Log out" |
+| `workspace.accountMenu.signIn` | "Sign in" |
+| `workspace.accountMenu.signedOut` | "Not signed in" |
+| `workspace.accountMenu.signInPrompt` | "Sign in to use the assistant" |
+| `workspace.accountMenu.localProfile` | "This device" |
+| `workspace.accountMenu.byokSubtitle` | "Developer build" |
+| `workspace.accountMenu.plan` | _(template, 1 arg)_ |
 | `workspace.undo.undid` | _(template, 1 arg)_ |
 | `workspace.undo.nothing` | "Nothing to undo" |
 | `workspace.chats.filter` | "Filter conversations…" |
 | `workspace.chats.empty` | "No conversations yet." |
 | `workspace.chats.delete` | "Delete" |
 | `workspace.chats.deleteConfirm` | "Delete this conversation and its indexed messages?" |
+| `workspace.chat.modelPicker` | "Model" |
 | `workspace.chat.composerPlaceholder` | "Message Apollo…" |
 | `workspace.chat.send` | "Send" |
 | `workspace.chat.stop` | "Stop" |
@@ -498,6 +554,11 @@ Total user-facing strings: 564 (485 literal, 79 templated)
 | `workspace.calendar.today` | "Today" |
 | `workspace.calendar.prev` | "Previous" |
 | `workspace.calendar.next` | "Next" |
+| `workspace.calendar.prevYear` | "Previous year" |
+| `workspace.calendar.nextYear` | "Next year" |
+| `workspace.calendar.jumpTo` | "Jump to a month and year" |
+| `workspace.calendar.jump` | "Go" |
+| `workspace.calendar.year` | "Year" |
 | `workspace.calendar.moreEvents` | _(template, 1 arg)_ |
 | `workspace.calendar.newEvent` | "New event" |
 | `workspace.calendar.allDay` | "All day" |

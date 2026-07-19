@@ -56,6 +56,7 @@ export const SETTINGS_INDEX: readonly SettingEntry[] = [
   { id: 'followUp', tab: 'timeFocus', label: s.timeFocus.followUp, keywords: ['follow up', 'keep listening', 'conversation'] },
 
   // Customize
+  { id: 'skills', tab: 'customize', label: s.customize.skills, keywords: ['instructions', 'custom', 'personality', 'behavior', 'prompt', 'always'] },
   { id: 'connectors', tab: 'customize', label: s.customize.connectors, keywords: ['google', 'gmail', 'calendar', 'connect', 'integration'] },
 
   // Privacy
