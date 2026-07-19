@@ -601,6 +601,7 @@ export const STRINGS = {
     },
     // PART K Chat tab (K2)
     chat: {
+      modelPicker: 'Model',
       composerPlaceholder: 'Message Apollo…',
       send: 'Send',
       stop: 'Stop',

@@ -3,10 +3,13 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { hashPassword, normalizeEmail, validatePassword, verifyPassword } from './lib/password';
 import {
+  availableModels,
   encodeSse,
   entitlementsSchema,
   llmRequestSchema,
+  resolveModelChoice,
   type Entitlements,
+  type LlmProviderId,
   type LlmSseEvent,
 } from '@apollo/shared';
 import { createAuth, ACCESS_TTL_SEC, type Auth } from './lib/auth';
@@ -28,7 +31,11 @@ export interface IdentityProvider {
 export interface ServerDeps {
   store: Store;
   identity: IdentityProvider;
+  /** The default (Anthropic) provider; every deployment has one. */
   llm: LlmProvider;
+  /** Optional additional providers; a request naming an absent one gets a
+   *  typed 400, and /v1/models simply omits it. */
+  llmProviders?: Partial<Record<LlmProviderId, LlmProvider>>;
   stt: SttProvider;
   search: SearchProvider;
   sessionSecret: Uint8Array;
@@ -254,7 +261,15 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
     if (!(await checkQuota(user, reply))) return reply;
 
     const limits = limitsFor(user.plan);
-    const body = { ...parsed.data, maxTokens: Math.min(parsed.data.maxTokens, limits.maxTokensPerTurn) };
+    // Provider dispatch: omitted → anthropic, so pre-multi-provider clients
+    // keep working. The model is clamped to the shared catalog — an id the
+    // translation layer has never seen is replaced by the provider default,
+    // never forwarded upstream.
+    const providerId: LlmProviderId = parsed.data.provider ?? 'anthropic';
+    const provider = providerId === 'anthropic' ? deps.llm : deps.llmProviders?.[providerId];
+    if (!provider) return reply.code(400).send({ error: 'provider_unavailable', provider: providerId });
+    const { model } = resolveModelChoice(providerId, parsed.data.model ?? null);
+    const body = { ...parsed.data, model, maxTokens: Math.min(parsed.data.maxTokens, limits.maxTokensPerTurn) };
 
     reply.raw.writeHead(200, {
       'content-type': 'text/event-stream',
@@ -271,7 +286,7 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
     };
 
     try {
-      await deps.llm.stream(body, write, abort.signal);
+      await provider.stream(body, write, abort.signal);
     } catch {
       write({ type: 'error', code: 'internal', message: 'stream failed' });
     }
@@ -279,6 +294,14 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
     await deps.store.recordTurn(user.id, limits.monthlyTurns, now());
     if (!reply.raw.writableEnded) reply.raw.end();
     return reply;
+  });
+
+  // Which providers this deployment holds keys for; drives the model picker.
+  app.get('/v1/models', async (req, reply) => {
+    const user = await requireUser(req, reply);
+    if (!user) return reply;
+    const configured: LlmProviderId[] = ['anthropic', ...(Object.keys(deps.llmProviders ?? {}) as LlmProviderId[])];
+    return reply.send(availableModels(configured));
   });
 
   app.post('/v1/stt', async (req, reply) => {

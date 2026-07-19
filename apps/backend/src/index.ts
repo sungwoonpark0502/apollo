@@ -1,5 +1,7 @@
 import { buildServer, type IdentityProvider } from './server';
 import { createAnthropicProvider, createBraveProvider, createDeepgramProvider } from './lib/providers';
+import { createOpenAiProvider } from './lib/providersOpenAi';
+import { createGeminiProvider } from './lib/providersGoogle';
 import { createMemoryStore } from './store/store';
 import { createPostgresStore } from './store/postgres';
 
@@ -47,10 +49,19 @@ async function main(): Promise<void> {
     console.warn('DATABASE_URL unset: using the in-memory store (development only)');
   }
 
+  // Optional providers: configured only when their key is present, so a
+  // deployment can be Anthropic-only and /v1/models reports the truth.
+  const openaiKey = process.env['OPENAI_API_KEY'];
+  const googleKey = process.env['GOOGLE_AI_API_KEY'];
+
   const app = buildServer({
     store,
     identity: createOidcIdentity(),
     llm: createAnthropicProvider(required('ANTHROPIC_API_KEY')),
+    llmProviders: {
+      ...(openaiKey ? { openai: createOpenAiProvider(openaiKey) } : {}),
+      ...(googleKey ? { google: createGeminiProvider(googleKey) } : {}),
+    },
     stt: createDeepgramProvider(required('DEEPGRAM_API_KEY'), required('DEEPGRAM_PROJECT_ID')),
     search: createBraveProvider(required('BRAVE_API_KEY')),
     sessionSecret: new TextEncoder().encode(required('SESSION_SECRET')),

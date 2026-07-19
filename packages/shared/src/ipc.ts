@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { availableModelsSchema } from './providerCatalog';
 import { agentEventSchema, messageSourceSchema } from './agent';
 import { voiceStateSchema } from './voice';
 import { SettingsSchema } from './settings';
@@ -140,6 +141,9 @@ export const invokeChannels = {
   },
   /** L0.2: which mode the build is running in, so the UI can hide Keys/Account. */
   'app.mode': { req: z.object({}), res: z.object({ mode: z.enum(['managed', 'byok']) }) },
+  /** Providers/models this install can use: the backend's catalog in managed
+   *  mode, Anthropic-only in BYOK (see DECISIONS on egress). */
+  'chat.models': { req: z.object({}), res: availableModelsSchema },
   'events.list': {
     req: z.object({ startMs: z.number(), endMs: z.number() }),
     res: z.array(occurrenceDTOSchema),

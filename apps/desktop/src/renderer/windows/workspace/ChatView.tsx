@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { STRINGS, type Settings } from '@apollo/shared';
 import { ChatThread } from '../../components/chat/ChatThread';
 import { Composer } from '../../components/chat/Composer';
+import { ModelPicker } from '../../components/chat/ModelPicker';
 import {
   applyAgentEvent,
   loadThread,
@@ -260,6 +261,11 @@ export function ChatView({ settings, initialConvId }: ChatViewProps): React.JSX.
           degraded={degraded}
           text={text}
           onTextChange={setText}
+          footerLeft={
+            settings ? (
+              <ModelPicker settings={settings} onPatch={(next) => void window.apollo.call('settings.set', next)} />
+            ) : null
+          }
         />
       </div>
     </div>

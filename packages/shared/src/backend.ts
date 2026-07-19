@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { llmProviderIdSchema } from './providerCatalog';
 
 /**
  * L0.1 Apollo backend wire contract. Shared by apps/backend (producer) and the
@@ -22,7 +23,9 @@ export const llmRequestSchema = z.object({
   // Tool JSON is passed through to the provider; validated as a shape, not a schema.
   tools: z.array(z.object({ name: z.string(), description: z.string(), input_schema: z.record(z.unknown()) })),
   maxTokens: z.number().int().min(1).max(8192),
-  model: z.string().optional(), // server picks a default; clients may not choose arbitrary models
+  /** Omitted → anthropic, so every pre-multi-provider client keeps working. */
+  provider: llmProviderIdSchema.optional(),
+  model: z.string().optional(), // server clamps to the catalog; never an arbitrary id
 });
 export type LlmRequestBody = z.infer<typeof llmRequestSchema>;
 

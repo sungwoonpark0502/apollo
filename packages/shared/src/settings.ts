@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { llmProviderIdSchema } from './providerCatalog';
 
 export const adapterModeSchema = z.enum(['auto', 'real', 'fake']); // auto = real when its key exists (C17)
 
@@ -53,6 +54,12 @@ export const SettingsSchema = z.object({
       sendOnEnter: z.boolean().default(true), // false = Cmd/Ctrl+Enter sends
       showToolActivity: z.boolean().default(true), // inline "Checking your calendar…" lines
       autoScroll: z.boolean().default(true),
+      /** Which brain answers. Managed mode offers whatever the backend holds
+       *  keys for; BYOK stays Anthropic-only (see DECISIONS — widening BYOK
+       *  means widening the C14.9 egress allowlist per provider). */
+      provider: llmProviderIdSchema.default('anthropic'),
+      /** null = the provider's catalog default. */
+      model: z.string().nullable().default(null),
     })
     .default({}),
   // PART K: Workspace launch behavior (absorbs the legacy top-level openWorkspaceOnLaunch)

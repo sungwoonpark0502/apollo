@@ -15,6 +15,8 @@ export interface ComposerProps {
   /** Controlled text override (dictation streams into the composer). */
   text: string;
   onTextChange: (text: string) => void;
+  /** Footer accessory (the model picker); rendered left of the send hint. */
+  footerLeft?: React.ReactNode;
 }
 
 /**
@@ -90,8 +92,11 @@ export function Composer(p: ComposerProps): React.JSX.Element {
             </button>
           )}
         </div>
-        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-3)', marginTop: 'var(--sp-1)' }}>
-          {p.sendOnEnter ? STRINGS.workspace.chat.sendHintEnter : STRINGS.workspace.chat.sendHintModEnter(isMac ? '⌘' : 'Ctrl')}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)', marginTop: 'var(--sp-1)' }}>
+          {p.footerLeft}
+          <div style={{ flex: 1, textAlign: 'right', fontSize: 'var(--fs-caption)', color: 'var(--text-3)' }}>
+            {p.sendOnEnter ? STRINGS.workspace.chat.sendHintEnter : STRINGS.workspace.chat.sendHintModEnter(isMac ? '⌘' : 'Ctrl')}
+          </div>
         </div>
       </div>
     </div>

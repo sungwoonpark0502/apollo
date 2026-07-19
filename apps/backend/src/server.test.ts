@@ -436,3 +436,94 @@ describe('L1.4 in-app password sign-in', () => {
     expect((await signup(app, { password: 'x'.repeat(300) })).statusCode).toBe(400);
   });
 });
+
+describe('multi-provider dispatch', () => {
+  function providers() {
+    const seen: Record<string, number> = {};
+    const mk = (name: string): LlmProvider => ({
+      async stream(_req, onEvent) {
+        seen[name] = (seen[name] ?? 0) + 1;
+        onEvent({ type: 'text', delta: `from-${name}` });
+        onEvent({ type: 'done', stopReason: 'end_turn' });
+      },
+    });
+    return { seen, anthropic: mk('anthropic'), openai: mk('openai'), google: mk('google') };
+  }
+
+  const LLM_BODY = { system: 's', messages: [], tools: [], maxTokens: 100 };
+
+  it('omitting provider routes to anthropic, so old clients keep working', async () => {
+    const p = providers();
+    const app = server({ llm: p.anthropic, llmProviders: { openai: p.openai } });
+    const { accessToken } = await signIn(app);
+    const res = await app.inject({ method: 'POST', url: '/v1/llm', headers: { authorization: `Bearer ${accessToken}` }, payload: LLM_BODY });
+    expect(res.statusCode).toBe(200);
+    expect(p.seen).toEqual({ anthropic: 1 });
+  });
+
+  it('provider:"openai" dispatches to the openai adapter', async () => {
+    const p = providers();
+    const app = server({ llm: p.anthropic, llmProviders: { openai: p.openai, google: p.google } });
+    const { accessToken } = await signIn(app);
+    const res = await app.inject({
+      method: 'POST',
+      url: '/v1/llm',
+      headers: { authorization: `Bearer ${accessToken}` },
+      payload: { ...LLM_BODY, provider: 'openai' },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toContain('from-openai');
+    expect(p.seen).toEqual({ openai: 1 });
+  });
+
+  it('an unconfigured provider is a typed 400, not a fallback to another brain', async () => {
+    // Silently answering with a different provider than the user picked would
+    // be a lie about whose model produced the reply.
+    const p = providers();
+    const app = server({ llm: p.anthropic });
+    const { accessToken } = await signIn(app);
+    const res = await app.inject({
+      method: 'POST',
+      url: '/v1/llm',
+      headers: { authorization: `Bearer ${accessToken}` },
+      payload: { ...LLM_BODY, provider: 'google' },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toEqual({ error: 'provider_unavailable', provider: 'google' });
+    expect(p.seen).toEqual({});
+  });
+
+  it('clamps an unknown model id to the provider default instead of forwarding it', async () => {
+    let sentModel = '';
+    const capture: LlmProvider = {
+      async stream(req, onEvent) {
+        sentModel = req.model ?? '';
+        onEvent({ type: 'done', stopReason: 'end_turn' });
+      },
+    };
+    const app = server({ llm: capture });
+    const { accessToken } = await signIn(app);
+    await app.inject({
+      method: 'POST',
+      url: '/v1/llm',
+      headers: { authorization: `Bearer ${accessToken}` },
+      payload: { ...LLM_BODY, provider: 'anthropic', model: 'made-up-model-9000' },
+    });
+    expect(sentModel).toBe('claude-sonnet-4-6');
+  });
+
+  it('/v1/models reports exactly the configured providers', async () => {
+    const p = providers();
+    const app = server({ llm: p.anthropic, llmProviders: { google: p.google } });
+    const { accessToken } = await signIn(app);
+    const res = await app.inject({ method: 'GET', url: '/v1/models', headers: { authorization: `Bearer ${accessToken}` } });
+    expect(res.statusCode).toBe(200);
+    const ids = (res.json() as { providers: Array<{ id: string }> }).providers.map((x) => x.id);
+    expect(ids.sort()).toEqual(['anthropic', 'google']);
+  });
+
+  it('/v1/models requires a session like every other v1 route', async () => {
+    const app = server();
+    expect((await app.inject({ method: 'GET', url: '/v1/models' })).statusCode).toBe(401);
+  });
+});

@@ -11,6 +11,9 @@ export interface BackendLlmDeps {
   baseUrl: string;
   /** Returns a valid session token, refreshing silently; null when signed out. */
   getAccessToken: () => Promise<string | null>;
+  /** The user's provider/model pick, read live per turn so a mid-session
+   *  switch applies to the NEXT turn without a restart. Omitted → anthropic. */
+  choice?: () => { provider: 'anthropic' | 'openai' | 'google'; model: string };
   fetchFn?: typeof fetch;
   log?: (msg: string) => void;
 }
@@ -34,6 +37,7 @@ export function createBackendLlm(deps: BackendLlmDeps): LlmClient {
             messages: req.messages,
             tools: req.tools,
             maxTokens: req.maxTokens,
+            ...(deps.choice ? deps.choice() : {}),
           }),
           signal: req.signal,
         });

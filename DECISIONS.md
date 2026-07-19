@@ -253,3 +253,28 @@ each needs an execution model, a permission story, and a distribution channel
 before a screen for them means anything — an empty Skills tab implies capability
 the app does not have. Customize contains the Google connector and the news
 feeds, both real. Skills, plugins, and the Chrome extension are in HUMAN_TODO.
+
+## Multi-provider chat: managed-only; BYOK stays Anthropic
+
+ChatGPT and Gemini run through the backend proxy, where the deployment's keys
+live and the egress story is the backend's. They are NOT offered in BYOK: a
+direct-call path would add api.openai.com and generativelanguage.googleapis.com
+to the C14.9 client allowlist, and widening the desktop's egress surface per
+provider is exactly what the allowlist exists to resist. A BYOK developer who
+wants another provider can run the backend locally with that key.
+
+Model ids are pinned in a shared catalog rather than fetched from provider
+/models endpoints. A live list would offer whatever the provider shipped that
+week, including models the tool-call translation has never been tested against;
+a pinned list makes a new model a deliberate one-line change with a test run
+behind it. An unknown id (settings from a newer build, a hand-edited blob) is
+clamped to the provider default, never forwarded.
+
+An unconfigured provider returns a typed 400 rather than falling back to
+another brain — silently answering with a different model than the user picked
+would misattribute every reply.
+
+Gemini function calls carry no ids, so the adapter synthesizes gem_N and the
+request translator re-keys tool results from the id back to the function name
+via conversation history. That join is what makes Gemini tool calling work with
+an orchestrator that speaks Anthropic-shaped blocks.

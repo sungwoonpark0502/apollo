@@ -13,4 +13,5 @@ export * from './shortcuts';
 export * from './backend';
 export * from './readiness';
 export * from './notesDoc';
+export * from './providerCatalog';
 export * from './ipc';

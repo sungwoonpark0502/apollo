@@ -68,6 +68,7 @@ import { createOrchestrator, type Orchestrator } from './agent/orchestrator';
 import { createConversationManager } from './agent/conversationManager';
 import { buildSystemPrompt } from './agent/systemPrompt';
 import { createAnthropicLlm } from './agent/llmAnthropic';
+import { resolveModelChoice, availableModels, availableModelsSchema } from '@apollo/shared';
 import { createBackendLlm } from './agent/llmBackend';
 import { byokAllowedFromEnv, resolveMode } from './auth/mode';
 import { createSession } from './auth/session';
@@ -321,6 +322,8 @@ function boot(): void {
       : createBackendLlm({
           baseUrl: config.backendBaseUrl,
           getAccessToken: () => authSession.getAccessToken(),
+          // The picker writes settings.chat; each turn reads it fresh.
+          choice: () => resolveModelChoice(settings.get().chat.provider, settings.get().chat.model),
           fetchFn: egressCheckedFetch,
           log,
         });
@@ -895,6 +898,22 @@ function boot(): void {
       }
     },
     appMode: () => appMode,
+    // Model picker source. BYOK is Anthropic-only by design (adding providers
+    // there would widen the C14.9 egress allowlist per provider — DECISIONS);
+    // managed asks the backend which keys the deployment actually holds, and a
+    // failure degrades to Anthropic-only rather than an empty picker.
+    chatModels: async () => {
+      if (appMode === 'byok') return availableModels(['anthropic']);
+      try {
+        const token = await authSession.getAccessToken();
+        if (!token) return availableModels(['anthropic']);
+        const res = await egressCheckedFetch(`${config.backendBaseUrl}/v1/models`, { headers: { authorization: `Bearer ${token}` } });
+        if (!res.ok) return availableModels(['anthropic']);
+        return availableModelsSchema.parse(await res.json());
+      } catch {
+        return availableModels(['anthropic']);
+      }
+    },
     checkForUpdates: async () => (app.isPackaged ? { status: 'checking' as const } : { status: 'disabled' as const }),
     installUpdate: () => updaterHandle?.install(),
     resourceReport: () =>
