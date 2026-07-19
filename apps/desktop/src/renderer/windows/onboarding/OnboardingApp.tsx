@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { SignInForm } from '../../components/auth/SignInForm';
+import { Slider } from '../../components/Slider';
 import { STRINGS, type KeyProvider, type AuthStatus } from '@apollo/shared';
 import { LocationPicker } from '../../components/LocationPicker';
 
@@ -10,12 +11,18 @@ const KEY_PROVIDERS: Array<{ id: KeyProvider; required: boolean }> = [
   { id: 'picovoice', required: false },
 ];
 
-const PROFILE_STEP = 1;
+/**
+ * L1.4: in managed mode sign-in comes first and there is no separate Profile
+ * step — the name is part of creating an account, and an existing account
+ * already has one, so asking again was redundant data entry before the user had
+ * seen anything work. Location is optional and lives in Settings.
+ *
+ * BYOK has no account, so it keeps the Profile step to collect a name.
+ */
 
 export function OnboardingApp(): React.JSX.Element {
   const [step, setStep] = useState(0);
   const [profileName, setProfileName] = useState('');
-  const [seedWelcome, setSeedWelcome] = useState(true); // I6 opt-in, default yes
   const [mode, setMode] = useState<'managed' | 'byok'>('managed');
 
   useEffect(() => {
@@ -24,21 +31,29 @@ export function OnboardingApp(): React.JSX.Element {
   }, []);
 
   const finish = (): void => {
-    void window.apollo.call('onboarding.finish', { seedWelcomeNote: seedWelcome }).then(() => window.close());
+    void window.apollo.call('onboarding.finish', {}).then(() => window.close());
   };
 
-  // H/E6 override: name is required to move past the Profile step; location is optional.
-  const nameMissing = step === PROFILE_STEP && !profileName.trim();
+  const steps =
+    mode === 'byok'
+      ? [
+          <Welcome key="w" />,
+          <Profile key="pr" onNameChange={setProfileName} />,
+          <Permissions key="p" />,
+          <Keys key="k" />,
+          <WakeWord key="wa" />,
+          <TryIt key="t" onDone={finish} />,
+        ]
+      : [
+          <Welcome key="w" />,
+          <AccountStep key="a" />,
+          <Permissions key="p" />,
+          <WakeWord key="wa" />,
+          <TryIt key="t" onDone={finish} />,
+        ];
 
-  // L1.4: managed users sign in here; only a BYOK build collects provider keys.
-  const steps = [
-    <Welcome key="w" />,
-    <Profile key="pr" onNameChange={setProfileName} />,
-    <Permissions key="p" />,
-    mode === 'byok' ? <Keys key="k" /> : <AccountStep key="a" />,
-    <WakeWord key="wa" />,
-    <TryIt key="t" onDone={finish} seedWelcome={seedWelcome} onSeedChange={setSeedWelcome} />,
-  ];
+  // H/E6 override: BYOK still requires a name before leaving its Profile step.
+  const nameMissing = mode === 'byok' && step === 1 && !profileName.trim();
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', padding: 'var(--sp-6)', background: 'var(--bg)', color: 'var(--text-1)' }}>
@@ -238,25 +253,30 @@ function WakeWord(): React.JSX.Element {
         {STRINGS.onboarding.wakeToggle}
       </label>
       <label style={{ display: 'block', fontSize: 'var(--fs-caption)', color: 'var(--text-2)', marginBottom: 'var(--sp-1)' }}>{STRINGS.onboarding.wakeSensitivity}</label>
-      <input
-        type="range" min={0} max={1} step={0.05} value={sensitivity}
-        onChange={(e) => setSensitivity(parseFloat(e.target.value))}
-        onMouseUp={() => persist({ sensitivity })}
+      <Slider
+        min={0}
+        max={1}
+        step={0.05}
+        value={sensitivity}
         disabled={!enabled}
-        style={{ width: 240 }}
+        // Persist on release, not per frame: dragging fires continuously and
+        // each step would be a settings write.
+        onChange={(v) => {
+          setSensitivity(v);
+          persist({ sensitivity: v });
+        }}
+        ariaLabel={STRINGS.onboarding.wakeSensitivity}
+        valueLabel={sensitivity.toFixed(2)}
+        width={240}
       />
     </Panel>
   );
 }
 
-function TryIt({ onDone, seedWelcome, onSeedChange }: { onDone: () => void; seedWelcome: boolean; onSeedChange: (v: boolean) => void }): React.JSX.Element {
+function TryIt({ onDone }: { onDone: () => void }): React.JSX.Element {
   return (
     <Panel title={STRINGS.onboarding.tryTitle}>
       <p style={body}>{STRINGS.onboarding.tryBody}</p>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', marginTop: 'var(--sp-3)', fontSize: 'var(--fs-body)', color: 'var(--text-2)' }}>
-        <input type="checkbox" checked={seedWelcome} onChange={(e) => onSeedChange(e.target.checked)} />
-        {STRINGS.onboarding.sampleNote}
-      </label>
       <button onClick={onDone} style={{ ...primaryButton, marginTop: 'var(--sp-4)' }}>
         {STRINGS.onboarding.tryFinish}
       </button>

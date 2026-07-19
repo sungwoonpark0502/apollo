@@ -294,6 +294,12 @@ function boot(): void {
         fetchFn: egressCheckedFetch,
       }),
     onChange: (state) => {
+      // L1.4: the account carries the name, so onboarding no longer asks for it
+      // separately. Only seed an empty profile — never overwrite a name the
+      // user has since edited in Settings.
+      if (state.status === 'signedIn' && state.user?.name && !settings.get().profile.name.trim()) {
+        settings.patch({ profile: { ...settings.get().profile, name: state.user.name } });
+      }
       for (const win of BrowserWindow.getAllWindows()) if (!win.isDestroyed()) pushTo(win.webContents, 'auth.state', state);
     },
     log,
@@ -791,12 +797,12 @@ function boot(): void {
     egressHosts: () => egress.allowedHosts(),
     wipeAllData: () => wipeAllData(),
     finishOnboarding: (opts) => {
-      const firstTime = !settings.get().onboarded;
       settings.patch({ onboarded: true });
-      // I6: opt-in welcome note, seeded once. A real, editable, deletable note.
-      if (firstTime && opts.seedWelcomeNote && repos.notes.list({ limit: 1 }).length === 0) {
-        repos.notes.save({ content: STRINGS.onboarding.welcomeNote });
-      }
+      // The I6 welcome note is gone: a first-run Notes tab full of example
+      // prompts is clutter the user has to read and then delete. The same
+      // examples already appear as chips on the empty Chat state, where they
+      // are actionable and disappear on their own.
+      void opts;
       closeOnboardingWindow();
       openWorkspace({ view: 'chat' }); // K4: finish opens the Workspace at Chat
     },

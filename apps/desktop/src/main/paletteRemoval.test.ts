@@ -106,9 +106,18 @@ describe('L5 settings surface (12.3)', () => {
 describe('L2 rail, Today, and To-dos removal (12.4)', () => {
   it('the rail lists Today first, then Chat, Calendar, Notes', () => {
     const src = readFileSync(join(REPO, 'apps/desktop/src/renderer/windows/workspace/WorkspaceApp.tsx'), 'utf8');
-    // The Settings button is written multi-line, so allow any whitespace.
     const order = [...src.matchAll(/<RailButton\s+label=\{STRINGS\.workspace\.nav\.(\w+)\}/g)].map((m) => m[1]);
-    expect(order).toEqual(['today', 'chat', 'calendar', 'notes', 'settings']);
+    // Settings is no longer a rail button: it moved into the account menu at
+    // the foot of the rail, alongside Log out. The nav order itself is
+    // unchanged, which is what L2.4 pinned.
+    expect(order).toEqual(['today', 'chat', 'calendar', 'notes']);
+    expect(src).toContain('<AccountMenu');
+  });
+
+  it('the account menu carries Settings and Log out, so neither is buried', () => {
+    const src = readFileSync(join(REPO, 'apps/desktop/src/renderer/components/AccountMenu.tsx'), 'utf8');
+    expect(src).toContain("window.apollo.call('settings.open'");
+    expect(src).toContain("window.apollo.call('auth.signOut'");
   });
 
   it('Today renders exactly the header plus schedule, weather, and news', () => {

@@ -50,6 +50,52 @@ body {
 .apollo-prose .tiptap ul[data-type='taskList'] li { display: flex; align-items: flex-start; gap: var(--sp-2); }
 .apollo-prose .tiptap ul[data-type='taskList'] li > label { margin-top: 2px; }
 .apollo-prose .tiptap ul[data-type='taskList'] li > div { flex: 1; }
+
+/* Round checklist marks, themed. The default square platform checkbox was the
+   one control in the editor that ignored the palette. Still a real checkbox
+   underneath (keyboard + a11y unchanged); only the paint is ours. */
+.apollo-prose .tiptap ul[data-type='taskList'] li > label input[type='checkbox'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  border: 1.5px solid var(--border);
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  display: grid;
+  place-content: center;
+  transition: background 120ms var(--ease), border-color 120ms var(--ease);
+}
+.apollo-prose .tiptap ul[data-type='taskList'] li > label input[type='checkbox']:hover {
+  border-color: var(--accent);
+}
+.apollo-prose .tiptap ul[data-type='taskList'] li > label input[type='checkbox']:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+/* The tick: a rotated rectangle corner, so no icon font is needed. */
+.apollo-prose .tiptap ul[data-type='taskList'] li > label input[type='checkbox']:checked::after {
+  content: '';
+  width: 4px;
+  height: 8px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: translateY(-1px) rotate(45deg);
+}
+.apollo-prose .tiptap ul[data-type='taskList'] li > label input[type='checkbox']:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+/* A completed item reads as done without hiding it. */
+.apollo-prose .tiptap ul[data-type='taskList'] li[data-checked='true'] > div {
+  color: var(--text-3);
+  text-decoration: line-through;
+}
+@media (prefers-reduced-motion: reduce) {
+  .apollo-prose .tiptap ul[data-type='taskList'] li > label input[type='checkbox'] { transition: none; }
+}
 .apollo-prose .tiptap blockquote { border-left: 2px solid var(--border); padding-left: var(--sp-3); color: var(--text-2); }
 .apollo-prose .tiptap code { font-family: var(--font-mono, monospace); font-size: 0.92em; background: var(--surface); padding: 0 4px; border-radius: 4px; }
 .apollo-prose .tiptap pre { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-ctl); padding: var(--sp-3); overflow-x: auto; }
@@ -61,4 +107,51 @@ body {
 .apollo-prose .tiptap th { background: var(--surface); font-weight: 600; }
 .apollo-prose .tiptap p.is-editor-empty:first-child::before {
   content: attr(data-placeholder); color: var(--text-3); float: left; height: 0; pointer-events: none;
+}
+
+.apollo-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+  margin: 0;
+}
+.apollo-slider:disabled { cursor: default; }
+.apollo-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--accent);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  transition: transform 120ms var(--ease);
+}
+.apollo-slider:hover::-webkit-slider-thumb { transform: scale(1.12); }
+.apollo-slider:active::-webkit-slider-thumb { transform: scale(1.04); }
+.apollo-slider:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.apollo-slider:disabled::-webkit-slider-thumb {
+  border-color: var(--border);
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .apollo-slider::-webkit-slider-thumb { transition: none; }
+  .apollo-slider:hover::-webkit-slider-thumb { transform: none; }
+}
+
+/* Native select: same surface, border, and radius as our other fields. */
+.apollo-select {
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--text-3) 50%),
+                    linear-gradient(135deg, var(--text-3) 50%, transparent 50%);
+  background-position: calc(100% - 15px) center, calc(100% - 10px) center;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 26px;
 }

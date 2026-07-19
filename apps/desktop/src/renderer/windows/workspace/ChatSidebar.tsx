@@ -159,7 +159,9 @@ export function ChatSidebar({ activeConvId, historyEnabled, refreshTick, onNewCh
                       </button>
                     )}
                     <div style={{ fontSize: 10, color: 'var(--text-3)', padding: '0 var(--sp-2)' }}>
-                      {fmtRelative(c.lastTs)} · {s.messageCount(c.messageCount)}
+                      {/* Just the time. A message count is bookkeeping the user
+                          never asked for and cannot act on. */}
+                      {fmtRelative(c.lastTs)}
                     </div>
                     {menuFor === c.id ? (
                       <div ref={menuRef} style={menuStyle}>

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../../components/Icon';
 import { DateTime } from 'luxon';
 import { calendarColor, fmtDate, fmtDateIso, fmtRelative, fmtTime, STRINGS, type OccurrenceDTO, type Settings } from '@apollo/shared';
@@ -13,7 +13,8 @@ type SubTab = 'month' | 'week' | 'agenda';
 
 export function CalendarView({ settings, initialDateIso }: { settings: Settings | null; initialDateIso?: string }): React.JSX.Element {
   const [sub, setSub] = useState<SubTab>('month');
-  const [anchor, setAnchor] = useState(() => DateTime.fromISO(initialDateIso ?? DateTime.now().toISODate() ?? ''));
+  const [jumpOpen, setJumpOpen] = useState(false);
+  const [anchor, setAnchor] = useState<DateTime<boolean>>(() => DateTime.fromISO(initialDateIso ?? DateTime.now().toISODate() ?? ''));
   const c = STRINGS.workspace.calendar;
   const weekStart = settings?.profile.weekStart ?? 'sunday';
   const localTz = DateTime.now().zoneName ?? 'local';
@@ -33,12 +34,37 @@ export function CalendarView({ settings, initialDateIso }: { settings: Settings 
           ))}
         </div>
         <div style={{ flex: 1 }} />
+        <button onClick={() => setAnchor((a) => a.minus({ years: 1 }))} style={navBtn} aria-label={c.prevYear}>«</button>
         <button onClick={() => step(-1)} style={navBtn} aria-label={c.prev}>‹</button>
         <button onClick={() => setAnchor(DateTime.now())} style={navBtn}>{c.today}</button>
         <button onClick={() => step(1)} style={navBtn} aria-label={c.next}>›</button>
+        <button onClick={() => setAnchor((a) => a.plus({ years: 1 }))} style={navBtn} aria-label={c.nextYear}>»</button>
         <GcalIndicator enabled={!!settings?.googleCalendar.enabled} />
-        <div style={{ minWidth: 160, textAlign: 'right', fontSize: 'var(--fs-title)', fontWeight: 600 }}>
-          {fmtDate(anchor.toMillis(), 'month-year')}
+        {/* The period label doubles as a jump control: stepping a month at a
+            time made a distant year unreachable in practice. */}
+        <div style={{ position: 'relative' }}>
+          <button
+            onClick={() => setJumpOpen((o) => !o)}
+            aria-expanded={jumpOpen}
+            aria-label={c.jumpTo}
+            style={{
+              minWidth: 160, textAlign: 'right', fontSize: 'var(--fs-title)', fontWeight: 600,
+              border: 'none', background: 'transparent', color: 'var(--text-1)', cursor: 'pointer',
+              fontFamily: 'var(--font-sans)', padding: 'var(--sp-1)',
+            }}
+          >
+            {fmtDate(anchor.toMillis(), 'month-year')}
+          </button>
+          {jumpOpen ? (
+            <JumpToPicker
+              anchor={anchor}
+              onPick={(next) => {
+                setAnchor(next);
+                setJumpOpen(false);
+              }}
+              onClose={() => setJumpOpen(false)}
+            />
+          ) : null}
         </div>
       </header>
 
@@ -50,6 +76,90 @@ export function CalendarView({ settings, initialDateIso }: { settings: Settings 
         ) : (
           <AgendaView anchor={anchor} localTz={localTz} />
         )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Jump straight to a month and year. Month-at-a-time stepping meant a date like
+ * 2001 was ~300 clicks away; typing the year is the only interaction that
+ * scales. The year is a free text field rather than a bounded dropdown so both
+ * distant past and future stay reachable, clamped to a range Luxon can
+ * represent.
+ */
+function JumpToPicker({
+  anchor,
+  onPick,
+  onClose,
+}: {
+  anchor: DateTime;
+  onPick: (next: DateTime<boolean>) => void;
+  onClose: () => void;
+}): React.JSX.Element {
+  const c = STRINGS.workspace.calendar;
+  const [year, setYear] = useState(String(anchor.year));
+  const [month, setMonth] = useState(anchor.month);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onDown = (e: MouseEvent): void => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [onClose]);
+
+  const parsedYear = Number(year);
+  const yearValid = Number.isInteger(parsedYear) && parsedYear >= 1 && parsedYear <= 9999;
+
+  const go = (): void => {
+    if (!yearValid) return;
+    onPick(anchor.set({ year: parsedYear, month, day: 1 }));
+  };
+
+  return (
+    <div ref={ref} style={jumpPanel}>
+      <div style={{ display: 'flex', gap: 'var(--sp-2)', marginBottom: 'var(--sp-2)' }}>
+        <label style={{ flex: 1 }}>
+          <div style={jumpLabel}>{c.month}</div>
+          <select value={month} onChange={(e) => setMonth(Number(e.target.value))} style={jumpField} aria-label={c.month}>
+            {Array.from({ length: 12 }, (_, i) => (
+              <option key={i + 1} value={i + 1}>
+                {fmtDate(DateTime.fromObject({ year: parsedYear || anchor.year, month: i + 1, day: 1 }).toMillis(), 'month')}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label style={{ width: 90 }}>
+          <div style={jumpLabel}>{c.year}</div>
+          <input
+            value={year}
+            onChange={(e) => setYear(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') go();
+            }}
+            inputMode="numeric"
+            autoFocus
+            aria-label={c.year}
+            style={{ ...jumpField, ...(yearValid ? {} : { borderColor: 'var(--danger)' }) }}
+          />
+        </label>
+      </div>
+      <div style={{ display: 'flex', gap: 'var(--sp-2)', alignItems: 'center' }}>
+        <button onClick={go} disabled={!yearValid} style={{ ...primary, opacity: yearValid ? 1 : 0.5 }}>
+          {c.jump}
+        </button>
+        <button onClick={() => onPick(DateTime.now())} style={ghost}>
+          {c.today}
+        </button>
       </div>
     </div>
   );
@@ -444,6 +554,22 @@ const tabBtn = (active: boolean): React.CSSProperties => ({
   fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-caption)',
   background: active ? 'var(--accent-soft)' : 'transparent', color: active ? 'var(--accent)' : 'var(--text-2)',
 });
+const jumpPanel: React.CSSProperties = {
+  position: 'absolute', top: '100%', right: 0, zIndex: 40, marginTop: 4,
+  background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-card)',
+  boxShadow: 'var(--shadow-card)', padding: 'var(--sp-3)', minWidth: 260, textAlign: 'left',
+};
+
+const jumpLabel: React.CSSProperties = {
+  fontSize: 'var(--fs-caption)', color: 'var(--text-2)', marginBottom: 2, fontWeight: 400,
+};
+
+const jumpField: React.CSSProperties = {
+  width: '100%', padding: 'var(--sp-1) var(--sp-2)', borderRadius: 'var(--radius-ctl)',
+  border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-1)',
+  fontSize: 'var(--fs-body)', fontFamily: 'var(--font-sans)',
+};
+
 const navBtn: React.CSSProperties = {
   padding: 'var(--sp-1) var(--sp-3)', borderRadius: 'var(--radius-ctl)', border: '1px solid var(--border)',
   background: 'var(--surface)', color: 'var(--text-1)', cursor: 'pointer', fontSize: 'var(--fs-body)', fontFamily: 'var(--font-sans)',

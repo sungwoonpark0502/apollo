@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Toggle } from '../../components/Toggle';
 import { STRINGS, orbEdgeSchema, type Settings } from '@apollo/shared';
 
 const EDGES = orbEdgeSchema.options;
@@ -22,7 +23,7 @@ export function GeneralTab(): React.JSX.Element {
       <h2 style={{ fontSize: 'var(--fs-display)', margin: '0 0 var(--sp-4)' }}>{STRINGS.settings.tabs.general}</h2>
 
       <Row label={STRINGS.settings.general.launchAtLogin}>
-        <input type="checkbox" checked={settings.launchAtLogin} onChange={(e) => patch({ ...settings, launchAtLogin: e.target.checked })} />
+        <Toggle checked={settings.launchAtLogin} onChange={(v: boolean) => patch({ ...settings, launchAtLogin: v })} />
       </Row>
 
       <Row label={STRINGS.settings.general.orbEdge}>
@@ -40,7 +41,7 @@ export function GeneralTab(): React.JSX.Element {
       </Row>
 
       <Row label={STRINGS.settings.general.openWorkspaceOnLaunch}>
-        <input type="checkbox" checked={settings.workspace.openOnLaunch} onChange={(e) => patch({ ...settings, workspace: { ...settings.workspace, openOnLaunch: e.target.checked } })} />
+        <Toggle checked={settings.workspace.openOnLaunch} onChange={(v: boolean) => patch({ ...settings, workspace: { ...settings.workspace, openOnLaunch: v } })} />
       </Row>
 
       <Row label={STRINGS.settings.general.defaultView}>
@@ -57,15 +58,15 @@ export function GeneralTab(): React.JSX.Element {
       </Row>
 
       <Row label={STRINGS.settings.general.chatSendOnEnter}>
-        <input type="checkbox" checked={settings.chat.sendOnEnter} onChange={(e) => patch({ ...settings, chat: { ...settings.chat, sendOnEnter: e.target.checked } })} />
+        <Toggle checked={settings.chat.sendOnEnter} onChange={(v: boolean) => patch({ ...settings, chat: { ...settings.chat, sendOnEnter: v } })} />
       </Row>
 
       <Row label={STRINGS.settings.general.chatShowToolActivity}>
-        <input type="checkbox" checked={settings.chat.showToolActivity} onChange={(e) => patch({ ...settings, chat: { ...settings.chat, showToolActivity: e.target.checked } })} />
+        <Toggle checked={settings.chat.showToolActivity} onChange={(v: boolean) => patch({ ...settings, chat: { ...settings.chat, showToolActivity: v } })} />
       </Row>
 
       <Row label={STRINGS.settings.general.chatAutoScroll}>
-        <input type="checkbox" checked={settings.chat.autoScroll} onChange={(e) => patch({ ...settings, chat: { ...settings.chat, autoScroll: e.target.checked } })} />
+        <Toggle checked={settings.chat.autoScroll} onChange={(v: boolean) => patch({ ...settings, chat: { ...settings.chat, autoScroll: v } })} />
       </Row>
 
       <Row label={STRINGS.settings.general.quickCaptureHotkey}>

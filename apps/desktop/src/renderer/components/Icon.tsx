@@ -10,7 +10,7 @@ import React from 'react';
  * Deliberately minimal: 1.5px strokes on a 16px grid, matching the rest of the
  * chrome. Add icons here rather than reaching for a glyph inline.
  */
-export type IconName = 'pin' | 'close' | 'bold' | 'italic' | 'code' | 'bulletList' | 'orderedList' | 'checklist' | 'quote' | 'h1' | 'h2' | 'h3';
+export type IconName = 'pin' | 'close' | 'settings' | 'help' | 'signOut' | 'search' | 'bold' | 'italic' | 'code' | 'bulletList' | 'orderedList' | 'checklist' | 'quote' | 'h1' | 'h2' | 'h3';
 
 const PATHS: Record<IconName, React.ReactNode> = {
   // A pushpin reading clearly at 14-16px: head, shaft, point.
@@ -25,6 +25,32 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <>
       <path d="M4 4l8 8" />
       <path d="M12 4l-8 8" />
+    </>
+  ),
+  settings: (
+    <>
+      <circle cx="8" cy="8" r="2.2" />
+      <path d="M8 1.5v1.8M8 12.7v1.8M14.5 8h-1.8M3.3 8H1.5M12.6 3.4l-1.3 1.3M4.7 11.3l-1.3 1.3M12.6 12.6l-1.3-1.3M4.7 4.7 3.4 3.4" />
+    </>
+  ),
+  help: (
+    <>
+      <circle cx="8" cy="8" r="6.2" />
+      <path d="M6.3 6.2a1.8 1.8 0 1 1 2.4 1.7c-.5.2-.7.6-.7 1.1v.3" />
+      <path d="M8 11.6h.01" />
+    </>
+  ),
+  signOut: (
+    <>
+      <path d="M6.2 2.5H3.4A.9.9 0 0 0 2.5 3.4v9.2a.9.9 0 0 0 .9.9h2.8" />
+      <path d="M10.6 11 13.5 8l-2.9-3" />
+      <path d="M13.5 8H6.4" />
+    </>
+  ),
+  search: (
+    <>
+      <circle cx="7.2" cy="7.2" r="4.4" />
+      <path d="m10.5 10.5 3 3" />
     </>
   ),
   bold: (

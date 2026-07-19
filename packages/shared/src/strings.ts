@@ -523,7 +523,22 @@ export const STRINGS = {
   },
 
   workspace: {
-    nav: { chat: 'Chat', today: 'Today', calendar: 'Calendar', notes: 'Notes', settings: 'Settings' },
+    // The rail label is Home; the view id stays 'today' everywhere else
+    // (deep links, settings.workspace.defaultView, workspace.open).
+    nav: { chat: 'Chat', today: 'Home', calendar: 'Calendar', notes: 'Notes', settings: 'Settings' },
+    accountMenu: {
+      trigger: 'Account and settings',
+      settings: 'Settings',
+      settingsShortcut: '⌘,',
+      help: 'Get help',
+      signOut: 'Log out',
+      signIn: 'Sign in',
+      signedOut: 'Not signed in',
+      signInPrompt: 'Sign in to use the assistant',
+      localProfile: 'This device',
+      byokSubtitle: 'Developer build',
+      plan: (plan: string) => `${plan} plan`,
+    },
     undo: { undid: (label: string) => `Undid: ${label}`, nothing: 'Nothing to undo' },
     // K2: the Chat sidebar (the H5.5 read-only Chats view is superseded by PART K)
     chats: {
@@ -595,6 +610,11 @@ export const STRINGS = {
       today: 'Today',
       prev: 'Previous',
       next: 'Next',
+      prevYear: 'Previous year',
+      nextYear: 'Next year',
+      jumpTo: 'Jump to a month and year',
+      jump: 'Go',
+      year: 'Year',
       moreEvents: (n: number) => `+${n} more`,
       newEvent: 'New event',
       allDay: 'All day',

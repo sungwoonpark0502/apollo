@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Toggle } from '../../components/Toggle';
 import { fmtDateTime, STRINGS, type Settings } from '@apollo/shared';
 import { buttonStyle } from '../../components/cards/TimerCard';
 
@@ -49,11 +50,7 @@ export function PrivacyTab(): React.JSX.Element {
 
 
       <Row label={STRINGS.settings.privacy.history}>
-        <input
-          type="checkbox"
-          checked={settings.history.enabled}
-          onChange={(e) => patch({ ...settings, history: { enabled: e.target.checked } })}
-        />
+        <Toggle checked={settings.history.enabled} onChange={(v: boolean) => patch({ ...settings, history: { enabled: v } })} />
       </Row>
       <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-3)', margin: '0 0 var(--sp-3)' }}>{STRINGS.settings.privacy.historyHint}</div>
 
@@ -184,7 +181,7 @@ function DataSection({ settings, patch }: { settings: Settings; patch: (s: Setti
           {STRINGS.settings.privacy.backupNow}
         </button>
         <label style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-2)', display: 'flex', gap: 4, alignItems: 'center' }}>
-          <input type="checkbox" checked={inclChats} onChange={(e) => setInclChats(e.target.checked)} />
+          <Toggle checked={inclChats} onChange={(v: boolean) => setInclChats(v)} />
           {STRINGS.settings.privacy.exportWithChats}
         </label>
         <button style={buttonStyle} onClick={() => void window.apollo.call('export.run', { includeConversations: inclChats }).then((r) => setStatus(r.path ? STRINGS.settings.privacy.exportDone(r.path) : ''))}>
@@ -194,7 +191,7 @@ function DataSection({ settings, patch }: { settings: Settings; patch: (s: Setti
           {STRINGS.settings.privacy.import}
         </button>
         <label style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-2)', display: 'flex', gap: 4, alignItems: 'center' }}>
-          <input type="checkbox" checked={settings.backup.autoWeekly} onChange={(e) => patch({ ...settings, backup: { autoWeekly: e.target.checked } })} />
+          <Toggle checked={settings.backup.autoWeekly} onChange={(v: boolean) => patch({ ...settings, backup: { autoWeekly: v } })} />
           Weekly auto-backup
         </label>
       </div>

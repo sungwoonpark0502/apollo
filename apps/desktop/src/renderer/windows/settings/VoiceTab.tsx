@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { Toggle } from '../../components/Toggle';
+import { Slider } from '../../components/Slider';
 import { STRINGS, type Settings } from '@apollo/shared';
 
 interface Dev { deviceId: string; label: string }
@@ -24,22 +26,19 @@ export function VoiceTab(): React.JSX.Element {
       <h2 style={{ fontSize: 'var(--fs-display)', margin: '0 0 var(--sp-4)' }}>{STRINGS.settings.tabs.voice}</h2>
 
       <Row label={STRINGS.settings.voice.wake}>
-        <input
-          type="checkbox"
-          checked={settings.wake.enabled}
-          onChange={(e) => patch({ ...settings, wake: { ...settings.wake, enabled: e.target.checked } })}
-        />
+        <Toggle checked={settings.wake.enabled} onChange={(v: boolean) => patch({ ...settings, wake: { ...settings.wake, enabled: v } })} />
       </Row>
 
       <Row label={STRINGS.settings.voice.sensitivity}>
-        <input
-          type="range"
+        <Slider
           min={0}
           max={1}
           step={0.05}
           value={settings.wake.sensitivity}
-          onChange={(e) => patch({ ...settings, wake: { ...settings.wake, sensitivity: Number(e.target.value) } })}
-          style={{ width: 200 }}
+          onChange={(v) => patch({ ...settings, wake: { ...settings.wake, sensitivity: v } })}
+          ariaLabel={STRINGS.settings.voice.sensitivity}
+          valueLabel={settings.wake.sensitivity.toFixed(2)}
+          width={200}
         />
         <span style={{ marginLeft: 'var(--sp-2)', color: 'var(--text-2)', fontSize: 'var(--fs-caption)' }}>
           {settings.wake.sensitivity.toFixed(2)}
@@ -47,11 +46,7 @@ export function VoiceTab(): React.JSX.Element {
       </Row>
 
       <Row label={STRINGS.settings.voice.ptt}>
-        <input
-          type="checkbox"
-          checked={settings.ptt.enabled}
-          onChange={(e) => patch({ ...settings, ptt: { enabled: e.target.checked } })}
-        />
+        <Toggle checked={settings.ptt.enabled} onChange={(v: boolean) => patch({ ...settings, ptt: { enabled: v } })} />
       </Row>
 
       <Row label={STRINGS.settings.voice.pttHotkey}>
@@ -87,26 +82,26 @@ export function VoiceTab(): React.JSX.Element {
       </Row>
 
       <Row label={STRINGS.settings.voice.ttsRate}>
-        <input type="range" min={0.8} max={1.5} step={0.05} value={settings.voice.ttsRate}
-          onChange={(e) => patch({ ...settings, voice: { ...settings.voice, ttsRate: Number(e.target.value) } })} style={{ width: 160 }} />
-        <span style={{ marginLeft: 'var(--sp-2)', color: 'var(--text-2)', fontSize: 'var(--fs-caption)' }}>{settings.voice.ttsRate.toFixed(2)}×</span>
+        <Slider min={0.8} max={1.5} step={0.05} value={settings.voice.ttsRate}
+          onChange={(v) => patch({ ...settings, voice: { ...settings.voice, ttsRate: v } })}
+          ariaLabel={STRINGS.settings.voice.ttsRate} valueLabel={`${settings.voice.ttsRate.toFixed(2)}×`} width={160} />
       </Row>
 
       <Row label={STRINGS.settings.voice.earconVolume}>
-        <input type="range" min={0} max={1} step={0.05} value={settings.voice.earconVolume}
-          onChange={(e) => patch({ ...settings, voice: { ...settings.voice, earconVolume: Number(e.target.value) } })} style={{ width: 160 }} />
-        <span style={{ marginLeft: 'var(--sp-2)', color: 'var(--text-2)', fontSize: 'var(--fs-caption)' }}>{Math.round(settings.voice.earconVolume * 100)}%</span>
+        <Slider min={0} max={1} step={0.05} value={settings.voice.earconVolume}
+          onChange={(v) => patch({ ...settings, voice: { ...settings.voice, earconVolume: v } })}
+          ariaLabel={STRINGS.settings.voice.earconVolume} valueLabel={`${Math.round(settings.voice.earconVolume * 100)}%`} width={160} />
       </Row>
 
       <Row label={STRINGS.settings.voice.followup}>
-        <input type="range" min={0} max={15} step={1} value={settings.voice.followupWindowSec}
-          onChange={(e) => patch({ ...settings, voice: { ...settings.voice, followupWindowSec: Number(e.target.value) } })} style={{ width: 160 }} />
-        <span style={{ marginLeft: 'var(--sp-2)', color: 'var(--text-2)', fontSize: 'var(--fs-caption)' }}>{settings.voice.followupWindowSec === 0 ? STRINGS.settings.voice.off : `${settings.voice.followupWindowSec}s`}</span>
+        <Slider min={0} max={15} step={1} value={settings.voice.followupWindowSec}
+          onChange={(v) => patch({ ...settings, voice: { ...settings.voice, followupWindowSec: v } })}
+          ariaLabel={STRINGS.settings.voice.followup}
+          valueLabel={settings.voice.followupWindowSec === 0 ? STRINGS.settings.voice.off : `${settings.voice.followupWindowSec}s`} width={160} />
       </Row>
 
       <Row label={STRINGS.settings.voice.pauseWakeOnBattery}>
-        <input type="checkbox" checked={settings.voice.pauseWakeOnBattery}
-          onChange={(e) => patch({ ...settings, voice: { ...settings.voice, pauseWakeOnBattery: e.target.checked } })} />
+        <Toggle checked={settings.voice.pauseWakeOnBattery} onChange={(v: boolean) => patch({ ...settings, voice: { ...settings.voice, pauseWakeOnBattery: v } })} />
       </Row>
     </div>
   );

@@ -59,7 +59,8 @@ export type DateStyle =
   | 'weekday-date' // "Mon, Jul 15"
   | 'full' // "Monday, July 15"
   | 'weekday-full' // "Monday, Jul 15"
-  | 'month-year'; // "July 2026"
+  | 'month-year' // "July 2026"
+  | 'month'; // "July" — month picker options
 
 const DATE_OPTS: Record<DateStyle, Intl.DateTimeFormatOptions> = {
   'weekday-short': { weekday: 'short' },
@@ -71,6 +72,7 @@ const DATE_OPTS: Record<DateStyle, Intl.DateTimeFormatOptions> = {
   full: { weekday: 'long', month: 'long', day: 'numeric' },
   'weekday-full': { weekday: 'long', month: 'short', day: 'numeric' },
   'month-year': { month: 'long', year: 'numeric' },
+  month: { month: 'long' },
 };
 
 interface WhenOpts {

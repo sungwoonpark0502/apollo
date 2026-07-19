@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Toggle } from '../../components/Toggle';
 import { fmtRelative, STRINGS, type InvokeRes, type Settings } from '@apollo/shared';
 
 // Presentation config: which rules exist and which inline params they expose.
@@ -48,7 +49,7 @@ export function ProactiveTab(): React.JSX.Element {
 
       <Row>
         <label style={toggleLabel}>
-          <input type="checkbox" checked={pro.enabled} onChange={(e) => patch({ ...settings, proactive: { ...pro, enabled: e.target.checked } })} />
+          <Toggle checked={pro.enabled} onChange={(v: boolean) => patch({ ...settings, proactive: { ...pro, enabled: v } })} />
           {p.master}
         </label>
       </Row>
@@ -62,7 +63,7 @@ export function ProactiveTab(): React.JSX.Element {
 
       <Row>
         <label style={toggleLabel}>
-          <input type="checkbox" checked={pro.voiceOnNudges} onChange={(e) => patch({ ...settings, proactive: { ...pro, voiceOnNudges: e.target.checked } })} />
+          <Toggle checked={pro.voiceOnNudges} onChange={(v: boolean) => patch({ ...settings, proactive: { ...pro, voiceOnNudges: v } })} />
           {p.voiceOnNudges}
         </label>
       </Row>
@@ -74,7 +75,7 @@ export function ProactiveTab(): React.JSX.Element {
       {RULE_META.map((r) => (
         <div key={r.id} style={{ borderTop: '1px solid var(--border)', padding: 'var(--sp-3) 0' }}>
           <label style={{ ...toggleLabel, fontWeight: 500 }}>
-            <input type="checkbox" checked={ruleEnabled(r.id) && pro.enabled} disabled={!pro.enabled} onChange={(e) => setRule(r.id, e.target.checked)} />
+            <Toggle checked={ruleEnabled(r.id) && pro.enabled} onChange={(v: boolean) => setRule(r.id, v)} disabled={!pro.enabled} />
             {STRINGS.nudges.ruleNames[r.id] ?? r.id}
           </label>
           <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-3)', margin: 'var(--sp-1) 0 var(--sp-2) 24px' }}>

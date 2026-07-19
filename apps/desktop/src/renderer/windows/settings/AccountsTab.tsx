@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Toggle } from '../../components/Toggle';
 import { fmtRelative, STRINGS, type CalendarCollection } from '@apollo/shared';
 import { buttonStyle } from '../../components/cards/TimerCard';
 import { useSettings } from '../../lib/useLive';
@@ -128,11 +129,7 @@ function GoogleCalendarSection(): React.JSX.Element {
           <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-3)', marginBottom: 'var(--sp-2)' }}>{g.chooseCalendars}</div>
           {picker.calendars.map((c) => (
             <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', padding: 'var(--sp-1) 0' }}>
-              <input
-                type="checkbox"
-                checked={selected.has(c.id)}
-                onChange={(e) => setSelected((s) => { const n = new Set(s); if (e.target.checked) n.add(c.id); else n.delete(c.id); return n; })}
-              />
+              <Toggle checked={selected.has(c.id)} onChange={(v: boolean) => setSelected((s) => { const n = new Set(s); if (v) n.add(c.id); else n.delete(c.id); return n; })} />
               <span style={{ width: 10, height: 10, borderRadius: '50%', background: c.color }} />
               {c.name}{c.readOnly ? ` (${g.readOnly})` : ''}
             </label>

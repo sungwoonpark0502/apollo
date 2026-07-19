@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Icon } from '../../components/Icon';
+import { AccountMenu } from '../../components/AccountMenu';
 import { assistantReadiness, matchesBinding, shortcut, STRINGS, type AuthStatus, type ReadinessState } from '@apollo/shared';
 import { useFormatInit, useNavigate, useSettings } from '../../lib/useLive';
 import { TodayView } from './TodayView';
@@ -17,7 +18,9 @@ function isShortcut(id: string, e: KeyboardEvent): boolean {
 
 type View = 'chat' | 'today' | 'calendar' | 'notes';
 
-const RAIL_W = 64;
+// Wide enough for icon + label. The rail was icon-only, so every destination
+// relied on a tooltip nobody hovers for.
+const RAIL_W = 168;
 
 export function WorkspaceApp(): React.JSX.Element {
   useFormatInit();
@@ -28,6 +31,7 @@ export function WorkspaceApp(): React.JSX.Element {
   const [omniOpen, setOmniOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [undoToast, setUndoToast] = useState<string | null>(null);
+  const [mode, setMode] = useState<'managed' | 'byok'>('managed');
   const [readiness, setReadiness] = useState<ReadinessState>({ kind: 'ready' });
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [appliedDefault, setAppliedDefault] = useState(false);
@@ -49,6 +53,7 @@ export function WorkspaceApp(): React.JSX.Element {
     let alive = true;
     const recompute = async (authStatus: AuthStatus): Promise<void> => {
       const { mode } = await window.apollo.call('app.mode', {});
+      setMode(mode);
       const info = mode === 'byok' ? await window.apollo.call('keys.info', {}) : [];
       const has = (p: string): boolean => info.some((k) => k.provider === p && k.configured);
       if (!alive) return;
@@ -131,9 +136,9 @@ export function WorkspaceApp(): React.JSX.Element {
           borderRight: '1px solid var(--border)',
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center',
-          padding: 'var(--sp-3) 0',
-          gap: 'var(--sp-2)',
+          alignItems: 'stretch',
+          padding: 'var(--sp-3) var(--sp-2)',
+          gap: 2,
         }}
       >
         <RailButton label={STRINGS.workspace.nav.today} active={view === 'today'} onClick={() => go('today')} glyph="◉" />
@@ -141,12 +146,10 @@ export function WorkspaceApp(): React.JSX.Element {
         <RailButton label={STRINGS.workspace.nav.calendar} active={view === 'calendar'} onClick={() => go('calendar')} glyph="▦" />
         <RailButton label={STRINGS.workspace.nav.notes} active={view === 'notes'} onClick={() => go('notes')} glyph="≡" />
         <div style={{ flex: 1 }} />
-        <RailButton
-          label={STRINGS.workspace.nav.settings}
-          active={false}
-          onClick={() => void window.apollo.call('settings.open', {})}
-          glyph="⚙"
-        />
+        {/* The account row replaces the gear: Settings and Log out both live in
+            its menu, so signing out is one click from anywhere rather than
+            buried at the bottom of a Settings tab. */}
+        <AccountMenu mode={mode} />
       </nav>
       <main style={{ flex: 1, overflow: view === 'chat' ? 'hidden' : 'auto', display: view === 'chat' ? 'flex' : undefined }}>
         {view === 'chat' ? (
@@ -195,24 +198,29 @@ function RailButton({ label, glyph, active, onClick }: { label: string; glyph: s
   return (
     <button
       onClick={onClick}
-      title={label}
-      aria-label={label}
       aria-current={active ? 'page' : undefined}
       style={{
-        width: 44,
-        height: 44,
+        width: '100%',
+        height: 38,
         borderRadius: 'var(--radius-ctl)',
         border: 'none',
         cursor: 'pointer',
-        fontSize: 20,
         background: active ? 'var(--accent-soft)' : 'transparent',
         color: active ? 'var(--accent)' : 'var(--text-2)',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center',
+        gap: 'var(--sp-2)',
+        padding: '0 var(--sp-2)',
+        textAlign: 'left',
+        fontFamily: 'var(--font-sans)',
+        fontSize: 'var(--fs-body)',
+        fontWeight: active ? 500 : 400,
       }}
     >
-      {glyph}
+      <span style={{ fontSize: 17, width: 20, textAlign: 'center', flexShrink: 0 }} aria-hidden="true">
+        {glyph}
+      </span>
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
     </button>
   );
 }
