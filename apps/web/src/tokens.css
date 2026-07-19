@@ -37,3 +37,22 @@ body {
   color: var(--text-1);
   background: var(--bg);
 }
+
+/* Interaction feedback, app-wide. Inline styles cannot express :hover, so
+ * every button/select/summary gets a uniform overlay here: a currentColor
+ * wash that works in BOTH themes (darkens light surfaces, lightens dark text
+ * on dark surfaces) and follows each control's own border-radius. Pressed
+ * deepens it, so clicks feel acknowledged. Reduced-motion users keep the
+ * state change; the global reduced-motion rule already kills the transition.
+ */
+button, select, summary, [role='button'], [role='option'], [role='menuitem'] {
+  transition: box-shadow 120ms var(--ease), background-color 120ms var(--ease);
+}
+button:not(:disabled):hover, select:not(:disabled):hover, summary:hover,
+[role='button']:hover, [role='option']:hover, [role='menuitem']:hover {
+  box-shadow: inset 0 0 0 999px color-mix(in srgb, currentColor 8%, transparent);
+}
+button:not(:disabled):active, select:not(:disabled):active, summary:active,
+[role='button']:active, [role='option']:active, [role='menuitem']:active {
+  box-shadow: inset 0 0 0 999px color-mix(in srgb, currentColor 15%, transparent);
+}

@@ -15,8 +15,21 @@ function required(name: string): string {
   return v;
 }
 
-/** Generic OIDC code exchange against the configured hosted provider (L1). */
+/**
+ * Generic OIDC code exchange against the configured hosted provider (L1).
+ * OPTIONAL since L1.4: in-app email/password sign-in needs no IdP, so a
+ * deployment (or a dev run) without OIDC_* env still boots — the /auth/token
+ * code-exchange route then rejects with invalid_grant, which is the truth.
+ */
 function createOidcIdentity(): IdentityProvider {
+  if (!process.env['OIDC_TOKEN_URL']) {
+    console.warn('OIDC_* unset: OIDC sign-in disabled; email/password sign-in is unaffected');
+    return {
+      async exchangeCode() {
+        throw new Error('oidc not configured');
+      },
+    };
+  }
   const tokenUrl = required('OIDC_TOKEN_URL');
   const userinfoUrl = required('OIDC_USERINFO_URL');
   const clientId = required('OIDC_CLIENT_ID');
