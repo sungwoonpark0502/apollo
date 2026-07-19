@@ -1,11 +1,16 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { DateTime } from 'luxon';
-import { calendarColor, fmtDate, fmtDateTime, fmtHour, fmtTime, STRINGS, type InvokeRes, type OccurrenceDTO, type Settings } from '@apollo/shared';
+import { calendarColor, fmtDate, fmtHour, fmtTime, STRINGS, type InvokeRes, type OccurrenceDTO, type Settings } from '@apollo/shared';
 import { useDataSync } from '../../lib/useLive';
 import { WeatherGlyph } from '../../components/WeatherGlyph';
 
 type Today = InvokeRes<'workspace.today'>;
 
+/**
+ * L2 Today: exactly a header, today's schedule, weather, and today's news —
+ * nothing else. The prior Up-next, Reminders, To-dos, and Latest-brief sections
+ * are removed (reminders still fire; they surface via notifications and nudges).
+ */
 export function TodayView({ settings, onOpenCalendar }: { settings: Settings | null; onOpenCalendar: (dateIso: string) => void }): React.JSX.Element {
   // Captured once at mount; the Today window is short-lived and re-opened fresh.
   const [now] = useState(() => DateTime.now());
@@ -16,20 +21,7 @@ export function TodayView({ settings, onOpenCalendar }: { settings: Settings | n
   const dayEnd = now.endOf('day').toMillis();
 
   const { data: occ } = useDataSync<OccurrenceDTO[]>(['event'], () => window.apollo.call('events.list', { startMs: dayStart, endMs: dayEnd }));
-  const { data: todos, reload: reloadTodos } = useDataSync(['todo'], () => window.apollo.call('todos.list', {}));
-  const { data: today } = useDataSync<Today>(['event'], () => window.apollo.call('workspace.today', {}));
-
-  const upNext = useMemo(
-    () => (occ ?? []).filter((o) => o.occStartTs >= now.toMillis()).slice(0, 3),
-    [occ, now],
-  );
-
-  const rel = (ms: number): string => {
-    const diff = Math.round((ms - now.toMillis()) / 60000);
-    if (diff <= 0) return STRINGS.workspace.today.relNow;
-    if (diff < 60) return STRINGS.workspace.today.relMin(diff);
-    return STRINGS.workspace.today.relHour(Math.round(diff / 60));
-  };
+  const { data: today, reload: reloadToday } = useDataSync<Today>(['event'], () => window.apollo.call('workspace.today', {}));
 
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: 'var(--sp-6)' }}>
@@ -41,15 +33,6 @@ export function TodayView({ settings, onOpenCalendar }: { settings: Settings | n
           {STRINGS.workspace.greeting(name, partOfDay)}
         </h1>
       </header>
-
-      <Section title={STRINGS.workspace.today.upNext} empty={upNext.length === 0 ? STRINGS.workspace.today.emptyUpNext : null}>
-        {upNext.map((o) => (
-          <Row key={`${o.eventId}-${o.occStartTs}`} onClick={() => onOpenCalendar(o.dateIso)}>
-            <span>{o.title}</span>
-            <span style={{ color: 'var(--text-2)', fontSize: 'var(--fs-caption)' }}>{rel(o.occStartTs)}</span>
-          </Row>
-        ))}
-      </Section>
 
       <Section title={STRINGS.workspace.today.todaysEvents} empty={(occ ?? []).length === 0 ? STRINGS.workspace.today.emptyEvents : null}>
         {(occ ?? []).map((o) => (
@@ -65,118 +48,65 @@ export function TodayView({ settings, onOpenCalendar }: { settings: Settings | n
         ))}
       </Section>
 
-      <TodosSection todos={todos ?? []} reload={reloadTodos} />
+      <WeatherStrip weather={today?.weather ?? null} onRefresh={reloadToday} />
 
-      <WeatherStrip weather={today?.weather ?? null} />
-
-      <BriefSection brief={today?.brief ?? null} />
+      <NewsSection items={today?.news ?? []} onRefresh={reloadToday} />
     </div>
   );
 }
 
-function TodosSection({
-  todos,
-  reload,
-}: {
-  todos: Array<{ id: string; content: string; dueTs: number | null; done: boolean }>;
-  reload: () => void;
-}): React.JSX.Element {
-  const [draft, setDraft] = useState('');
-  const add = (): void => {
-    const content = draft.trim();
-    if (!content) return;
-    setDraft('');
-    void window.apollo.call('todos.add', { content }).then(reload);
-  };
-  const [now] = useState(() => Date.now());
+function WeatherStrip({ weather, onRefresh }: { weather: Today['weather']; onRefresh: () => void }): React.JSX.Element {
+  // L2: an unset home place gets a single "Set your location" action.
+  if (weather === null) {
+    return (
+      <Section
+        title={STRINGS.workspace.today.weather}
+        empty={null}
+        action={{ label: STRINGS.workspace.today.refresh, onClick: onRefresh }}
+      >
+        <Row onClick={() => void window.apollo.call('settings.open', {})}>
+          <span style={{ color: 'var(--text-2)' }}>{STRINGS.workspace.today.emptyWeather}</span>
+          <span style={{ color: 'var(--accent)', fontSize: 'var(--fs-caption)' }}>{STRINGS.workspace.today.setLocation}</span>
+        </Row>
+      </Section>
+    );
+  }
   return (
-    <Section title={STRINGS.workspace.today.todos} empty={null}>
-      <div style={{ display: 'flex', gap: 'var(--sp-2)', marginBottom: 'var(--sp-2)' }}>
-        <input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && add()}
-          placeholder={STRINGS.workspace.today.addTodo}
-          style={inputStyle}
-        />
-      </div>
-      {todos.length === 0 ? (
-        <Empty text={STRINGS.workspace.today.emptyTodos} />
-      ) : (
-        todos.map((t) => {
-          const overdue = !t.done && t.dueTs !== null && t.dueTs < now;
-          return (
-            <Row key={t.id}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', cursor: 'pointer', flex: 1 }}>
-                <input
-                  type="checkbox"
-                  checked={t.done}
-                  onChange={(e) => void window.apollo.call('todos.toggle', { id: t.id, done: e.target.checked }).then(reload)}
-                />
-                <span style={{ textDecoration: t.done ? 'line-through' : 'none', color: overdue ? 'var(--danger)' : 'var(--text-1)' }}>
-                  {t.content}
-                </span>
-              </label>
-              {t.dueTs !== null ? (
-                <span style={{ fontSize: 'var(--fs-caption)', color: overdue ? 'var(--danger)' : 'var(--text-3)' }}>
-                  {overdue ? STRINGS.workspace.today.overdue : fmtDateTime(t.dueTs, { dateStyle: 'date' })}
-                </span>
-              ) : null}
-            </Row>
-          );
-        })
-      )}
-    </Section>
-  );
-}
-
-function WeatherStrip({ weather }: { weather: Today['weather'] }): React.JSX.Element {
-  return (
-    <Section title={STRINGS.workspace.today.weather} empty={weather === null ? STRINGS.workspace.today.emptyWeather : null}>
-      {weather ? (
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)' }}>
-            <WeatherGlyph condition={weather.now.condition} size={28} />
-            <span style={{ fontSize: 28, fontWeight: 600 }}>{weather.now.tempF}°</span>
-            <span style={{ color: 'var(--text-2)' }}>{weather.now.condition}</span>
-            <span style={{ color: 'var(--text-3)', fontSize: 'var(--fs-caption)' }}>{weather.place}</span>
-          </div>
-          <div style={{ display: 'flex', gap: 'var(--sp-3)', marginTop: 'var(--sp-3)' }}>
-            {weather.hours.map((hr) => (
-              <div key={hr.iso} style={{ textAlign: 'center', minWidth: 44 }}>
-                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-3)' }}>
-                  {fmtHour(DateTime.fromISO(hr.iso).hour)}
-                </div>
-                <WeatherGlyph condition={hr.condition} size={18} />
-                <div style={{ fontSize: 'var(--fs-caption)' }}>{hr.temp}°</div>
-              </div>
-            ))}
-          </div>
+    <Section title={STRINGS.workspace.today.weather} empty={null} action={{ label: STRINGS.workspace.today.refresh, onClick: onRefresh }}>
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)' }}>
+          <WeatherGlyph condition={weather.now.condition} size={28} />
+          <span style={{ fontSize: 28, fontWeight: 600 }}>{weather.now.tempF}°</span>
+          <span style={{ color: 'var(--text-2)' }}>{weather.now.condition}</span>
+          <span style={{ color: 'var(--text-3)', fontSize: 'var(--fs-caption)' }}>{weather.place}</span>
         </div>
-      ) : null}
-    </Section>
-  );
-}
-
-function BriefSection({ brief }: { brief: Today['brief'] }): React.JSX.Element {
-  const regenerate = (): void => {
-    void window.apollo.call('agent.userMessage', { text: 'good morning', source: 'text', convId: `brief-${Date.now()}` });
-  };
-  return (
-    <Section
-      title={STRINGS.workspace.today.latestBrief}
-      empty={brief === null ? STRINGS.workspace.today.emptyBrief : null}
-      action={{ label: STRINGS.workspace.today.regenerate, onClick: regenerate }}
-    >
-      {brief && brief.kind === 'brief' ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)' }}>
-          {brief.sections.map((s, i) => (
-            <div key={i} style={{ fontSize: 'var(--fs-body)', color: 'var(--text-2)' }}>
-              {s.kind === 'text' ? s.body : s.kind}
+        <div style={{ display: 'flex', gap: 'var(--sp-3)', marginTop: 'var(--sp-3)' }}>
+          {weather.hours.map((hr) => (
+            <div key={hr.iso} style={{ textAlign: 'center', minWidth: 44 }}>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-3)' }}>{fmtHour(DateTime.fromISO(hr.iso).hour)}</div>
+              <WeatherGlyph condition={hr.condition} size={18} />
+              <div style={{ fontSize: 'var(--fs-caption)' }}>{hr.temp}°</div>
             </div>
           ))}
         </div>
-      ) : null}
+      </div>
+    </Section>
+  );
+}
+
+function NewsSection({ items, onRefresh }: { items: Today['news']; onRefresh: () => void }): React.JSX.Element {
+  return (
+    <Section
+      title={STRINGS.workspace.today.news}
+      empty={items.length === 0 ? STRINGS.workspace.today.emptyNews : null}
+      action={{ label: STRINGS.workspace.today.refresh, onClick: onRefresh }}
+    >
+      {items.map((n) => (
+        <Row key={n.url} onClick={() => void window.apollo.call('link.preview', { url: n.url })}>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.title}</span>
+          <span style={{ color: 'var(--text-3)', fontSize: 'var(--fs-caption)', flexShrink: 0, marginLeft: 'var(--sp-2)' }}>{n.source}</span>
+        </Row>
+      ))}
     </Section>
   );
 }
@@ -231,26 +161,15 @@ function Row({ children, onClick }: { children: React.ReactNode; onClick?: () =>
 }
 
 function Empty({ text }: { text: string }): React.JSX.Element {
-  return <div style={{ color: 'var(--text-3)', fontSize: 'var(--fs-body)' }}>{text}</div>;
+  return <div style={{ color: 'var(--text-3)', fontSize: 'var(--fs-body)', padding: 'var(--sp-2) var(--sp-3)' }}>{text}</div>;
 }
 
-const inputStyle: React.CSSProperties = {
-  flex: 1,
-  fontFamily: 'var(--font-sans)',
-  fontSize: 'var(--fs-body)',
-  padding: 'var(--sp-2) var(--sp-3)',
-  border: '1px solid var(--border)',
-  borderRadius: 'var(--radius-ctl)',
-  background: 'var(--surface)',
-  color: 'var(--text-1)',
-  outline: 'none',
-};
-
 const linkButton: React.CSSProperties = {
-  fontFamily: 'var(--font-sans)',
-  fontSize: 'var(--fs-caption)',
-  color: 'var(--accent)',
-  background: 'transparent',
   border: 'none',
+  background: 'transparent',
+  color: 'var(--accent)',
   cursor: 'pointer',
+  fontSize: 'var(--fs-caption)',
+  fontFamily: 'var(--font-sans)',
+  padding: 0,
 };

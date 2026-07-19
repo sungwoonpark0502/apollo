@@ -4,14 +4,16 @@ import { type HttpClient } from '../net/httpClient';
 
 /**
  * E3.1 Today-view data that has no repo: the weather strip (home place, current
- * conditions + next 6 hours) and the latest brief card. Calendar/reminders/todos
- * come straight from repos via the existing channels.
+ * conditions + next 6 hours) and, since L2, today's news headlines. The
+ * schedule comes straight from repos via events.list.
  */
 export interface TodayDeps {
   http: HttpClient;
   getHome: () => { label: string; lat: number; lon: number; tz: string } | null;
   getUnits: () => 'imperial' | 'metric';
   getLatestBrief: () => CardPayload | null;
+  /** L2: top headlines for the Today news section (feed items, no LLM). */
+  getNews?: () => Promise<Array<{ title: string; source: string; url: string }>>;
   now?: () => number;
 }
 
@@ -86,7 +88,12 @@ export function createTodayProvider(deps: TodayDeps) {
 
   return {
     async get(): Promise<TodayRes> {
-      return { weather: await weather(), brief: deps.getLatestBrief() };
+      // Weather and news are independent: one failing must not blank the other.
+      const [w, news] = await Promise.all([
+        weather().catch(() => null),
+        (deps.getNews?.() ?? Promise.resolve([])).catch(() => []),
+      ]);
+      return { weather: w, brief: deps.getLatestBrief(), news };
     },
   };
 }

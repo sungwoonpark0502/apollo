@@ -100,7 +100,7 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
       deps.openSettings?.();
       return { ok: true as const };
     },
-    'workspace.today': async () => (deps.todayData ? deps.todayData() : { weather: null, brief: null }),
+    'workspace.today': async () => (deps.todayData ? deps.todayData() : { weather: null, brief: null, news: [] }),
     'geocode.search': async (req) => (deps.geocode ? deps.geocode(req.query, req.countryCode) : []),
     'link.preview': async (req) =>
       deps.linkPreview

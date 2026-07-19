@@ -241,17 +241,6 @@ describe('workspace handlers (E1 semantics)', () => {
     expect(() => handlers['undo.apply']({ undoToken: 'nope' })).toThrow();
   });
 
-  it('todos: add → toggle → list ordering (open before done) → delete', () => {
-    const { handlers } = setup();
-    const a = handlers['todos.add']({ content: 'buy milk' });
-    const b = handlers['todos.add']({ content: 'file taxes' });
-    handlers['todos.toggle']({ id: a.id, done: true });
-    const list = handlers['todos.list']();
-    expect(list.map((t) => t.done)).toEqual([false, true]);
-    handlers['todos.delete']({ id: b.id });
-    expect(handlers['todos.list']()).toHaveLength(1);
-  });
-
   it('notes.pin floats the note to the top of the list', () => {
     const { handlers } = setup();
     const first = handlers['notes.save']({ content: 'Older note' });

@@ -6,7 +6,6 @@ import { migrate } from '../../db/migrate';
 import { createRepos, type Repos } from '../../db/repos/index';
 import { meetingLead } from './meetingLead';
 import { tomorrowPreview } from './tomorrowPreview';
-import { overdueTodos } from './overdueTodos';
 import { type RuleCtx } from '../types';
 
 const TZ = 'America/Los_Angeles';
@@ -104,38 +103,5 @@ describe('tomorrow_preview rule', () => {
     mkEvent('2026-07-14T14:00:00');
     mkEvent('2026-07-14T16:00:00');
     expect(await tomorrowPreview.evaluate(ctx('2026-07-13T21:00:00'))).toHaveLength(0);
-  });
-});
-
-describe('overdue_todos rule', () => {
-  it('fires at 16:00 for todos overdue more than 24h', async () => {
-    repos.todos.add({ content: 'file taxes', dueTs: DateTime.fromISO('2026-07-11T10:00:00', { zone: TZ }).toMillis() });
-    const c = await overdueTodos.evaluate(ctx('2026-07-13T16:00:00'));
-    expect(c).toHaveLength(1);
-    expect(c[0]!.urgency).toBe('low');
-    expect(c[0]!.body).toContain('file taxes');
-  });
-
-  it('ignores todos overdue by less than 24h (boundary)', async () => {
-    repos.todos.add({ content: 'recent', dueTs: DateTime.fromISO('2026-07-13T10:00:00', { zone: TZ }).toMillis() }); // 6h ago
-    expect(await overdueTodos.evaluate(ctx('2026-07-13T16:00:00'))).toHaveLength(0);
-  });
-
-  it('ignores completed todos', async () => {
-    const t = repos.todos.add({ content: 'done one', dueTs: DateTime.fromISO('2026-07-11T10:00:00', { zone: TZ }).toMillis() });
-    repos.todos.complete(t.id);
-    expect(await overdueTodos.evaluate(ctx('2026-07-13T16:00:00'))).toHaveLength(0);
-  });
-
-  it('does not fire before atHH', async () => {
-    repos.todos.add({ content: 'file taxes', dueTs: DateTime.fromISO('2026-07-11T10:00:00', { zone: TZ }).toMillis() });
-    expect(await overdueTodos.evaluate(ctx('2026-07-13T15:00:00'))).toHaveLength(0);
-  });
-
-  it('lists at most 5 items', async () => {
-    for (let i = 0; i < 8; i++) repos.todos.add({ content: `task ${i}`, dueTs: DateTime.fromISO('2026-07-11T10:00:00', { zone: TZ }).toMillis() });
-    const c = await overdueTodos.evaluate(ctx('2026-07-13T16:00:00'));
-    expect(c[0]!.title).toContain('8'); // count reflects all
-    expect((c[0]!.card as { kind: 'text'; body: string }).body.split('\n')).toHaveLength(5); // but lists 5
   });
 });

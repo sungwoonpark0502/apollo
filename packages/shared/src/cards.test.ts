@@ -117,7 +117,7 @@ describe('settings', () => {
     expect(SettingsSchema.parse(s)).toEqual(s);
     expect(s.voice.pttHotkey).toBe('Alt+Space'); // K1: PTT binding lives under voice now
     expect(s.chat.sendOnEnter).toBe(true);
-    expect(s.workspace.defaultView).toBe('chat');
+    expect(s.workspace.defaultView).toBe('today'); // L2 supersedes K1's 'chat'
     expect(s.anthropic.model).toBe('claude-sonnet-4-6');
     expect('hotkey' in s).toBe(false); // K1: palette hotkey removed
   });

@@ -102,7 +102,6 @@
 {"id":"f-status-02","utterance":"why did you just ping me","expect_tools":[{"name":"proactive.status"}]}
 {"id":"f-forbid-01","utterance":"what meetings do I have today","expect_tools":[{"name":"calendar.list"}],"forbid_tools":["proactive.status","proactive.configure"]}
 {"id":"f-forbid-02","utterance":"what's on my calendar tomorrow","expect_tools":[{"name":"calendar.list"}],"forbid_tools":["proactive.configure","proactive.status","app.open"]}
-{"id":"f-forbid-03","utterance":"do I have any overdue todos","expect_tools":[{"name":"todo.list"}],"forbid_tools":["proactive.configure","proactive.status"]}
 {"id":"f-forbid-04","utterance":"any meetings coming up this afternoon","expect_tools":[{"name":"calendar.list"}],"forbid_tools":["proactive.configure","proactive.status"]}
 {"id":"g-recall-01","utterance":"what was that idea about the drone project I wrote down","expect_tools":[{"name":"recall.search"}],"forbid_tools":["search.web"]}
 {"id":"g-recall-02","utterance":"did I ever mention when my dentist appointment was","expect_tools":[{"name":"recall.search"}]}

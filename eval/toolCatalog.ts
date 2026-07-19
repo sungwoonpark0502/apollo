@@ -6,7 +6,6 @@ import { createRepos } from '../apps/desktop/src/main/db/repos/index';
 import { createTimerTools } from '../apps/desktop/src/main/tools/timer';
 import { createAlarmTools } from '../apps/desktop/src/main/tools/alarm';
 import { createNoteTools } from '../apps/desktop/src/main/tools/note';
-import { createTodoTools } from '../apps/desktop/src/main/tools/todo';
 import { createContactTools } from '../apps/desktop/src/main/tools/contact';
 import { createMemoryTools } from '../apps/desktop/src/main/tools/memory';
 import { createUndoTool } from '../apps/desktop/src/main/tools/undo';
@@ -184,7 +183,6 @@ export function buildEvalTools(calls: RecordedCall[]): ToolDef[] {
     ...createTimerTools({ timers: repos.timers, undo: repos.undo }),
     ...createAlarmTools({ alarms: repos.alarms, undo: repos.undo }),
     ...createNoteTools({ notes: repos.notes, undo: repos.undo }),
-    ...createTodoTools({ todos: repos.todos, undo: repos.undo }),
     ...createContactTools({ contacts: repos.contacts, undo: repos.undo }),
     ...createMemoryTools({ memory: repos.memory, undo: repos.undo }),
     createUndoTool(repos),

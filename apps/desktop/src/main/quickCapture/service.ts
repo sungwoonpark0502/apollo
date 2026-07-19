@@ -2,6 +2,7 @@ import { DateTime } from 'luxon';
 import { type InvokeReq, type InvokeRes } from '@apollo/shared';
 import { type Repos } from '../db/repos/index';
 import { classifyCapture } from './classify';
+import { appendChecklistItem } from '../notes/listNote';
 
 /**
  * F4 Quick Capture save path: text → the same repos the tools use → DataBus →
@@ -32,8 +33,10 @@ export function createQuickCaptureService(deps: QuickCaptureDeps) {
           return { ok: true, savedAs: 'note', id: n.id };
         }
         case 'todo': {
-          const t = deps.repos.todos.add({ content: text });
-          return { ok: true, savedAs: 'todo', id: t.id };
+          // L2/L4.4: the To-dos surface is gone — a captured "to-do" becomes a
+          // checklist item on the list note (created on first use).
+          const r = appendChecklistItem(deps.repos.notes, text);
+          return { ok: true, savedAs: 'todo', id: r.noteId };
         }
         case 'reminder': {
           const dueTs = req.reminderIso ? DateTime.fromISO(req.reminderIso).toMillis() : now() + 3_600_000;

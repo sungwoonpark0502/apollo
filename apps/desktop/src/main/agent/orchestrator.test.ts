@@ -7,7 +7,6 @@ import { createRepos, type Repos } from '../db/repos/index';
 import { createRegistry } from '../tools/registry';
 import { createTimerTools } from '../tools/timer';
 import { createNoteTools } from '../tools/note';
-import { createTodoTools } from '../tools/todo';
 import { createBriefTool } from '../tools/brief';
 import { createOrchestrator, type Orchestrator } from './orchestrator';
 import { FakeLlm, type FakeStep } from './llmFake';
@@ -90,7 +89,6 @@ function setup(script: FakeStep[], opts: { confirmTtlMs?: number; cancelWindowMs
   const registry = createRegistry([
     ...createTimerTools({ timers: repos.timers, undo: repos.undo }),
     ...createNoteTools({ notes: repos.notes, undo: repos.undo }),
-    ...createTodoTools({ todos: repos.todos, undo: repos.undo }),
     fakeSend,
     fakeUntrustedFetch,
     fakeSearch,
@@ -157,17 +155,17 @@ describe('tool loop', () => {
       {
         toolUses: [
           { name: 'note.save', input: { content: 'wifi is hunter2' } },
-          { name: 'todo.add', input: { content: 'buy milk' } },
+          { name: 'timer.start', input: { durationSec: 300, label: 'pasta' } },
         ],
       },
       { text: 'Saved both.' },
     ]);
-    await say(orch, 'note the wifi and remind me to buy milk');
-    expect(repos.todos.listOpen()).toHaveLength(1);
+    await say(orch, 'note the wifi and start a pasta timer');
+    expect(repos.timers.listActive()).toHaveLength(1);
     expect(repos.notes.search('wifi')).toHaveLength(1);
     const flat = JSON.stringify(llm.requests[1]!.messages);
     expect(flat).toContain('Noted');
-    expect(flat).toContain('Added to your list');
+    expect(flat).toContain('Timer set');
   });
 
   it('caps runaway loops at 8 iterations with an apology', async () => {

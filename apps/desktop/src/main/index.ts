@@ -31,7 +31,6 @@ import { createRegistry } from './tools/registry';
 import { createTimerTools } from './tools/timer';
 import { createAlarmTools } from './tools/alarm';
 import { createNoteTools } from './tools/note';
-import { createTodoTools } from './tools/todo';
 import { createContactTools } from './tools/contact';
 import { createMemoryTools } from './tools/memory';
 import { createUndoTool } from './tools/undo';
@@ -325,7 +324,6 @@ function boot(): void {
       ...createTimerTools({ timers: repos.timers, undo: repos.undo, onArm: () => scheduler.rearm() }),
       ...createAlarmTools({ alarms: repos.alarms, undo: repos.undo, onArm: () => scheduler.rearm() }),
       ...createNoteTools({ notes: repos.notes, undo: repos.undo }),
-      ...createTodoTools({ todos: repos.todos, undo: repos.undo }),
       ...createContactTools({ contacts: repos.contacts, undo: repos.undo }),
       ...createMemoryTools({
         memory: repos.memory,
@@ -1082,8 +1080,9 @@ function boot(): void {
         // F4 Quick Capture: classify (reminder detection) + submit a todo, verify it appears live (zero LLM).
         const cls = await window.apollo.call('capture.classify', { text: 'call mom tomorrow at 6' });
         const cap = await window.apollo.call('capture.submit', { text: 'file quarterly taxes', type: 'todo' });
-        const todos = await window.apollo.call('todos.list', {});
-        const captureOk = cls.suggestedType === 'reminder' && cap.ok && todos.some((t) => t.id === cap.id);
+        // L2: a captured to-do becomes a checklist item on the list note.
+        const listNote = await window.apollo.call('notes.get', { id: cap.id });
+        const captureOk = cls.suggestedType === 'reminder' && cap.ok && listNote.content.includes('file quarterly taxes');
         if (!seen || changed === 0) return 'workspace-bad:seen=' + seen + ',changed=' + changed;
         return captureOk ? 'turn-ok' : 'capture-bad:cls=' + cls.suggestedType + ',ok=' + cap.ok;
       })()`;

@@ -87,10 +87,6 @@ const invokeFixtures: Record<InvokeChannelName, { req: unknown; res: unknown }> 
   'notes.save': { req: { content: 'Groceries\nmilk, eggs' }, res: { id: 'n1', content: 'Groceries\nmilk, eggs', pinned: false, updatedAt: 1 } },
   'notes.delete': { req: { id: 'n1' }, res: { undoToken: 'u1' } },
   'notes.pin': { req: { id: 'n1', pinned: true }, res: { ok: true } },
-  'todos.list': { req: {}, res: [{ id: 't1', content: 'buy milk', dueTs: null, done: false }] },
-  'todos.add': { req: { content: 'buy milk' }, res: { id: 't1' } },
-  'todos.toggle': { req: { id: 't1', done: true }, res: { ok: true } },
-  'todos.delete': { req: { id: 't1' }, res: { ok: true } },
   'undo.apply': { req: { undoToken: 'u1' }, res: { ok: true } },
   'undo.recent': { req: {}, res: [{ undoToken: 'u1', label: 'Deleted a note', ts: 1_800_000_000_000 }] },
   'undo.latest': { req: {}, res: { ok: true, label: 'Deleted a note' } },
@@ -154,6 +150,7 @@ const invokeFixtures: Record<InvokeChannelName, { req: unknown; res: unknown }> 
   'workspace.today': {
     req: {},
     res: {
+      news: [],
       weather: {
         place: 'Columbus',
         now: { tempF: 88, feelsF: 92, condition: 'Sunny', precipPct: 5, windMph: 6 },
@@ -242,8 +239,6 @@ describe('malformed payload rejection', () => {
     expect(invokeChannels['notes.list'].req.safeParse({ limit: 10_000 }).success).toBe(false);
     expect(invokeChannels['notes.save'].req.safeParse({ content: 42 }).success).toBe(false);
     expect(invokeChannels['notes.pin'].req.safeParse({ id: 'n1', pinned: 'yes' }).success).toBe(false);
-    expect(invokeChannels['todos.add'].req.safeParse({ content: '' }).success).toBe(false);
-    expect(invokeChannels['todos.toggle'].req.safeParse({ id: 't1' }).success).toBe(false);
     expect(invokeChannels['undo.apply'].req.safeParse({}).success).toBe(false);
     expect(pushChannels['data.changed'].safeParse({ entity: 'spaceship', op: 'create', id: 'x' }).success).toBe(false);
     expect(pushChannels['data.changed'].safeParse({ entity: 'note', op: 'upsert', id: 'x' }).success).toBe(false);

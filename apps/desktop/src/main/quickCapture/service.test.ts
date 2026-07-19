@@ -7,6 +7,7 @@ import { createDataBus } from '../db/bus';
 import { createRepos, type Repos } from '../db/repos/index';
 import { buildWorkspaceHandlers } from '../ipc/handlers/workspace';
 import { createQuickCaptureService } from './service';
+import { readChecklist } from '../notes/listNote';
 
 const TZ = 'America/Los_Angeles';
 const NOW = new Date('2026-07-11T10:00:00-07:00').getTime();
@@ -39,11 +40,14 @@ describe('Quick Capture save path (F4)', () => {
     expect(handlers['notes.list']({ limit: 50 }).map((n) => n.id)).toContain(res.id);
   });
 
-  it('saves a todo', () => {
+  it('L2: a captured to-do becomes a checklist item on the list note', () => {
     const { svc, repos: r } = service();
     const res = svc.submit({ text: 'file taxes', type: 'todo' });
     expect(res.savedAs).toBe('todo');
-    expect(r.todos.listAll().some((t) => t.id === res.id && t.content === 'file taxes')).toBe(true);
+    // The standalone To-dos surface is gone: it lands in the list note instead.
+    const note = r.notes.get(res.id)!;
+    expect(note.content).toContain('- [ ] file taxes');
+    expect(readChecklist(r.notes).map((i) => i.text)).toEqual(['file taxes']);
   });
 
   it('saves a reminder at the resolved time and re-arms the scheduler', () => {

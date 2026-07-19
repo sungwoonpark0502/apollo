@@ -195,16 +195,7 @@ export const invokeChannels = {
   },
   'notes.delete': { req: z.object({ id: z.string() }), res: z.object({ undoToken: z.string() }) },
   'notes.pin': { req: z.object({ id: z.string(), pinned: z.boolean() }), res: ackSchema },
-  'todos.list': {
-    req: z.object({}),
-    res: z.array(z.object({ id: z.string(), content: z.string(), dueTs: z.number().nullable(), done: z.boolean() })),
-  },
-  'todos.add': {
-    req: z.object({ content: z.string().min(1), dueTs: z.number().optional() }),
-    res: z.object({ id: z.string() }),
-  },
-  'todos.toggle': { req: z.object({ id: z.string(), done: z.boolean() }), res: ackSchema },
-  'todos.delete': { req: z.object({ id: z.string() }), res: ackSchema },
+  // L2: the standalone To-dos surface is removed; checklists live in notes.
   'undo.apply': { req: z.object({ undoToken: z.string() }), res: ackSchema }, // UI undo toasts
   // I3 global undo: last 10 undoable actions across all surfaces + a shortcut that undoes the newest.
   'undo.recent': {
@@ -366,6 +357,8 @@ export const invokeChannels = {
         })
         .nullable(),
       brief: cardPayloadSchema.nullable(),
+      // L2: Today shows today's news as its last section.
+      news: z.array(z.object({ title: z.string(), source: z.string(), url: z.string() })).default([]),
     }),
   },
 } as const satisfies Record<string, ChannelDef>;

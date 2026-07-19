@@ -19,6 +19,11 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+      # A native source build (better-sqlite3) needs MSVC on Windows. Normally
+      # native-abi.mjs verifies the installed binary and skips building, but a
+      # toolchain must exist for the cases where a build is unavoidable.
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: runner.os == 'Windows'
       - run: pnpm i --frozen-lockfile
       - run: pnpm lint
       - run: pnpm -r typecheck
@@ -38,6 +43,10 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm i --frozen-lockfile
+      # These steps invoke vitest directly, bypassing `pretest`. Verify (and
+      # repair, if a cached binary was built under a different Node) the
+      # better-sqlite3 ABI before any suite touches the database.
+      - run: node apps/desktop/scripts/native-abi.mjs node
       # Injection suite (C21.3) is a release gate at 100%; runs on FakeLLM so no key needed.
       - name: injection suite (release gate, 100%)
         run: pnpm --filter @apollo/desktop exec vitest run src/main/agent/injection.test.ts src/main/security/sanitizeEmail.test.ts

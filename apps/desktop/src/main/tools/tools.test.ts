@@ -5,7 +5,6 @@ import { createRepos, type Repos } from '../db/repos/index';
 import { createTimerTools } from './timer';
 import { createAlarmTools } from './alarm';
 import { createNoteTools } from './note';
-import { createTodoTools } from './todo';
 import { createContactTools } from './contact';
 import { createMemoryTools } from './memory';
 import { createUndoTool } from './undo';
@@ -24,7 +23,6 @@ beforeEach(() => {
     ...createTimerTools({ timers: repos.timers, undo: repos.undo }),
     ...createAlarmTools({ alarms: repos.alarms, undo: repos.undo }),
     ...createNoteTools({ notes: repos.notes, undo: repos.undo }),
-    ...createTodoTools({ todos: repos.todos, undo: repos.undo }),
     ...createContactTools({ contacts: repos.contacts, undo: repos.undo }),
     ...createMemoryTools({ memory: repos.memory, undo: repos.undo }),
     createUndoTool(repos),
@@ -81,23 +79,6 @@ describe('note tools', () => {
   });
 });
 
-describe('todo tools', () => {
-  it('ambiguous complete lists candidates instead of guessing (C7)', async () => {
-    await reg.execute('todo.add', { content: 'buy milk' }, makeCtx());
-    await reg.execute('todo.add', { content: 'buy stamps' }, makeCtx());
-    const res = await reg.execute('todo.complete', { content: 'buy' }, makeCtx());
-    expect(res.llmText).toMatch(/^WARNING 2 todos match/);
-    expect(repos.todos.listOpen()).toHaveLength(2);
-
-    const ok = await reg.execute('todo.complete', { content: 'buy milk' }, makeCtx());
-    expect(ok.llmText).toContain('Done');
-    expect(repos.todos.listOpen()).toHaveLength(1);
-  });
-
-  it('rejects invalid due dates', async () => {
-    expect((await reg.execute('todo.add', { content: 'x', dueIso: 'not-a-date' }, makeCtx())).llmText).toMatch(/^ERROR/);
-  });
-});
 
 describe('contact + memory tools', () => {
   it('contact add/find round trip', async () => {

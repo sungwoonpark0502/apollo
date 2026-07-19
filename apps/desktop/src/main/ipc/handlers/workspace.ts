@@ -201,25 +201,6 @@ export function buildWorkspaceHandlers(deps: WorkspaceHandlerDeps) {
       return { ok: true as const };
     },
 
-    'todos.list': (): InvokeRes<'todos.list'> =>
-      repos.todos.listAll().map((t) => ({ id: t.id, content: t.content, dueTs: t.dueTs, done: t.done })),
-
-    'todos.add': (req: InvokeReq<'todos.add'>): InvokeRes<'todos.add'> => {
-      const t = repos.todos.add({ content: req.content, dueTs: req.dueTs ?? null });
-      return { id: t.id };
-    },
-
-    'todos.toggle': (req: InvokeReq<'todos.toggle'>): InvokeRes<'todos.toggle'> => {
-      if (req.done) repos.todos.complete(req.id);
-      else repos.todos.uncomplete(req.id);
-      return { ok: true as const };
-    },
-
-    'todos.delete': (req: InvokeReq<'todos.delete'>): InvokeRes<'todos.delete'> => {
-      repos.todos.softDelete(req.id);
-      return { ok: true as const };
-    },
-
     'undo.apply': (req: InvokeReq<'undo.apply'>): InvokeRes<'undo.apply'> => {
       const entry = repos.undo.popById(req.undoToken);
       if (!entry) throw new Error('nothing to undo');

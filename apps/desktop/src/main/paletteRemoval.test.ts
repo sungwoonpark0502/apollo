@@ -58,10 +58,10 @@ describe('K5 palette removal gates', () => {
     expect(s.voice.pttHotkey).toBe('Alt+Space');
   });
 
-  it('the shortcuts registry has no palette entry and maps Mod+1 to Chat', () => {
+  it('the shortcuts registry has no palette entry and maps Mod+1 to Today (L2)', () => {
     expect(shortcut('global.toggle')).toBeUndefined();
     expect(SHORTCUTS.some((sc) => /palette/i.test(sc.description))).toBe(false);
-    expect(shortcut('workspace.chat')?.binding).toEqual({ key: '1', mod: true });
+    expect(shortcut('workspace.today')?.binding).toEqual({ key: '1', mod: true });
     // the help sheet renders from this same registry (single source, I6)
     expect(shortcut('global.ptt')?.description).toBe('Push to talk');
   });
@@ -100,5 +100,40 @@ describe('L5 settings surface (12.3)', () => {
     expect(about).toContain('DiagnosticsTab');
     const settings = readFileSync(join(REPO, 'apps/desktop/src/renderer/windows/settings/SettingsApp.tsx'), 'utf8');
     expect(settings).not.toContain('DiagnosticsTab');
+  });
+});
+
+describe('L2 rail, Today, and To-dos removal (12.4)', () => {
+  it('the rail lists Today first, then Chat, Calendar, Notes', () => {
+    const src = readFileSync(join(REPO, 'apps/desktop/src/renderer/windows/workspace/WorkspaceApp.tsx'), 'utf8');
+    // The Settings button is written multi-line, so allow any whitespace.
+    const order = [...src.matchAll(/<RailButton\s+label=\{STRINGS\.workspace\.nav\.(\w+)\}/g)].map((m) => m[1]);
+    expect(order).toEqual(['today', 'chat', 'calendar', 'notes', 'settings']);
+  });
+
+  it('Today renders exactly the header plus schedule, weather, and news', () => {
+    const src = readFileSync(join(REPO, 'apps/desktop/src/renderer/windows/workspace/TodayView.tsx'), 'utf8');
+    const sections = [...src.matchAll(/<Section\s+title=\{STRINGS\.workspace\.today\.(\w+)\}/g)].map((m) => m[1]);
+    expect(sections).toEqual(['todaysEvents', 'weather', 'weather', 'news']); // weather has empty + populated branches
+    // The removed sections are gone.
+    for (const gone of ['upNext', 'reminders', 'todos', 'latestBrief']) {
+      expect(src).not.toContain(`today.${gone}`);
+    }
+    expect(src).not.toContain('todos.');
+  });
+
+  it('no todo tool, IPC channel, or proactive rule survives', () => {
+    expect(existsSync(join(REPO, 'apps/desktop/src/main/tools/todo.ts'))).toBe(false);
+    expect(existsSync(join(REPO, 'apps/desktop/src/main/proactive/rules/overdueTodos.ts'))).toBe(false);
+    const ipc = readFileSync(join(REPO, 'packages/shared/src/ipc.ts'), 'utf8');
+    expect(ipc).not.toMatch(/'todos\.(list|add|toggle|delete)'/);
+    const rules = readFileSync(join(REPO, 'apps/desktop/src/main/proactive/rules/index.ts'), 'utf8');
+    expect(rules).not.toMatch(/import .*overdueTodos/); // not imported
+    expect(rules).not.toMatch(/BUILTIN_RULES[^;]*overdueTodos/s); // not registered
+  });
+
+  it('the eval set no longer exercises todo tools', () => {
+    const golden = readFileSync(join(REPO, 'eval/golden.jsonl'), 'utf8');
+    expect(golden).not.toContain('"todo.');
   });
 });

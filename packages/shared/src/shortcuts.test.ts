@@ -15,9 +15,9 @@ describe('I6 shortcuts registry (single source)', () => {
     }
   });
 
-  it('K2: Chat is Mod+1 and the others shift; the palette hotkey entry is gone', () => {
-    expect(shortcut('workspace.chat')?.binding).toEqual({ key: '1', mod: true });
-    expect(shortcut('workspace.today')?.binding).toEqual({ key: '2', mod: true });
+  it('L2: Today is Mod+1 (supersedes K2) and the palette hotkey entry is gone', () => {
+    expect(shortcut('workspace.today')?.binding).toEqual({ key: '1', mod: true });
+    expect(shortcut('workspace.chat')?.binding).toEqual({ key: '2', mod: true });
     expect(shortcut('workspace.calendar')?.binding).toEqual({ key: '3', mod: true });
     expect(shortcut('workspace.notes')?.binding).toEqual({ key: '4', mod: true });
     expect(shortcut('global.toggle')).toBeUndefined(); // palette hotkey removed

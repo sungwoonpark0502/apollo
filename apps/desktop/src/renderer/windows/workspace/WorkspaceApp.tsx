@@ -20,7 +20,7 @@ const RAIL_W = 64;
 
 export function WorkspaceApp(): React.JSX.Element {
   useFormatInit();
-  const [view, setView] = useState<View>('chat'); // K1: workspace.defaultView default
+  const [view, setView] = useState<View>('today'); // L2: Today is the default landing view
   const [navDateIso, setNavDateIso] = useState<string | undefined>(undefined);
   const [navNoteId, setNavNoteId] = useState<string | undefined>(undefined);
   const [navConvId, setNavConvId] = useState<string | undefined>(undefined);
@@ -36,7 +36,7 @@ export function WorkspaceApp(): React.JSX.Element {
   // win; adjust-during-render keeps this cascade-free).
   if (!appliedDefault && settings) {
     setAppliedDefault(true);
-    setView((v) => (v === 'chat' ? settings.workspace.defaultView : v));
+    setView((v) => (v === 'today' ? settings.workspace.defaultView : v));
   }
 
   /**
@@ -133,8 +133,8 @@ export function WorkspaceApp(): React.JSX.Element {
           gap: 'var(--sp-2)',
         }}
       >
-        <RailButton label={STRINGS.workspace.nav.chat} active={view === 'chat'} onClick={() => go('chat')} glyph="✻" />
         <RailButton label={STRINGS.workspace.nav.today} active={view === 'today'} onClick={() => go('today')} glyph="◉" />
+        <RailButton label={STRINGS.workspace.nav.chat} active={view === 'chat'} onClick={() => go('chat')} glyph="✻" />
         <RailButton label={STRINGS.workspace.nav.calendar} active={view === 'calendar'} onClick={() => go('calendar')} glyph="▦" />
         <RailButton label={STRINGS.workspace.nav.notes} active={view === 'notes'} onClick={() => go('notes')} glyph="≡" />
         <div style={{ flex: 1 }} />

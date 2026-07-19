@@ -55,7 +55,8 @@ export const SettingsSchema = z.object({
   // PART K: Workspace launch behavior (absorbs the legacy top-level openWorkspaceOnLaunch)
   workspace: z
     .object({
-      defaultView: z.enum(['chat', 'today', 'calendar', 'notes']).default('chat'),
+      // L2: Today is the default landing view (supersedes K1's 'chat').
+      defaultView: z.enum(['chat', 'today', 'calendar', 'notes']).default('today'),
       openOnLaunch: z.boolean().default(false),
     })
     .default({}),
