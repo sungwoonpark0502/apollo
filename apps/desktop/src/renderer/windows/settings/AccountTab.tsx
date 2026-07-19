@@ -21,11 +21,14 @@ export function AccountTab({ mode }: { mode: 'managed' | 'byok' }): React.JSX.El
   const [usage, setUsage] = useState<{ used: number; limit: number; resetIso: string } | null>(null);
 
   useEffect(() => {
-    const off = window.apollo.on('auth.state', (s) => {
+    void window.apollo.call('auth.status', {}).then((s) => {
       setStatus(s.status);
       setUser(s.user ?? null);
     });
-    return off;
+    return window.apollo.on('auth.state', (s) => {
+      setStatus(s.status);
+      setUser(s.user ?? null);
+    });
   }, []);
 
   // Clear stale usage on a status change during render (no cascading effect),

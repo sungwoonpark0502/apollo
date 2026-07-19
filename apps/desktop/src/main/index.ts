@@ -186,6 +186,7 @@ function boot(): void {
     });
     configureCalendars(s.calendars.active);
   };
+  let breakSchedulerRef: { reset(): void } | null = null;
   const applyLoginItem = (open: boolean): void => {
     if (!app.isPackaged) return; // dev binary must never become a login item
     app.setLoginItemSettings({ openAtLogin: open });
@@ -199,6 +200,8 @@ function boot(): void {
       if (next.wake.sensitivity !== prev.wake.sensitivity) workerHost.send({ t: 'setSensitivity', v: next.wake.sensitivity });
       if (next.voice.orbIdleMode !== prev.voice.orbIdleMode) orbControllerRef?.refresh(); // L3.1
       if (JSON.stringify(next.proactive) !== JSON.stringify(prev.proactive)) proactiveRef?.reconfigure();
+      // A changed interval restarts the countdown; never fires on the spot.
+      if (JSON.stringify(next.breaks) !== JSON.stringify(prev.breaks)) breakSchedulerRef?.reset();
       if (next.history.enabled !== prev.history.enabled) indexer.onHistoryToggled(next.history.enabled); // G3/G7 immediate purge
       // E7: broadcast so open views re-render on units/timeFormat/weekStart/profile changes.
       // workspaceBounds churns on every drag; exclude it from the broadcast.
@@ -337,7 +340,9 @@ function boot(): void {
     appMode === 'byok'
       ? createAnthropicLlm({
           apiKey: () => secrets.get('anthropic'),
-          model: () => settings.get().anthropic.model,
+          // The composer picker writes chat.model; anthropic.model (env-set)
+          // stays as the fallback so pre-picker installs keep their choice.
+          model: () => resolveModelChoice('anthropic', settings.get().chat.model ?? settings.get().anthropic.model).model,
           fetchFn: egressCheckedFetch,
           log,
         })
@@ -902,6 +907,7 @@ function boot(): void {
     },
     dictationStop: () => voiceController.stopDictation(),
     // L1 accounts: main owns the tokens; the renderer only ever sees state.
+    authState: () => authSession.state(),
     authSignIn: () => authSession.signIn(),
     authSignOut: () => authSession.signOut(),
     authPasswordSignIn: (email, password) => authSession.signInWithPassword(email, password),
@@ -1044,6 +1050,7 @@ function boot(): void {
     },
   });
   breakScheduler.start();
+  breakSchedulerRef = breakScheduler;
 
   // F3 proactive engine: deterministic, local-only nudges gated by the governor.
   const proactive = createProactiveController({

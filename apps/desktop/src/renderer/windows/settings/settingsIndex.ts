@@ -34,6 +34,11 @@ export const SETTINGS_INDEX: readonly SettingEntry[] = [
   { id: 'chatAutoScroll', tab: 'general', label: s.general.chatAutoScroll, keywords: ['scroll'] },
   { id: 'quickCaptureHotkey', tab: 'general', label: s.general.quickCaptureHotkey, keywords: ['shortcut', 'hotkey', 'capture'] },
 
+  { id: 'profileName', tab: 'general', label: s.profile.name, keywords: ['name', 'call me', 'profile'] },
+  { id: 'profileLocation', tab: 'general', label: s.profile.location, keywords: ['location', 'city', 'weather', 'home'] },
+  { id: 'profileUnits', tab: 'general', label: s.profile.units, keywords: ['celsius', 'fahrenheit', 'metric', 'imperial'] },
+  { id: 'profileTimeFormat', tab: 'general', label: s.profile.timeFormat, keywords: ['24 hour', '12 hour', 'clock', 'time format'] },
+
   // Account
   { id: 'signIn', tab: 'account', label: s.account.signIn, keywords: ['login', 'log in', 'sign in', 'account', 'password', 'email'] },
   { id: 'signOut', tab: 'account', label: s.account.signOut, keywords: ['logout', 'log out', 'sign out'] },

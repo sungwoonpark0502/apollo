@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { getAccessToken, loadSession } from './api';
 import { SignIn } from './SignIn';
-import { ChatApp } from './ChatApp';
+import { Workspace } from './Workspace';
 
 /** Session gate: restore from the stored refresh token, else the sign-in form. */
 export function App(): React.JSX.Element {
@@ -28,5 +28,5 @@ export function App(): React.JSX.Element {
     return <div style={{ display: 'grid', placeContent: 'center', height: '100%', color: 'var(--text-3)' }}>…</div>;
   }
   if (!user) return <SignIn onSignedIn={setUser} />;
-  return <ChatApp user={user} onSignedOut={() => setUser(null)} />;
+  return <Workspace user={user} onSignedOut={() => setUser(null)} />;
 }

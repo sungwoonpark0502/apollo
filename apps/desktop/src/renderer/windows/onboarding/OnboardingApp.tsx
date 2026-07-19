@@ -127,7 +127,10 @@ function Permissions(): React.JSX.Element {
  */
 function AccountStep(): React.JSX.Element {
   const [status, setStatus] = useState<AuthStatus>('signedOut');
-  useEffect(() => window.apollo.on('auth.state', (s) => setStatus(s.status)), []);
+  useEffect(() => {
+    void window.apollo.call('auth.status', {}).then((s) => setStatus(s.status));
+    return window.apollo.on('auth.state', (s) => setStatus(s.status));
+  }, []);
   return (
     <Panel title={STRINGS.onboarding.accountTitle}>
       <p style={body}>{STRINGS.onboarding.accountBody}</p>

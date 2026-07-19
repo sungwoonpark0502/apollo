@@ -1,5 +1,5 @@
 import pg from 'pg';
-import { periodResetIso, type RefreshRecord, type Store, type User, type UsageWindow } from './store';
+import { periodResetIso, type RefreshRecord, type Store, type User, type UsageWindow, type WebEvent, type WebNote } from './store';
 
 /**
  * Postgres store (production). Schema is created on boot so a fresh deploy
@@ -28,6 +28,27 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
   rotated_at BIGINT
 );
 CREATE INDEX IF NOT EXISTS idx_refresh_user ON refresh_tokens(user_id);
+CREATE TABLE IF NOT EXISTS web_notes (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL DEFAULT '',
+  content TEXT NOT NULL DEFAULT '',
+  pinned BOOLEAN NOT NULL DEFAULT false,
+  updated_at BIGINT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_web_notes_user ON web_notes(user_id);
+CREATE TABLE IF NOT EXISTS web_events (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  start_iso TEXT NOT NULL,
+  end_iso TEXT NOT NULL,
+  all_day BOOLEAN NOT NULL DEFAULT false,
+  location TEXT,
+  notes TEXT,
+  updated_at BIGINT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_web_events_user ON web_events(user_id, start_iso);
 CREATE TABLE IF NOT EXISTS usage_counters (
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   period TEXT NOT NULL,
@@ -59,6 +80,46 @@ export async function createPostgresStore(connectionString: string): Promise<Sto
     async getUser(id) {
       const { rows } = await pool.query<User>('SELECT id, name, email, plan, subject FROM users WHERE id=$1', [id]);
       return rows[0] ?? null;
+    },
+    async listNotes(userId) {
+      const { rows } = await pool.query<{ id: string; user_id: string; title: string; content: string; pinned: boolean; updated_at: string }>(
+        'SELECT * FROM web_notes WHERE user_id=$1 ORDER BY pinned DESC, updated_at DESC',
+        [userId],
+      );
+      return rows.map((r): WebNote => ({ id: r.id, userId: r.user_id, title: r.title, content: r.content, pinned: r.pinned, updatedAt: Number(r.updated_at) }));
+    },
+    async upsertNote(userId, note) {
+      // WHERE user_id on the conflict update: an id collision across accounts
+      // must never overwrite another user's row.
+      await pool.query(
+        `INSERT INTO web_notes(id, user_id, title, content, pinned, updated_at) VALUES ($1,$2,$3,$4,$5,$6)
+         ON CONFLICT (id) DO UPDATE SET title=EXCLUDED.title, content=EXCLUDED.content, pinned=EXCLUDED.pinned, updated_at=EXCLUDED.updated_at
+         WHERE web_notes.user_id = $2`,
+        [note.id, userId, note.title, note.content, note.pinned, note.updatedAt],
+      );
+      return { ...note, userId };
+    },
+    async deleteNote(userId, id) {
+      return (await pool.query('DELETE FROM web_notes WHERE id=$1 AND user_id=$2', [id, userId])).rowCount === 1;
+    },
+    async listEvents(userId, fromIso, toIso) {
+      const { rows } = await pool.query<{ id: string; user_id: string; title: string; start_iso: string; end_iso: string; all_day: boolean; location: string | null; notes: string | null; updated_at: string }>(
+        'SELECT * FROM web_events WHERE user_id=$1 AND start_iso < $3 AND end_iso >= $2 ORDER BY start_iso',
+        [userId, fromIso, toIso],
+      );
+      return rows.map((r): WebEvent => ({ id: r.id, userId: r.user_id, title: r.title, startIso: r.start_iso, endIso: r.end_iso, allDay: r.all_day, location: r.location, notes: r.notes, updatedAt: Number(r.updated_at) }));
+    },
+    async upsertEvent(userId, event) {
+      await pool.query(
+        `INSERT INTO web_events(id, user_id, title, start_iso, end_iso, all_day, location, notes, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+         ON CONFLICT (id) DO UPDATE SET title=EXCLUDED.title, start_iso=EXCLUDED.start_iso, end_iso=EXCLUDED.end_iso, all_day=EXCLUDED.all_day, location=EXCLUDED.location, notes=EXCLUDED.notes, updated_at=EXCLUDED.updated_at
+         WHERE web_events.user_id = $2`,
+        [event.id, userId, event.title, event.startIso, event.endIso, event.allDay, event.location, event.notes, event.updatedAt],
+      );
+      return { ...event, userId };
+    },
+    async deleteEvent(userId, id) {
+      return (await pool.query('DELETE FROM web_events WHERE id=$1 AND user_id=$2', [id, userId])).rowCount === 1;
     },
     async getUserByEmail(email) {
       const { rows } = await pool.query<User & { password_hash: string | null }>(

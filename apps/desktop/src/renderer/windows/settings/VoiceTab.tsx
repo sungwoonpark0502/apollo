@@ -93,13 +93,6 @@ export function VoiceTab({ embedded = false }: { embedded?: boolean } = {}): Rea
           ariaLabel={STRINGS.settings.voice.earconVolume} valueLabel={`${Math.round(settings.voice.earconVolume * 100)}%`} width={160} />
       </Row>
 
-      <Row label={STRINGS.settings.voice.followup}>
-        <Slider min={0} max={15} step={1} value={settings.voice.followupWindowSec}
-          onChange={(v) => patch({ ...settings, voice: { ...settings.voice, followupWindowSec: v } })}
-          ariaLabel={STRINGS.settings.voice.followup}
-          valueLabel={settings.voice.followupWindowSec === 0 ? STRINGS.settings.voice.off : `${settings.voice.followupWindowSec}s`} width={160} />
-      </Row>
-
       <Row label={STRINGS.settings.voice.pauseWakeOnBattery}>
         <Toggle checked={settings.voice.pauseWakeOnBattery} onChange={(v: boolean) => patch({ ...settings, voice: { ...settings.voice, pauseWakeOnBattery: v } })} />
       </Row>

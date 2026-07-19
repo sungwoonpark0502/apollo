@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Toggle } from '../../components/Toggle';
+import { ProfileTab } from './ProfileTab';
 import { STRINGS, orbEdgeSchema, type Settings } from '@apollo/shared';
 
 const EDGES = orbEdgeSchema.options;
@@ -89,9 +90,10 @@ export function GeneralTab(): React.JSX.Element {
       </Row>
       </details>
 
-      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-3)', marginTop: 'var(--sp-2)' }}>
-        Home location, units, and time format live in the Profile tab.
-      </div>
+      {/* Profile lost its own tab in the regroup; these fields power weather,
+          the brief, and greetings, so they live here where both modes reach them. */}
+      <h3 style={{ fontSize: 'var(--fs-title)', margin: 'var(--sp-5) 0 var(--sp-2)' }}>{STRINGS.settings.profile.title}</h3>
+      <ProfileTab embedded />
     </div>
   );
 }

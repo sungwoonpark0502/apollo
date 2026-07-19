@@ -24,14 +24,18 @@ export function AccountMenu({ mode }: { mode: 'managed' | 'byok' }): React.JSX.E
   const [user, setUser] = useState<AuthUser | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
-  useEffect(
-    () =>
-      window.apollo.on('auth.state', (s) => {
-        setStatus(s.status);
-        setUser(s.user ?? null);
-      }),
-    [],
-  );
+  useEffect(() => {
+    // Initial state by invoke — the push only reaches windows that exist when
+    // state changes, and a boot-restored session predates every window.
+    void window.apollo.call('auth.status', {}).then((s) => {
+      setStatus(s.status);
+      setUser(s.user ?? null);
+    });
+    return window.apollo.on('auth.state', (s) => {
+      setStatus(s.status);
+      setUser(s.user ?? null);
+    });
+  }, []);
 
   useEffect(() => {
     if (!open) return;

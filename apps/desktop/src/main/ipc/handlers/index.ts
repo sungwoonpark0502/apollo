@@ -49,6 +49,7 @@ export interface HandlerDeps {
   // L1 accounts. Tokens never cross this boundary — only status/profile/usage.
   authSignIn?: () => Promise<{ ok: boolean }>;
   authSignOut?: () => Promise<void>;
+  authState?: () => InvokeRes<'auth.status'>;
   authUsage?: () => Promise<InvokeRes<'auth.usage'>>;
   authPasswordSignIn?: (email: string, password: string) => Promise<InvokeRes<'auth.signInWithPassword'>>;
   authPasswordSignUp?: (email: string, password: string, name?: string) => Promise<InvokeRes<'auth.signUpWithPassword'>>;
@@ -195,6 +196,7 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
       deps.dictationStop?.();
       return { ok: true as const };
     },
+    'auth.status': () => deps.authState?.() ?? { status: 'signedOut' as const },
     'auth.signIn': async () => {
       await deps.authSignIn?.();
       return { ok: true as const };

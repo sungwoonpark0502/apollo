@@ -180,7 +180,7 @@ model **once at build time** (it is never downloaded at runtime):
 
 ## Product decisions needed before these can be built
 - [ ] **Skills v2 (code-executing) / plugins.** Prompt-pack skills shipped in Customize. Anything that executes needs the sandbox/permission/distribution decisions before a screen for it means anything.
-- [ ] **Cross-device sync.** Web chat history is browser-local by design (DECISIONS), so it does not follow the user or reach the desktop app. Syncing any content reverses the backend's no-user-content property — decide what syncs, with what encryption story, before building it.
+- [ ] **Desktop ↔ account sync.** Web notes/calendar now live on the account (user decision, DECISIONS); desktop data is still device-local, so the two are separate silos until the desktop gains a sync engine against /v1/notes and /v1/events (conflict policy + offline queue needed). This is the single biggest remaining parity gap.
 
 ## Multi-provider live pass (built; needs real keys at deployment)
 - [ ] Set `OPENAI_API_KEY` and/or `GOOGLE_AI_API_KEY` on the backend; confirm `/v1/models` lists them and the picker shows the groups.

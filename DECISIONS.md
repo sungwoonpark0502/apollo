@@ -310,3 +310,40 @@ the user highlighted) into the web client's `?q=` prefill, which never
 auto-sends, so no page can spend the user's quota by being clicked from. Tests
 in apps/web pin the manifest to this posture, so adding a permission later
 means consciously deleting a test that documents why it was absent.
+
+## Phase 13.4 — web parity: account content moves server-side (user decision)
+
+The v1 "web is chat-only, no user content on the server" stance lasted one
+review: the direction is that the web client must match the app, including
+Notes and Calendar, and a Settings page. That requires account content on the
+backend, so the "backend stores no user content" property is now superseded
+FOR WEB-CREATED CONTENT — deliberately, by product decision, and said plainly
+in the web Settings page ("stored with your Apollo account") rather than
+implied away. Web chat history remains browser-local.
+
+Boundaries that keep this sane:
+- Every store accessor takes the caller's userId, making a cross-account read
+  unrepresentable at the interface; route tests prove user B cannot read,
+  overwrite (even with a colliding id), or delete user A's rows.
+- Content routes are quota-exempt: saving a note must never spend LLM turns.
+- Desktop data stays device-local. Web and desktop are therefore two content
+  silos for now — acknowledged, temporary, and the sync milestone in
+  HUMAN_TODO is what merges them. Building sync bottom-up (server store first,
+  which this is) was the only order that doesn't strand web users.
+
+## Audit findings (the "sweep everything" pass)
+
+Five regressions found and fixed, all of the same species as the L3.2 lesson —
+things that compile, look wired, and do nothing:
+1. ProfileTab was orphaned by the settings regroup: name, location, units, and
+   time format existed but no tab rendered them. Now embedded in General and
+   added to the search index.
+2. Auth state was push-only, so a session restored at boot (before any window
+   exists) was invisible — every window still showed signed-out. New
+   auth.status invoke + initial fetch in all four consumers.
+3. BYOK ignored the model picker: the composer writes chat.model, the direct
+   Anthropic client read anthropic.model. Now chat.model wins, anthropic.model
+   remains the env fallback.
+4. The follow-up window had two sliders (VoiceTab + Time and Focus) writing the
+   same setting; Time and Focus owns it now.
+5. Break-reminder settings changes never reset the running countdown.

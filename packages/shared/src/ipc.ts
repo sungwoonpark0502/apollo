@@ -115,6 +115,16 @@ export const invokeChannels = {
   'dictation.start': { req: z.object({}), res: z.object({ ok: z.boolean() }) },
   'dictation.stop': { req: z.object({}), res: ackSchema },
   // L1 accounts. Tokens never cross this boundary — only status and profile.
+  /** Current auth state, for window mount. The push channel only reaches
+   *  windows that exist when state CHANGES; a session restored at boot happens
+   *  before any window does, so push-only UIs showed signed-out forever. */
+  'auth.status': {
+    req: z.object({}),
+    res: z.object({
+      status: z.enum(['signedOut', 'signingIn', 'signedIn']),
+      user: z.object({ name: z.string(), email: z.string(), plan: z.string() }).optional(),
+    }),
+  },
   'auth.signIn': { req: z.object({}), res: ackSchema }, // OIDC path: opens the system browser
   'auth.signOut': { req: z.object({}), res: ackSchema },
   /**

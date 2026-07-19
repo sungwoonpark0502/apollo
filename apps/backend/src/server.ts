@@ -91,7 +91,7 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
       if (req.headers.origin !== deps.webOrigin) return reply.code(403).send();
       return reply
         .header('access-control-allow-origin', deps.webOrigin)
-        .header('access-control-allow-methods', 'GET, POST')
+        .header('access-control-allow-methods', 'GET, POST, PUT, DELETE')
         .header('access-control-allow-headers', 'authorization, content-type')
         .header('access-control-max-age', '86400')
         .code(204)
@@ -327,6 +327,72 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
     if (!user) return reply;
     const configured: LlmProviderId[] = ['anthropic', ...(Object.keys(deps.llmProviders ?? {}) as LlmProviderId[])];
     return reply.send(availableModels(configured));
+  });
+
+  // ---- Phase 13.4 web content: notes + calendar for the web client ----
+  // requireUser scopes every call; the store's userId parameter makes a
+  // cross-account read unrepresentable. Content routes never touch LLM quota.
+
+  const noteBody = z.object({
+    id: z.string().min(1).max(64),
+    title: z.string().max(200).default(''),
+    content: z.string().max(100_000).default(''),
+    pinned: z.boolean().default(false),
+  });
+
+  app.get('/v1/notes', async (req, reply) => {
+    const user = await requireUser(req, reply);
+    if (!user) return reply;
+    return reply.send({ notes: await deps.store.listNotes(user.id) });
+  });
+
+  app.put('/v1/notes', async (req, reply) => {
+    const user = await requireUser(req, reply);
+    if (!user) return reply;
+    const parsed = noteBody.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'invalid_request' });
+    return reply.send({ note: await deps.store.upsertNote(user.id, { ...parsed.data, updatedAt: now() }) });
+  });
+
+  app.delete('/v1/notes/:id', async (req, reply) => {
+    const user = await requireUser(req, reply);
+    if (!user) return reply;
+    const { id } = req.params as { id: string };
+    return reply.send({ ok: await deps.store.deleteNote(user.id, id) });
+  });
+
+  const eventBody = z.object({
+    id: z.string().min(1).max(64),
+    title: z.string().min(1).max(200),
+    startIso: z.string().min(1),
+    endIso: z.string().min(1),
+    allDay: z.boolean().default(false),
+    location: z.string().max(500).nullable().default(null),
+    notes: z.string().max(5000).nullable().default(null),
+  });
+
+  app.get('/v1/events', async (req, reply) => {
+    const user = await requireUser(req, reply);
+    if (!user) return reply;
+    const q = z.object({ fromIso: z.string(), toIso: z.string() }).safeParse(req.query);
+    if (!q.success) return reply.code(400).send({ error: 'invalid_request' });
+    return reply.send({ events: await deps.store.listEvents(user.id, q.data.fromIso, q.data.toIso) });
+  });
+
+  app.put('/v1/events', async (req, reply) => {
+    const user = await requireUser(req, reply);
+    if (!user) return reply;
+    const parsed = eventBody.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'invalid_request' });
+    if (parsed.data.endIso < parsed.data.startIso) return reply.code(400).send({ error: 'invalid_request' });
+    return reply.send({ event: await deps.store.upsertEvent(user.id, { ...parsed.data, updatedAt: now() }) });
+  });
+
+  app.delete('/v1/events/:id', async (req, reply) => {
+    const user = await requireUser(req, reply);
+    if (!user) return reply;
+    const { id } = req.params as { id: string };
+    return reply.send({ ok: await deps.store.deleteEvent(user.id, id) });
   });
 
   app.post('/v1/stt', async (req, reply) => {

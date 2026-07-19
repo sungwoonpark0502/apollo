@@ -137,6 +137,7 @@ const invokeFixtures: Record<InvokeChannelName, { req: unknown; res: unknown }> 
   'dictation.start': { req: {}, res: { ok: true } },
   'dictation.stop': { req: {}, res: { ok: true } },
   'auth.signIn': { req: {}, res: { ok: true } },
+  'auth.status': { req: {}, res: { status: 'signedIn', user: { name: 'S', email: 'a@b.c', plan: 'free' } } },
   'chat.models': { req: {}, res: { providers: [{ id: 'anthropic', label: 'Claude', models: [{ id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6' }], defaultModel: 'claude-sonnet-4-6' }] } },
   'auth.signInWithPassword': { req: { email: 'a@example.com', password: 'a password here' }, res: { ok: true } },
   'auth.signUpWithPassword': { req: { email: 'a@example.com', password: 'a password here', name: 'Sam' }, res: { ok: true } },

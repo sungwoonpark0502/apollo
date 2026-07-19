@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { resolveModelChoice, type AvailableModels, type LlmProviderId } from '@apollo/shared';
-import { chatTurn, fetchModels, logout } from './api';
+import { chatTurn, fetchModels } from './api';
 import {
   appendMessage,
   deleteConversation,
@@ -125,16 +125,14 @@ export function ChatApp({ user, onSignedOut }: { user: { name: string; email: st
             </div>
           ))}
         </div>
-        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 'var(--sp-3)', fontSize: 'var(--fs-caption)', color: 'var(--text-3)' }}>
-          <div style={{ color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.email}</div>
-          <div style={{ margin: 'var(--sp-1) 0' }}>History stays in this browser.</div>
-          <button onClick={() => void logout().then(onSignedOut)} style={signOutBtn}>Log out</button>
+        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 'var(--sp-2)', fontSize: 'var(--fs-caption)', color: 'var(--text-3)' }}>
+          History stays in this browser.
         </div>
       </aside>
 
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <header style={{ padding: 'var(--sp-3) var(--sp-4)', borderBottom: '1px solid var(--border)', fontSize: 'var(--fs-caption)', color: 'var(--text-3)' }}>
-          Chat runs anywhere. Notes, calendar, voice, and your files live in the Apollo desktop app.
+          Chat, notes, and calendar follow your account. Voice and your local files live in the desktop app.
         </header>
 
         <div ref={threadRef} style={{ flex: 1, overflowY: 'auto', padding: 'var(--sp-4)' }}>
@@ -224,11 +222,6 @@ const convRow: React.CSSProperties = {
 };
 const deleteBtn: React.CSSProperties = {
   border: 'none', background: 'transparent', color: 'var(--text-3)', cursor: 'pointer', padding: 'var(--sp-1)',
-};
-const signOutBtn: React.CSSProperties = {
-  border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-2)',
-  borderRadius: 'var(--radius-ctl)', padding: 'var(--sp-1) var(--sp-2)', cursor: 'pointer',
-  fontSize: 'var(--fs-caption)', fontFamily: 'var(--font-sans)',
 };
 const userBubble: React.CSSProperties = {
   maxWidth: '80%', background: 'var(--accent-soft)', color: 'var(--text-1)',

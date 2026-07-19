@@ -561,3 +561,77 @@ describe('Phase 13 CORS for the web client', () => {
     expect(res.statusCode).toBe(401);
   });
 });
+
+describe('Phase 13.4 web content: notes + events', () => {
+  async function twoUsers(app: ReturnType<typeof server>) {
+    const a = (await app.inject({ method: 'POST', url: '/auth/signup', payload: { email: 'a@x.dev', password: 'password for a!' } })).json();
+    const b = (await app.inject({ method: 'POST', url: '/auth/signup', payload: { email: 'b@x.dev', password: 'password for b!' } })).json();
+    return { a: a.accessToken as string, b: b.accessToken as string };
+  }
+  const auth = (t: string) => ({ authorization: `Bearer ${t}` });
+
+  it('note CRUD round-trips for the owner', async () => {
+    const app = server();
+    const { a } = await twoUsers(app);
+    const put = await app.inject({ method: 'PUT', url: '/v1/notes', headers: auth(a), payload: { id: 'n1', title: 'Groceries', content: 'milk' } });
+    expect(put.statusCode).toBe(200);
+    const list = (await app.inject({ method: 'GET', url: '/v1/notes', headers: auth(a) })).json();
+    expect(list.notes).toHaveLength(1);
+    expect(list.notes[0]).toMatchObject({ id: 'n1', title: 'Groceries', content: 'milk', pinned: false });
+    const del = (await app.inject({ method: 'DELETE', url: '/v1/notes/n1', headers: auth(a) })).json();
+    expect(del.ok).toBe(true);
+    expect((await app.inject({ method: 'GET', url: '/v1/notes', headers: auth(a) })).json().notes).toHaveLength(0);
+  });
+
+  it('ISOLATION: user B can never read, overwrite, or delete user A content', async () => {
+    // The property the whole feature stands on.
+    const app = server();
+    const { a, b } = await twoUsers(app);
+    await app.inject({ method: 'PUT', url: '/v1/notes', headers: auth(a), payload: { id: 'n1', title: 'secret', content: 'A only' } });
+
+    expect((await app.inject({ method: 'GET', url: '/v1/notes', headers: auth(b) })).json().notes).toHaveLength(0);
+    // Same id, other account: must not clobber A's row.
+    await app.inject({ method: 'PUT', url: '/v1/notes', headers: auth(b), payload: { id: 'n1', title: 'hijack', content: 'B' } });
+    const aNotes = (await app.inject({ method: 'GET', url: '/v1/notes', headers: auth(a) })).json().notes;
+    expect(aNotes[0].content).toBe('A only');
+    expect((await app.inject({ method: 'DELETE', url: '/v1/notes/n1', headers: auth(b) })).json().ok).toBe(false);
+    expect((await app.inject({ method: 'GET', url: '/v1/notes', headers: auth(a) })).json().notes).toHaveLength(1);
+  });
+
+  it('events range-query and reject end-before-start', async () => {
+    const app = server();
+    const { a } = await twoUsers(app);
+    await app.inject({ method: 'PUT', url: '/v1/events', headers: auth(a), payload: { id: 'e1', title: 'Dentist', startIso: '2026-07-21T15:00:00Z', endIso: '2026-07-21T16:00:00Z' } });
+    await app.inject({ method: 'PUT', url: '/v1/events', headers: auth(a), payload: { id: 'e2', title: 'Far future', startIso: '2027-01-01T00:00:00Z', endIso: '2027-01-01T01:00:00Z' } });
+
+    const july = (await app.inject({ method: 'GET', url: '/v1/events?fromIso=2026-07-01&toIso=2026-08-01', headers: auth(a) })).json();
+    expect(july.events.map((e: { id: string }) => e.id)).toEqual(['e1']);
+
+    const bad = await app.inject({ method: 'PUT', url: '/v1/events', headers: auth(a), payload: { id: 'e3', title: 'x', startIso: '2026-07-22T10:00:00Z', endIso: '2026-07-22T09:00:00Z' } });
+    expect(bad.statusCode).toBe(400);
+  });
+
+  it('every content route requires a session', async () => {
+    const app = server();
+    for (const [method, url] of [['GET', '/v1/notes'], ['PUT', '/v1/notes'], ['DELETE', '/v1/notes/x'], ['GET', '/v1/events?fromIso=a&toIso=b'], ['PUT', '/v1/events'], ['DELETE', '/v1/events/x']] as const) {
+      expect((await app.inject({ method, url })).statusCode, `${method} ${url}`).toBe(401);
+    }
+  });
+
+  it('content writes never consume LLM quota', async () => {
+    const app = server();
+    const { a } = await twoUsers(app);
+    for (let i = 0; i < 5; i++) {
+      await app.inject({ method: 'PUT', url: '/v1/notes', headers: auth(a), payload: { id: `n${i}`, content: 'x' } });
+    }
+    const me = (await app.inject({ method: 'GET', url: '/v1/me', headers: auth(a) })).json();
+    expect(me.usage.used).toBe(0);
+  });
+
+  it('rejects an oversized note body', async () => {
+    const app = server();
+    const { a } = await twoUsers(app);
+    const res = await app.inject({ method: 'PUT', url: '/v1/notes', headers: auth(a), payload: { id: 'big', content: 'x'.repeat(100_001) } });
+    expect(res.statusCode).toBe(400);
+  });
+});

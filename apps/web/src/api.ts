@@ -183,3 +183,68 @@ export async function chatTurn(req: ChatTurnRequest): Promise<ChatTurnResult> {
   if (failed) return { ok: false, error: 'down' };
   return { ok: true, text };
 }
+
+// ---- Phase 13.4 web content (server-side notes + events) ----
+
+export interface WebNoteDto {
+  id: string;
+  title: string;
+  content: string;
+  pinned: boolean;
+  updatedAt: number;
+}
+
+export interface WebEventDto {
+  id: string;
+  title: string;
+  startIso: string;
+  endIso: string;
+  allDay: boolean;
+  location: string | null;
+  notes: string | null;
+}
+
+async function authed(path: string, init: RequestInit = {}): Promise<Response | null> {
+  const token = await getAccessToken();
+  if (!token) return null;
+  try {
+    return await fetch(`${BACKEND}${path}`, {
+      ...init,
+      headers: { ...(init.headers ?? {}), authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+    });
+  } catch {
+    return null;
+  }
+}
+
+export async function listNotes(): Promise<WebNoteDto[]> {
+  const res = await authed('/v1/notes');
+  if (!res?.ok) return [];
+  return ((await res.json()) as { notes: WebNoteDto[] }).notes;
+}
+
+export async function saveNote(note: Omit<WebNoteDto, 'updatedAt'>): Promise<boolean> {
+  const res = await authed('/v1/notes', { method: 'PUT', body: JSON.stringify(note) });
+  return res?.ok ?? false;
+}
+
+export async function deleteNote(id: string): Promise<boolean> {
+  const res = await authed(`/v1/notes/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  return res?.ok ?? false;
+}
+
+export async function listEvents(fromIso: string, toIso: string): Promise<WebEventDto[]> {
+  const res = await authed(`/v1/events?fromIso=${encodeURIComponent(fromIso)}&toIso=${encodeURIComponent(toIso)}`);
+  if (!res?.ok) return [];
+  return ((await res.json()) as { events: WebEventDto[] }).events;
+}
+
+export async function saveEvent(event: WebEventDto): Promise<boolean> {
+  const res = await authed('/v1/events', { method: 'PUT', body: JSON.stringify(event) });
+  return res?.ok ?? false;
+}
+
+export async function deleteEvent(id: string): Promise<boolean> {
+  const res = await authed(`/v1/events/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  return res?.ok ?? false;
+}

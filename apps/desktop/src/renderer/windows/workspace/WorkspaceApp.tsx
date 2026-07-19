@@ -59,7 +59,7 @@ export function WorkspaceApp(): React.JSX.Element {
       if (!alive) return;
       setReadiness(assistantReadiness({ mode, authStatus, hasLlmKey: has('anthropic'), hasSttKey: has('deepgram') }));
     };
-    void recompute('signedOut');
+    void window.apollo.call('auth.status', {}).then((s) => void recompute(s.status));
     const off = window.apollo.on('auth.state', (s) => void recompute(s.status));
     return () => {
       alive = false;
