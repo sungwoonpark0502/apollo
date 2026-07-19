@@ -1,17 +1,14 @@
 import React, { useState } from 'react';
+import { fireControl } from '../../lib/controlDispatch';
 import { STRINGS, type EmailDetailSanitized, type EmailSummary } from '@apollo/shared';
 import { buttonStyle } from './TimerCard';
 
-export function DraftCard({ to, subject, body }: { to: string[]; subject: string; body: string }): React.JSX.Element {
+export function DraftCard({ to, subject, body, convId }: { to: string[]; subject: string; body: string; convId: string | null }): React.JSX.Element {
   const [sent, setSent] = useState(false);
 
   const send = (): void => {
     // Sending goes through the confirm flow; the model re-issues email.send.
-    void window.apollo.call('agent.userMessage', {
-      text: `send that draft to ${to.join(', ')}`,
-      source: 'text',
-      convId: `draft-${subject}`,
-    });
+    void fireControl('email.sendDraft', { text: `send that draft to ${to.join(', ')}`, convId });
     setSent(true);
   };
 
@@ -61,16 +58,12 @@ export function EmailListCard({ items }: { items: EmailSummary[] }): React.JSX.E
   );
 }
 
-export function EmailDetailCard({ email }: { email: EmailDetailSanitized }): React.JSX.Element {
+export function EmailDetailCard({ email, convId }: { email: EmailDetailSanitized; convId: string | null }): React.JSX.Element {
   const [requested, setRequested] = useState(false);
 
   const loadImages = (): void => {
     // Re-reads the message with images allowed; a fresh emailDetail card arrives.
-    void window.apollo.call('agent.userMessage', {
-      text: `show images for email ${email.id}`,
-      source: 'text',
-      convId: `card-${email.id}`,
-    });
+    void fireControl('email.loadImages', { text: `show images for email ${email.id}`, convId });
     setRequested(true);
   };
 

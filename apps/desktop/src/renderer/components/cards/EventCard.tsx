@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { fireControl } from '../../lib/controlDispatch';
 import { fmtDate, fmtRange, STRINGS, type EventDTO } from '@apollo/shared';
 import { buttonStyle } from './TimerCard';
 import { eventToIcs } from '../../lib/ics';
@@ -14,7 +15,7 @@ export function EventCard({ event }: { event: EventDTO }): React.JSX.Element {
   const [copied, setCopied] = useState(false);
 
   const del = (): void => {
-    void window.apollo.call('data.mutate', { op: 'deleteEvent', id: event.id }).then(() => setDeleted(true));
+    void fireControl('event.delete', { id: event.id }).then(() => setDeleted(true));
   };
   const copyIcs = (): void => {
     void navigator.clipboard.writeText(eventToIcs(event)).then(() => {

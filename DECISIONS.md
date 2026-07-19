@@ -82,3 +82,43 @@
 - 2026-07-12: "good morning" is a fast-path intent that runs brief.daily locally (no LLM), so the brief works LLM-down; the brief tool's llmText is a complete ≤4-sentence spoken paragraph usable directly.
 - 2026-07-12: @deepgram/sdk pinned to ^3 — v5 is a generated rewrite with a different live API; v3 matches C12.4's listen.live parameter model exactly.
 - 2026-07-12: The global hotkey both toggles the palette and (when PTT enabled and voice healthy) starts wake-free listening — B1 treats the hotkey as "activate Apollo".
+
+## L3.2 — control dispatch goes through a registry, not inline JSX
+
+The phase brief said to assume many controls did nothing against real flows
+because they had only been exercised with Fake adapters. Verifying that by
+inspection is exactly the method that let the defects through in the first
+place, and this repo has no DOM test harness (renderer tests target pure model
+modules like threadModel/composerModel), so "render it and click it" was not
+available either.
+
+So each control's IPC call moved out of the onClick into `controlDispatch.ts`,
+which maps a control id + context to a channel and payload. That makes the wire
+message the unit under test rather than the handler, and it turns "this control
+is unwired" into a `null` the coverage test fails on instead of a missing
+onClick nobody notices. Controls that are legitimately renderer-local (card pin,
+TTS skip/replay) return `local` with a stated reason, so they stay enumerated.
+
+The cost is one indirection between a button and its effect. The audit is only
+worth writing if it cannot silently go stale, so three guards accompany it: the
+registry must fully resolve, every id must appear in AUDIT-controls.md, and no
+orb-surface component may call `window.apollo.call` directly — that last one is
+what stops a future control from being wired inline and escaping the table.
+
+Four real defects came out of it, including two that spent an LLM turn or
+orphaned a conversation from the K1 shared thread. Both would have kept passing
+any test that only checked the button rendered.
+
+## L3.2 — dead IPC ops removed, missing UI recorded instead
+
+`completeTodo` and `pinCard` had no dispatcher and no path to one: the To-dos
+surface was removed in L2.4, and pinning is renderer-local panel state whose
+handler was a `break;`. Removed from `dataMutateSchema` per the clean-removal
+rule.
+
+`snoozeReminder` and `completeReminder` are equally undispatched, but they are
+not the same thing — the repo methods work and reminders are a live feature that
+currently surfaces as an actionless OS notification. Deleting them would remove
+capability rather than dead weight, and choosing where reminder actions belong
+(notification actions, a ringing overlay, a Today row) is a product decision
+outside L3.2's scope. Recorded in AUDIT-controls.md and HUMAN_TODO.md.

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { fireControl } from '../../lib/controlDispatch';
 import { STRINGS, type ConfirmAction } from '@apollo/shared';
 import { buttonStyle } from './TimerCard';
 
@@ -20,7 +21,7 @@ export function BatchConfirmCard({
 
   const respond = (approved: boolean): void => {
     const deniedIndices = approved ? checked.map((c, i) => (c ? -1 : i)).filter((i) => i >= 0) : [];
-    void window.apollo.call('agent.confirm', { confirmationId, approved, deniedIndices }).then(() => {
+    void fireControl(approved ? 'confirm.batchApprove' : 'confirm.batchDeny', { confirmationId, deniedIndices }).then(() => {
       setResolved(approved ? 'approved' : 'denied');
     });
   };

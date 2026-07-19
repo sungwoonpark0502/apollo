@@ -178,6 +178,17 @@ model **once at build time** (it is never downloaded at runtime):
 - [ ] Ringing overlay appears above fullscreen apps; sound plays; snooze/dismiss work.
 - [ ] Single instance: launching a second copy focuses the existing window and exits.
 
+## Reminder inline actions (Phase 12 / L3.2 — product decision needed)
+- [ ] `snoozeReminder` and `completeReminder` work end to end in the repo layer and are reachable by no control. Reminders currently fire as a plain OS notification with no buttons, and the inline actions E3.1 described lived on the To-dos surface that L2.4 removed. Decide where they belong — notification actions, a ringing overlay like timers/alarms, or a Today row — then wire and add the dispatch tests. Recorded in AUDIT-controls.md rather than deleted, because unlike the four defects fixed there this is missing UI, not dead code.
+
+## Orb / control live-pass checklist (Phase 12 / L3.2 — needs a real desktop)
+- [ ] The orb is invisible at rest: launch, touch nothing, confirm no dot anywhere on screen. Say the wake word and confirm it appears without stealing focus from the app you were typing in.
+- [ ] Wake word still fires while hidden (this is the whole point of hidden ≠ muted).
+- [ ] Settings > orb idle mode "dot" brings back the always-present dot live, without a restart.
+- [ ] During a long spoken reply press Skip: it jumps to the next sentence with no gap and no network traffic. Press Replay: the reply restarts from its first sentence, and no new turn appears in the conversation.
+- [ ] A reply over 6 sentences shows the "i of n" progress line.
+- [ ] From an email draft card, press Send: the confirm card appears in the SAME conversation, openable from the sidebar.
+
 ## API keys (app runs with Fake adapters until provided)
 - [ ] Anthropic API key: create at https://console.anthropic.com/settings/keys, then either set `ANTHROPIC_API_KEY` in `apollo/.env` or paste into Settings > Keys and press Test.
   - [ ] After adding the key, run `pnpm eval` from the repo root — the 0.7 gate requires >= 90% pass rate (50 rows). The harness machinery is already self-verified; only the real-model run needs the key.

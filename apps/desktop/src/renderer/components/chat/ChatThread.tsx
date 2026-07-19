@@ -69,7 +69,7 @@ export function ChatThread({ thread, showToolActivity, autoScroll, renderMessage
             </button>
           ) : null}
           {visible.map((item) => (
-            <ThreadRow key={item.id} item={item} renderMessageActions={renderMessageActions} renderMessage={renderMessage} />
+            <ThreadRow key={item.id} item={item} convId={thread.convId} renderMessageActions={renderMessageActions} renderMessage={renderMessage} />
           ))}
           {showToolActivity && thread.activity ? (
             <div role="status" style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-3)', fontStyle: 'italic' }}>{thread.activity}</div>
@@ -98,8 +98,10 @@ export function ChatThread({ thread, showToolActivity, autoScroll, renderMessage
   );
 }
 
-function ThreadRow({ item, renderMessageActions, renderMessage }: {
+function ThreadRow({ item, convId, renderMessageActions, renderMessage }: {
   item: ThreadItem;
+  /** K1: cards that re-enter the agent must continue this conversation. */
+  convId: string | null;
   renderMessageActions?: (m: Extract<ThreadItem, { kind: 'msg' }>) => React.ReactNode;
   renderMessage?: (m: Extract<ThreadItem, { kind: 'msg' }>) => React.ReactNode | null;
 }): React.JSX.Element {
@@ -107,7 +109,7 @@ function ThreadRow({ item, renderMessageActions, renderMessage }: {
   if (item.kind === 'card') {
     return (
       <CardShell>
-        <CardView card={item.card} />
+        <CardView card={item.card} convId={convId} />
       </CardShell>
     );
   }

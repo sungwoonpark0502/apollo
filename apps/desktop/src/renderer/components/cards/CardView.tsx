@@ -13,7 +13,7 @@ import { BriefCard } from './BriefCard';
 import { RecallListCard } from './RecallListCard';
 
 /** One component per CardPayload.kind (C18); kinds from later phases render as text for now. */
-export function CardView({ card }: { card: CardPayload }): React.JSX.Element {
+export function CardView({ card, convId = null }: { card: CardPayload; convId?: string | null }): React.JSX.Element {
   switch (card.kind) {
     case 'text':
       return <TextCard body={card.body} />;
@@ -45,9 +45,9 @@ export function CardView({ card }: { card: CardPayload }): React.JSX.Element {
     case 'emailList':
       return <EmailListCard items={card.items} />;
     case 'emailDetail':
-      return <EmailDetailCard email={card.email} />;
+      return <EmailDetailCard email={card.email} convId={convId} />;
     case 'draft':
-      return <DraftCard to={card.to} subject={card.subject} body={card.body} />;
+      return <DraftCard to={card.to} subject={card.subject} body={card.body} convId={convId} />;
     case 'brief':
       return <BriefCard sections={card.sections} />;
     case 'recallList':

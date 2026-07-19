@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { fireControl } from '../../lib/controlDispatch';
 import { fmtDate, STRINGS, type RecallItem } from '@apollo/shared';
 
 const KIND_ICON: Record<RecallItem['kind'], string> = { note: '📝', message: '💬', fact: '🧠' };
@@ -25,7 +26,7 @@ function RecallRow({ item }: { item: RecallItem }): React.JSX.Element {
 
   const onClick = (): void => {
     if (item.kind === 'note') {
-      void window.apollo.call('workspace.open', { view: 'notes', noteId: item.refId });
+      void fireControl('recall.openNote', { noteId: item.refId });
     } else {
       setExpanded((v) => !v);
     }

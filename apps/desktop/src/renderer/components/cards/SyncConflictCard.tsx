@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { fireControl } from '../../lib/controlDispatch';
 import { fmtDateTime, STRINGS } from '@apollo/shared';
 import { buttonStyle } from './TimerCard';
 
@@ -20,7 +21,7 @@ export function SyncConflictCard({
   const c = STRINGS.gcal.conflict;
 
   const resolve = (choice: 'mine' | 'theirs' | 'both'): void => {
-    void window.apollo.call('google.resolveConflict', { eventId, choice }).then(() => setResolved(true));
+    void fireControl('sync.resolveConflict', { eventId, choice }).then(() => setResolved(true));
   };
 
   return (

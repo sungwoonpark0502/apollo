@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { fmtDateIso, STRINGS, type CardPayload } from '@apollo/shared';
 import { WeatherGlyph } from './WeatherGlyph';
 import { sentenceToRow, stageDeepLink, stageRowCount, stageTitle } from '../lib/stage';
+import { fireControl } from '../lib/controlDispatch';
 
 /**
  * E4 Response Stage presentation for voice answers (brief / newsList / weather /
@@ -18,7 +19,7 @@ export function StageCard({ card, spokenIndex }: { card: CardPayload; spokenInde
   const deepLink = stageDeepLink(card);
 
   const openInApollo = (): void => {
-    if (deepLink) void window.apollo.call('workspace.open', deepLink);
+    void fireControl('stage.openInApollo', { deepLink });
   };
 
   return (

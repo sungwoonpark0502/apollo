@@ -249,9 +249,6 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
     'permissions.request': async (req) => ({ granted: (await deps.requestPermission?.(req.kind)) ?? false }),
     'data.mutate': (req) => {
       switch (req.op) {
-        case 'completeTodo':
-          deps.repos.todos.complete(req.id);
-          break;
         case 'snoozeReminder':
           deps.repos.reminders.snooze(req.id, req.min);
           break;
@@ -264,8 +261,6 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
         case 'deleteEvent':
           deps.repos.events.softDelete(req.id);
           break;
-        case 'pinCard':
-          break; // pinning is renderer-local state; ack keeps the channel uniform
       }
       return { ok: true as const };
     },

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { fireControl } from '../../lib/controlDispatch';
 import { STRINGS, type ConfirmAction } from '@apollo/shared';
 import { buttonStyle } from './TimerCard';
 
@@ -13,7 +14,7 @@ export function ConfirmCard({
   const [resolved, setResolved] = useState<null | 'approved' | 'denied'>(null);
 
   const respond = (approved: boolean): void => {
-    void window.apollo.call('agent.confirm', { confirmationId, approved }).then(() => {
+    void fireControl(approved ? 'confirm.approve' : 'confirm.deny', { confirmationId }).then(() => {
       setResolved(approved ? 'approved' : 'denied');
     });
   };

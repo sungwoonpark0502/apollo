@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { fireControl } from '../../lib/controlDispatch';
 import { STRINGS } from '@apollo/shared';
 
 function fmt(msLeft: number): string {
@@ -24,7 +25,7 @@ export function TimerCard({ id, label, endsAt }: { id: string; label: string | n
   }, [endsAt]);
 
   const cancel = (): void => {
-    void window.apollo.call('data.mutate', { op: 'cancelTimer', id }).then(() => setCanceled(true));
+    void fireControl('timer.cancel', { id: id }).then(() => setCanceled(true));
   };
 
   return (

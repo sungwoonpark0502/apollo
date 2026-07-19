@@ -5,8 +5,9 @@ import { StageCard } from '../../components/StageCard';
 import { NudgeCard, NudgeGroupCard } from '../../components/NudgeCard';
 import { RingingCard, type RingingAlert } from '../../components/RingingCard';
 import { isStageCard } from '../../lib/stage';
+import { fireControl } from '../../lib/controlDispatch';
 import { CancelWindowBar } from '../../components/ConfirmBar';
-import { enqueueTtsChunk, playEarcon, setEarconVolume, stopPlayback } from '../../lib/audioPlayer';
+import { enqueueTtsChunk, playbackProgress, playEarcon, replayFromStart, setEarconVolume, skipSentence, stopPlayback } from '../../lib/audioPlayer';
 import { useFormatInit } from '../../lib/useLive';
 
 type OrbState = Extract<VoiceState, 'idle' | 'thinking' | 'speaking' | 'listening' | 'followup' | 'muted' | 'error'>;
@@ -50,6 +51,8 @@ export function OrbApp(): React.JSX.Element {
   const [rms, setRms] = useState(0);
   const [turnId, setTurnId] = useState<string | null>(null);
   const [convId, setConvId] = useState<string | null>(null); // K3: deep-link "Open in chat"
+  // I5 "sentence i of n", shown only for long replies (>6 sentences).
+  const [progress, setProgress] = useState<{ index: number; total: number }>({ index: 0, total: 0 });
   const [orbMenu, setOrbMenu] = useState(false); // K3 right-click menu
   const [cancelWindow, setCancelWindow] = useState<{ endsAt: number } | null>(null);
   const [spokenIndex, setSpokenIndex] = useState(-1);
@@ -128,7 +131,11 @@ export function OrbApp(): React.JSX.Element {
       setCaption(transcript);
       setRms(rms);
     });
-    const offAudio = window.apollo.on('tts.audio', ({ data, last }) => enqueueTtsChunk(data, last));
+    const offAudio = window.apollo.on('tts.audio', ({ data, last }) => {
+      enqueueTtsChunk(data, last);
+      // Decoding is async, so read the count on the next tick rather than now.
+      setTimeout(() => setProgress(playbackProgress()), 0);
+    });
     const offStop = window.apollo.on('tts.stop', () => stopPlayback());
     const offSpoken = window.apollo.on('tts.spoken', ({ index }) => setSpokenIndex(index));
     const offNudge = window.apollo.on('suggestion.show', ({ suggestion, group, silent, firstNudge }) => {
@@ -167,7 +174,7 @@ export function OrbApp(): React.JSX.Element {
   }, []);
 
   const nudgeAction = (suggestionId: string, actionId: string): void => {
-    void window.apollo.call('suggestion.action', { suggestionId, actionId });
+    void fireControl('nudge.action', { suggestionId, actionId });
     // drop any panel that only contained this suggestion; clear the dot when none remain
     setNudges((ns) => {
       const next = ns
@@ -205,13 +212,13 @@ export function OrbApp(): React.JSX.Element {
         {orbMenu ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 'var(--sp-1)', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-ctl)', boxShadow: 'var(--shadow-card)', overflow: 'hidden' }}>
             <button
-              onClick={() => { setOrbMenu(false); void window.apollo.call('workspace.open', { view: 'chat', ...(convId ? { convId } : {}) }); }}
+              onClick={() => { setOrbMenu(false); void fireControl('orb.menu.openChat', { convId }); }}
               style={{ border: 'none', background: 'transparent', color: 'var(--text-1)', cursor: 'pointer', fontSize: 'var(--fs-caption)', fontFamily: 'var(--font-sans)', padding: 'var(--sp-1) var(--sp-3)', textAlign: 'left' }}
             >
               {STRINGS.orbControls.openChat}
             </button>
             <button
-              onClick={() => { setOrbMenu(false); void window.apollo.call('workspace.open', { view: 'today' }); }}
+              onClick={() => { setOrbMenu(false); void fireControl('orb.menu.openApollo'); }}
               style={{ border: 'none', background: 'transparent', color: 'var(--text-1)', cursor: 'pointer', fontSize: 'var(--fs-caption)', fontFamily: 'var(--font-sans)', padding: 'var(--sp-1) var(--sp-3)', textAlign: 'left' }}
             >
               {STRINGS.orbControls.openApollo}
@@ -274,16 +281,24 @@ export function OrbApp(): React.JSX.Element {
         {state === 'thinking' ? (
           <div style={pillBar}>
             <span style={{ color: 'var(--text-2)' }}>{activity ?? STRINGS.a11y.voiceState.thinking}</span>
-            <button onClick={() => { if (turnId) void window.apollo.call('agent.cancel', { turnId }); setState('idle'); }} style={pillBtn}>
+            <button onClick={() => { void fireControl('orb.thinking.cancel', { turnId }); setState('idle'); }} style={pillBtn}>
               {STRINGS.orbControls.cancel}
             </button>
           </div>
         ) : null}
-        {/* I5 streaming TTS controls */}
+        {/* I5 streaming TTS controls: Stop, Skip sentence, Replay from start.
+            Skip and Replay act on the local playback queue, so neither costs an
+            LLM turn or a re-synthesis. */}
         {state === 'speaking' ? (
           <div style={pillBar}>
-            <button onClick={() => { stopPlayback(); void window.apollo.call('tts.drained', {}); }} style={pillBtn}>{STRINGS.orbControls.stop}</button>
-            <button onClick={() => { stopPlayback(); void window.apollo.call('agent.userMessage', { text: 'repeat that', source: 'text', convId: 'orb' }); }} style={pillBtn}>{STRINGS.orbControls.replay}</button>
+            <button onClick={() => { stopPlayback(); void fireControl('orb.tts.stop'); }} style={pillBtn}>{STRINGS.orbControls.stop}</button>
+            <button onClick={() => { skipSentence(); setProgress(playbackProgress()); }} style={pillBtn}>{STRINGS.orbControls.skip}</button>
+            <button onClick={() => { replayFromStart(); setProgress(playbackProgress()); }} style={pillBtn}>{STRINGS.orbControls.replay}</button>
+            {progress.total > 6 ? (
+              <span style={{ color: 'var(--text-3)', fontSize: 'var(--fs-caption)' }}>
+                {STRINGS.orbControls.progress(progress.index, progress.total)}
+              </span>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -312,7 +327,7 @@ export function OrbApp(): React.JSX.Element {
                 earconVolume={earconVol}
                 onAction={(id, action, snoozeMin) => {
                   setRinging((rs) => rs.filter((r) => r.id !== id));
-                  void window.apollo.call('alert.action', { kind: a.kind, id, action, ...(snoozeMin ? { snoozeMin } : {}) });
+                  void fireControl(action === 'snooze' ? 'ringing.snooze' : 'ringing.dismiss', { alert: { kind: a.kind, id }, ...(snoozeMin ? { snoozeMin } : {}) });
                 }}
               />
             </CardShell>
@@ -358,7 +373,7 @@ export function OrbApp(): React.JSX.Element {
             <CancelWindowBar
               endsAt={cancelWindow.endsAt}
               onCancel={() => {
-                if (turnId) void window.apollo.call('agent.cancel', { turnId });
+                void fireControl('confirm.cancelWindow', { turnId });
                 setCancelWindow(null);
               }}
             />
@@ -389,7 +404,7 @@ export function OrbApp(): React.JSX.Element {
                     ⦿
                   </button>
                   <OpenInChatButton convId={convId} right={30} />
-                  <CardView card={c.card} />
+                  <CardView card={c.card} convId={convId} />
                 </CardShell>
               )}
             </div>
@@ -407,7 +422,7 @@ function OpenInChatButton({ convId, right }: { convId: string | null; right: num
     <button
       aria-label={STRINGS.orbControls.openInChat}
       title={STRINGS.orbControls.openInChat}
-      onClick={() => void window.apollo.call('workspace.open', { view: 'chat', convId })}
+      onClick={() => void fireControl('card.openInChat', { convId })}
       style={{
         position: 'absolute',
         top: 'var(--sp-2)',

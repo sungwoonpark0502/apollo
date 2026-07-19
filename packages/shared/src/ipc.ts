@@ -15,13 +15,14 @@ export type Ack = z.infer<typeof ackSchema>;
 export const keyProviderSchema = z.enum(['anthropic', 'deepgram', 'brave', 'picovoice']);
 export type KeyProvider = z.infer<typeof keyProviderSchema>;
 
+// L3.2: every op here must be dispatched by a real control (see AUDIT-controls.md).
+// 'completeTodo' went with the To-dos surface in L2.4; 'pinCard' was a no-op
+// round trip, since card pinning is renderer-local panel state by design.
 export const dataMutateSchema = z.discriminatedUnion('op', [
-  z.object({ op: z.literal('completeTodo'), id: z.string() }),
   z.object({ op: z.literal('snoozeReminder'), id: z.string(), min: z.number().int().positive() }),
   z.object({ op: z.literal('completeReminder'), id: z.string() }), // E3.1 inline reminder actions
   z.object({ op: z.literal('cancelTimer'), id: z.string() }),
   z.object({ op: z.literal('deleteEvent'), id: z.string() }),
-  z.object({ op: z.literal('pinCard'), cardId: z.string(), pinned: z.boolean() }),
 ]);
 export type DataMutate = z.infer<typeof dataMutateSchema>;
 
