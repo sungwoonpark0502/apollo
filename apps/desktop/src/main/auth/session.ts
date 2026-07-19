@@ -1,4 +1,4 @@
-import { tokenResponseSchema, type TokenResponse } from '@apollo/shared';
+import { tokenResponseSchema, type AuthStatus, type TokenResponse } from '@apollo/shared';
 
 /**
  * L1 client session lifecycle. The access (session) token lives only in memory;
@@ -7,7 +7,7 @@ import { tokenResponseSchema, type TokenResponse } from '@apollo/shared';
  * expiry we silently exchange the refresh token; on refresh failure or
  * invalid_grant we transition to signedOut and surface a non-blocking prompt.
  */
-export type AuthStatus = 'signedOut' | 'signingIn' | 'signedIn';
+export type { AuthStatus }; // single definition lives in shared/readiness (L5)
 
 export interface AuthUser {
   id: string;

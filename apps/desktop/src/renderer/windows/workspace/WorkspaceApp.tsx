@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { matchesBinding, shortcut, STRINGS } from '@apollo/shared';
+import { assistantReadiness, matchesBinding, shortcut, STRINGS, type AuthStatus, type ReadinessState } from '@apollo/shared';
 import { useFormatInit, useNavigate, useSettings } from '../../lib/useLive';
 import { TodayView } from './TodayView';
 import { CalendarView } from './CalendarView';
@@ -27,7 +27,8 @@ export function WorkspaceApp(): React.JSX.Element {
   const [omniOpen, setOmniOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [undoToast, setUndoToast] = useState<string | null>(null);
-  const [keysBanner, setKeysBanner] = useState(false);
+  const [readiness, setReadiness] = useState<ReadinessState>({ kind: 'ready' });
+  const [bannerDismissed, setBannerDismissed] = useState(false);
   const [appliedDefault, setAppliedDefault] = useState(false);
   const settings = useSettings();
 
@@ -38,12 +39,26 @@ export function WorkspaceApp(): React.JSX.Element {
     setView((v) => (v === 'chat' ? settings.workspace.defaultView : v));
   }
 
-  // I6: a persistent, dismissible banner when required keys are missing, instead of silent degradation.
+  /**
+   * L5 readiness, computed at the source. In managed mode this keys off auth
+   * (a sign-in prompt) and NEVER off local keys — the old "add your Anthropic
+   * and Deepgram keys" banner is gone. BYOK builds keep the keys message.
+   */
   useEffect(() => {
-    void window.apollo.call('keys.info', {}).then((info) => {
+    let alive = true;
+    const recompute = async (authStatus: AuthStatus): Promise<void> => {
+      const { mode } = await window.apollo.call('app.mode', {});
+      const info = mode === 'byok' ? await window.apollo.call('keys.info', {}) : [];
       const has = (p: string): boolean => info.some((k) => k.provider === p && k.configured);
-      if (!has('anthropic') || !has('deepgram')) setKeysBanner(true);
-    });
+      if (!alive) return;
+      setReadiness(assistantReadiness({ mode, authStatus, hasLlmKey: has('anthropic'), hasSttKey: has('deepgram') }));
+    };
+    void recompute('signedOut');
+    const off = window.apollo.on('auth.state', (s) => void recompute(s.status));
+    return () => {
+      alive = false;
+      off();
+    };
   }, []);
 
   // I3 global undo: Cmd/Ctrl+Z reverses the most recent action across surfaces,
@@ -87,11 +102,22 @@ export function WorkspaceApp(): React.JSX.Element {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg)', color: 'var(--text-1)' }}>
-      {keysBanner ? (
+      {readiness.kind !== 'ready' && !bannerDismissed ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', padding: 'var(--sp-2) var(--sp-4)', background: 'var(--accent-soft)', borderBottom: '1px solid var(--border)', fontSize: 'var(--fs-caption)' }}>
-          <span style={{ flex: 1 }}>{STRINGS.onboarding.keysSkippedBanner}</span>
-          <button onClick={() => void window.apollo.call('settings.open', {})} style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-1)', borderRadius: 'var(--radius-ctl)', padding: '1px var(--sp-2)', cursor: 'pointer', fontSize: 'var(--fs-caption)', fontFamily: 'var(--font-sans)' }}>{STRINGS.onboarding.keysSkippedAction}</button>
-          <button onClick={() => setKeysBanner(false)} aria-label={STRINGS.onboarding.dismiss} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-3)' }}>✕</button>
+          <span style={{ flex: 1 }}>
+            {readiness.kind === 'signInRequired'
+              ? STRINGS.onboarding.signInBanner
+              : readiness.kind === 'quotaExceeded'
+                ? STRINGS.errors.QUOTA_EXCEEDED
+                : STRINGS.onboarding.byokKeysBanner}
+          </span>
+          <button
+            onClick={() => void (readiness.kind === 'signInRequired' ? window.apollo.call('auth.signIn', {}) : window.apollo.call('settings.open', {}))}
+            style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-1)', borderRadius: 'var(--radius-ctl)', padding: '1px var(--sp-2)', cursor: 'pointer', fontSize: 'var(--fs-caption)', fontFamily: 'var(--font-sans)' }}
+          >
+            {readiness.kind === 'signInRequired' ? STRINGS.onboarding.signInAction : STRINGS.onboarding.byokKeysAction}
+          </button>
+          <button onClick={() => setBannerDismissed(true)} aria-label={STRINGS.onboarding.dismiss} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-3)' }}>✕</button>
         </div>
       ) : null}
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>

@@ -25,6 +25,8 @@ export interface CrudCtx {
 }
 
 const DEFAULT_ID = 'default';
+/** L5: calendars are distinguished by name + a neutral source dot, not color. */
+const NEUTRAL_COLOR = '#8A8A8A';
 
 export function applyCalendarCrud(
   state: CalendarsState,
@@ -36,19 +38,15 @@ export function applyCalendarCrud(
 
   switch (req.op) {
     case 'create': {
-      const cal: CalendarCollection = { id: ctx.newId(), name: req.name.trim(), color: req.color, kind: 'local', readOnly: false };
+      // L5: no user-chosen colors. A neutral default is stored so existing
+      // consumers (calendarColor, the Google source dot) keep working.
+      const cal: CalendarCollection = { id: ctx.newId(), name: req.name.trim(), color: req.color ?? NEUTRAL_COLOR, kind: 'local', readOnly: false };
       return { state: { ...state, active: [...active, cal] }, result: { ok: true } };
     }
     case 'rename': {
       const cal = find(req.id);
       if (!cal) return { state, result: { ok: false, error: 'no such calendar' } };
       const next = active.map((c) => (c.id === req.id ? { ...c, name: req.name.trim() } : c));
-      return { state: { ...state, active: next }, result: { ok: true } };
-    }
-    case 'recolor': {
-      const cal = find(req.id);
-      if (!cal) return { state, result: { ok: false, error: 'no such calendar' } };
-      const next = active.map((c) => (c.id === req.id ? { ...c, color: req.color } : c));
       return { state: { ...state, active: next }, result: { ok: true } };
     }
     case 'delete': {

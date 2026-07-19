@@ -171,9 +171,11 @@ export const invokeChannels = {
   // I1 local calendar collections CRUD. delete blocks if events exist unless reassignTo is given.
   'calendars.crud': {
     req: z.discriminatedUnion('op', [
-      z.object({ op: z.literal('create'), name: z.string().min(1), color: z.string() }),
+      // L5: color is no longer user-chosen. It stays on the wire (optional) so
+      // the Google sync path can still map a remote calendar's color for its
+      // source dot, but no UI sets it and `recolor` is gone.
+      z.object({ op: z.literal('create'), name: z.string().min(1), color: z.string().optional() }),
       z.object({ op: z.literal('rename'), id: z.string(), name: z.string().min(1) }),
-      z.object({ op: z.literal('recolor'), id: z.string(), color: z.string() }),
       z.object({ op: z.literal('delete'), id: z.string(), reassignTo: z.string().optional() }),
       z.object({ op: z.literal('setDefault'), id: z.string() }),
     ]),

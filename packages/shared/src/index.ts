@@ -11,4 +11,5 @@ export * from './settings';
 export * from './calendars';
 export * from './shortcuts';
 export * from './backend';
+export * from './readiness';
 export * from './ipc';

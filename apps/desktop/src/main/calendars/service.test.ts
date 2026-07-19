@@ -17,12 +17,16 @@ describe('calendars CRUD reducer', () => {
     expect(state.active[1]).toMatchObject({ id: 'cal-1', name: 'Work', color: '#4C8BF5', kind: 'local', readOnly: false });
   });
 
-  it('renames and recolors', () => {
+  it('renames', () => {
     let s = base();
-    ({ state: s } = applyCalendarCrud(s, { op: 'create', name: 'Work', color: '#4C8BF5' }, noEvents));
+    ({ state: s } = applyCalendarCrud(s, { op: 'create', name: 'Work' }, noEvents));
     ({ state: s } = applyCalendarCrud(s, { op: 'rename', id: 'cal-1', name: 'Job' }, noEvents));
-    ({ state: s } = applyCalendarCrud(s, { op: 'recolor', id: 'cal-1', color: '#34A853' }, noEvents));
-    expect(s.active.find((c) => c.id === 'cal-1')).toMatchObject({ name: 'Job', color: '#34A853' });
+    expect(s.active.find((c) => c.id === 'cal-1')).toMatchObject({ name: 'Job' });
+  });
+
+  it('L5: creating without a color stores a neutral one (no user-chosen colors)', () => {
+    const { state } = applyCalendarCrud(base(), { op: 'create', name: 'Work' }, noEvents);
+    expect(state.active[1]!.color).toMatch(/^#[0-9A-Fa-f]{6}$/);
   });
 
   it('blocks delete of a calendar that has events without reassign', () => {

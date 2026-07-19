@@ -73,3 +73,32 @@ describe('K5 palette removal gates', () => {
     expect(shortcut('global.capture')).toBeDefined();
   });
 });
+
+describe('L5 settings surface (12.3)', () => {
+  it('the Workspace no longer references the removed keys-banner strings', () => {
+    const src = readFileSync(join(REPO, 'apps/desktop/src/renderer/windows/workspace/WorkspaceApp.tsx'), 'utf8');
+    expect(src).not.toContain('keysSkippedBanner');
+    expect(src).not.toContain('keysSkippedAction');
+    expect(src).toContain('assistantReadiness'); // readiness is computed at the source
+  });
+
+  it('Settings renders its tab list from the shared mode-aware helper', () => {
+    const src = readFileSync(join(REPO, 'apps/desktop/src/renderer/windows/settings/SettingsApp.tsx'), 'utf8');
+    expect(src).toContain('settingsTabsFor');
+    expect(src).not.toMatch(/TAB_ORDER\s*[:=]/); // no hand-maintained duplicate list
+  });
+
+  it('the calendars UI has no color picker (L5 removes user-chosen colors)', () => {
+    const src = readFileSync(join(REPO, 'apps/desktop/src/renderer/windows/settings/CalendarsTab.tsx'), 'utf8');
+    expect(src).not.toContain('ColorSwatch');
+    expect(src).not.toContain('CALENDAR_PALETTE');
+    expect(src).toContain('SourceDot');
+  });
+
+  it('Diagnostics is rendered inside About, not as a top-level tab', () => {
+    const about = readFileSync(join(REPO, 'apps/desktop/src/renderer/windows/settings/AboutTab.tsx'), 'utf8');
+    expect(about).toContain('DiagnosticsTab');
+    const settings = readFileSync(join(REPO, 'apps/desktop/src/renderer/windows/settings/SettingsApp.tsx'), 'utf8');
+    expect(settings).not.toContain('DiagnosticsTab');
+  });
+});

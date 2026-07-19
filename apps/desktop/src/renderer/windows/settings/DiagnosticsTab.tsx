@@ -36,9 +36,9 @@ export function DiagnosticsTab(): React.JSX.Element {
     });
   };
 
+  // L5: rendered inside About → Advanced, so it carries no top-level heading.
   return (
     <div>
-      <h2 style={{ fontSize: 'var(--fs-display)', margin: '0 0 var(--sp-4)' }}>{STRINGS.settings.tabs.diagnostics}</h2>
 
       <section style={{ marginBottom: 'var(--sp-5)' }}>
         <h3 style={sectionTitle}>{STRINGS.settings.diagnostics.perf}</h3>

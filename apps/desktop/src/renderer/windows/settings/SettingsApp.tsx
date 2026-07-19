@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { STRINGS, type KeyProvider } from '@apollo/shared';
+import React, { useEffect, useState } from 'react';
+import { settingsTabsFor, STRINGS, type KeyProvider } from '@apollo/shared';
 import { KeysTab } from './KeysTab';
 import { VoiceTab } from './VoiceTab';
-import { DiagnosticsTab } from './DiagnosticsTab';
+import { AccountTab } from './AccountTab';
 import { AccountsTab } from './AccountsTab';
 import { PrivacyTab } from './PrivacyTab';
 import { GeneralTab } from './GeneralTab';
@@ -13,16 +13,31 @@ import { ProactiveTab } from './ProactiveTab';
 import { useFormatInit } from '../../lib/useLive';
 
 type TabId = keyof typeof STRINGS.settings.tabs;
-const TAB_ORDER: TabId[] = ['profile', 'general', 'calendars', 'voice', 'proactive', 'accounts', 'keys', 'privacy', 'diagnostics', 'about'];
 
+/**
+ * L5: a normal (managed) user sees only what they need — Account first, no Keys
+ * tab, no top-level Diagnostics (it lives under About). BYOK builds swap
+ * Account for Keys. The tab list comes from the shared mode-aware helper so
+ * settings, readiness, and its tests can never drift.
+ */
 export function SettingsApp(): React.JSX.Element {
   useFormatInit();
-  const [tab, setTab] = useState<TabId>('profile');
+  const [mode, setMode] = useState<'managed' | 'byok'>('managed');
+  const [tab, setTab] = useState<TabId>('account');
+
+  useEffect(() => {
+    void window.apollo.call('app.mode', {}).then(({ mode: m }) => {
+      setMode(m);
+      setTab(m === 'managed' ? 'account' : 'profile');
+    });
+  }, []);
+
+  const tabs = settingsTabsFor(mode) as TabId[];
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: 'var(--bg)' }}>
       <nav style={{ width: 160, borderRight: '1px solid var(--border)', padding: 'var(--sp-4) var(--sp-2)' }}>
-        {TAB_ORDER.map((id) => (
+        {tabs.map((id) => (
           <button
             key={id}
             onClick={() => setTab(id)}
@@ -46,36 +61,30 @@ export function SettingsApp(): React.JSX.Element {
         ))}
       </nav>
       <main style={{ flex: 1, padding: 'var(--sp-5)', overflowY: 'auto' }}>
-        {tab === 'profile' ? (
+        {tab === 'account' ? (
+          <AccountTab mode={mode} />
+        ) : tab === 'profile' ? (
           <ProfileTab />
         ) : tab === 'about' ? (
           <AboutTab />
-        ) : tab === 'proactive' ? (
+        ) : tab === 'assistant' ? (
           <ProactiveTab />
         ) : tab === 'keys' ? (
           <KeysTab />
         ) : tab === 'voice' ? (
           <VoiceTab />
-        ) : tab === 'diagnostics' ? (
-          <DiagnosticsTab />
         ) : tab === 'accounts' ? (
           <AccountsTab />
         ) : tab === 'privacy' ? (
           <PrivacyTab />
         ) : tab === 'general' ? (
           <GeneralTab />
-        ) : tab === 'calendars' ? (
-          <CalendarsTab />
         ) : (
-          <Placeholder tab={STRINGS.settings.tabs[tab]} />
+          <CalendarsTab />
         )}
       </main>
     </div>
   );
-}
-
-function Placeholder({ tab }: { tab: string }): React.JSX.Element {
-  return <div style={{ color: 'var(--text-3)', fontSize: 'var(--fs-body)' }}>{tab} settings arrive in a later milestone.</div>;
 }
 
 export type { KeyProvider };

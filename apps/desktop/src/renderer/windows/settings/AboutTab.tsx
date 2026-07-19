@@ -1,12 +1,19 @@
 import React, { useState } from 'react';
 import { STRINGS } from '@apollo/shared';
+import { DiagnosticsTab } from './DiagnosticsTab';
 
 const APP_VERSION = '0.1.0'; // matches package.json / electron-builder
 
-/** E7 About tab: version, check-for-updates, licenses, logs link. */
+/**
+ * E7 About tab: version, check-for-updates, licenses, logs link.
+ * L5: Diagnostics is no longer a top-level tab — it lives here as a collapsed
+ * "Advanced" section so a normal user is never confronted with perf spans and
+ * adapter states, while support can still reach them.
+ */
 export function AboutTab(): React.JSX.Element {
   const a = STRINGS.settings.about;
   const [status, setStatus] = useState<string>('');
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const check = (): void => {
     setStatus(a.checking);
@@ -32,9 +39,20 @@ export function AboutTab(): React.JSX.Element {
         {a.licenses}
       </button>
       <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-3)', lineHeight: 1.6 }}>
-        Electron, React, zustand, zod, better-sqlite3, luxon, rrule, @anthropic-ai/sdk, @deepgram/sdk,
+        Electron, React, zod, better-sqlite3, luxon, rrule, TipTap, @anthropic-ai/sdk, @deepgram/sdk,
         onnxruntime-node, @picovoice/porcupine-node, msedge-tts, rss-parser, googleapis, dompurify, pino,
-        fast-glob, uuidv7 — each under its respective open-source license.
+        fastify, jose, fast-glob, uuidv7 — each under its respective open-source license.
+      </div>
+
+      <div style={{ marginTop: 'var(--sp-5)', borderTop: '1px solid var(--border)', paddingTop: 'var(--sp-3)' }}>
+        <button onClick={() => setAdvancedOpen((v) => !v)} aria-expanded={advancedOpen} style={{ ...linkBtn, fontSize: 'var(--fs-caption)' }}>
+          {advancedOpen ? '▾' : '▸'} {a.advanced}
+        </button>
+        {advancedOpen ? (
+          <div style={{ marginTop: 'var(--sp-3)' }}>
+            <DiagnosticsTab />
+          </div>
+        ) : null}
       </div>
     </div>
   );

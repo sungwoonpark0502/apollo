@@ -214,8 +214,12 @@ export const STRINGS = {
     tryFinish: 'Open chat',
     stepIndicator: (i: number, n: number) => `Step ${i} of ${n}`,
     sampleNote: 'Add a welcome note with example prompts',
-    keysSkippedBanner: 'Some features are limited until you add your Anthropic and Deepgram keys.',
-    keysSkippedAction: 'Add keys',
+    // L5: the keys banner is deleted. Managed readiness is a sign-in prompt.
+    signInBanner: 'Sign in to use Apollo’s assistant.',
+    signInAction: 'Sign in',
+    // BYOK builds only (developer path keeps a keys message).
+    byokKeysBanner: 'Add your provider keys in Settings → Keys to enable the assistant.',
+    byokKeysAction: 'Open Keys',
     dismiss: 'Dismiss',
     welcomeNote:
       'Things you can ask Apollo\n\n' +
@@ -230,7 +234,25 @@ export const STRINGS = {
   },
 
   settings: {
-    tabs: { profile: 'Profile', general: 'General', calendars: 'Calendars', voice: 'Voice', proactive: 'Proactive', accounts: 'Accounts', keys: 'Keys', privacy: 'Privacy', diagnostics: 'Diagnostics', about: 'About' },
+    // L5: 'account' (Apollo sign-in) is managed-only and first; 'keys' is
+    // BYOK-only; 'assistant' replaces the old 'proactive' grab-bag;
+    // 'diagnostics' is no longer a top-level tab (it lives under About).
+    tabs: { account: 'Account', profile: 'Profile', general: 'General', calendars: 'Calendars', voice: 'Voice', assistant: 'Assistant', accounts: 'Integrations', keys: 'Keys', privacy: 'Privacy', about: 'About' },
+    account: {
+      title: 'Your Apollo account',
+      signedInAs: (email: string) => `Signed in as ${email}`,
+      plan: (plan: string) => `${plan} plan`,
+      signIn: 'Sign in',
+      signInBody: 'Sign in to use the assistant. Your notes, calendar, and reminders stay on this device.',
+      signingIn: 'Opening your browser…',
+      signOut: 'Sign out',
+      usage: (used: number, limit: number) => `${used} of ${limit} requests used this period`,
+      usageResets: (date: string) => `Resets ${date}`,
+      nearLimit: "You're close to this period's limit.",
+      overLimit: "You've used this period's requests. Local features keep working.",
+      managePlan: 'Manage plan',
+      byokNotice: 'This is a developer build using your own provider keys. Sign-in is not used.',
+    },
     calendars: {
       title: 'Calendars',
       subtitle: 'Organize events into color-coded calendars.',
@@ -306,6 +328,7 @@ export const STRINGS = {
       updatesDisabled: 'Updates apply to installed builds only.',
       licenses: 'Open-source licenses',
       openLogs: 'Open logs folder',
+      advanced: 'Advanced & diagnostics', // L5: Diagnostics moved under About
     },
     voice: {
       wake: 'Wake word', sensitivity: 'Sensitivity', ptt: 'Push to talk', pttHotkey: 'Push-to-talk hotkey', voice: 'Voice', preview: 'Preview', dnd: 'Do not disturb',

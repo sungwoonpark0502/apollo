@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
-import { CALENDAR_PALETTE, STRINGS, type CalendarCollection } from '@apollo/shared';
+import { STRINGS, type CalendarCollection } from '@apollo/shared';
 import { useSettings } from '../../lib/useLive';
 
-/** I1 local calendar collections manager: create, rename, recolor, set default, delete (with reassign). */
+/**
+ * I1 local calendar collections manager: create, rename, set default, delete
+ * (with reassign). L5: user-chosen colors are removed — calendars are told
+ * apart by name and a neutral source dot, so there are no color pickers here.
+ */
 export function CalendarsTab(): React.JSX.Element {
   const c = STRINGS.settings.calendars;
   const settings = useSettings();
   const [newName, setNewName] = useState('');
-  const [newColor, setNewColor] = useState(CALENDAR_PALETTE[1]!);
   const [deleting, setDeleting] = useState<{ cal: CalendarCollection; count: number } | null>(null);
   const [reassignTo, setReassignTo] = useState<string>('default');
   const [error, setError] = useState<string | null>(null);
@@ -38,10 +41,7 @@ export function CalendarsTab(): React.JSX.Element {
 
       {calendars.map((cal) => (
         <div key={cal.id} style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', padding: 'var(--sp-2) 0', borderTop: '1px solid var(--border)' }}>
-          <ColorSwatch
-            value={cal.color}
-            onChange={(color) => void crud({ op: 'recolor', id: cal.id, color })}
-          />
+          <SourceDot kind={cal.kind} />
           <input
             value={cal.name}
             onChange={(e) => void crud({ op: 'rename', id: cal.id, name: e.target.value })}
@@ -62,7 +62,6 @@ export function CalendarsTab(): React.JSX.Element {
       ))}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', marginTop: 'var(--sp-4)' }}>
-        <ColorSwatch value={newColor} onChange={setNewColor} />
         <input
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
@@ -73,7 +72,7 @@ export function CalendarsTab(): React.JSX.Element {
           onClick={() => {
             const name = newName.trim();
             if (!name) return;
-            void crud({ op: 'create', name, color: newColor }).then(() => setNewName(''));
+            void crud({ op: 'create', name }).then(() => setNewName(''));
           }}
           style={primary}
         >
@@ -110,31 +109,22 @@ export function CalendarsTab(): React.JSX.Element {
   );
 }
 
-function ColorSwatch({ value, onChange }: { value: string; onChange: (color: string) => void }): React.JSX.Element {
-  const [open, setOpen] = useState(false);
+/**
+ * L5: a neutral, non-configurable dot marking where a calendar comes from
+ * (local vs Google). It replaces the user-chosen color swatch.
+ */
+function SourceDot({ kind }: { kind: 'local' | 'google' }): React.JSX.Element {
   return (
-    <div style={{ position: 'relative' }}>
-      <button
-        onClick={() => setOpen((o) => !o)}
-        style={{ width: 20, height: 20, borderRadius: '50%', background: value, border: '1px solid var(--border)', cursor: 'pointer', flexShrink: 0 }}
-        aria-label={STRINGS.a11y.color}
-      />
-      {open ? (
-        <div
-          onMouseLeave={() => setOpen(false)}
-          style={{ position: 'absolute', top: 24, left: 0, zIndex: 20, display: 'grid', gridTemplateColumns: 'repeat(5, 20px)', gap: 4, padding: 6, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-ctl)', boxShadow: 'var(--shadow-card)' }}
-        >
-          {CALENDAR_PALETTE.map((p) => (
-            <button
-              key={p}
-              onClick={() => { onChange(p); setOpen(false); }}
-              style={{ width: 20, height: 20, borderRadius: '50%', background: p, border: p === value ? '2px solid var(--text-1)' : '1px solid var(--border)', cursor: 'pointer' }}
-              aria-label={p}
-            />
-          ))}
-        </div>
-      ) : null}
-    </div>
+    <span
+      aria-hidden
+      style={{
+        width: 8,
+        height: 8,
+        borderRadius: '50%',
+        flexShrink: 0,
+        background: kind === 'google' ? 'var(--text-3)' : 'var(--text-2)',
+      }}
+    />
   );
 }
 
