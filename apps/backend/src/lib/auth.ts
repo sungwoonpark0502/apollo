@@ -9,7 +9,10 @@ import { type Store, type User } from '../store/store';
  * OAuth refresh-token-rotation reuse detection).
  */
 export const ACCESS_TTL_SEC = 15 * 60;
-const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+// 90 days, SLIDING: every rotation issues a fresh 90-day token, so anyone who
+// uses Apollo at least quarterly stays signed in until they log out. Reuse
+// detection still revokes the whole family instantly on a replayed token.
+const REFRESH_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 const ISSUER = 'apollo-backend';
 const AUDIENCE = 'apollo-desktop';
 

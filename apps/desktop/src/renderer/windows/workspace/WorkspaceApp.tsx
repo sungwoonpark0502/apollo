@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Icon } from '../../components/Icon';
+import { Icon, type IconName } from '../../components/Icon';
 import { AccountMenu } from '../../components/AccountMenu';
 import { assistantReadiness, matchesBinding, shortcut, STRINGS, type AuthStatus, type ReadinessState } from '@apollo/shared';
 import { useFormatInit, useNavigate, useSettings } from '../../lib/useLive';
@@ -141,10 +141,10 @@ export function WorkspaceApp(): React.JSX.Element {
           gap: 2,
         }}
       >
-        <RailButton label={STRINGS.workspace.nav.today} active={view === 'today'} onClick={() => go('today')} glyph="◉" />
-        <RailButton label={STRINGS.workspace.nav.chat} active={view === 'chat'} onClick={() => go('chat')} glyph="✻" />
-        <RailButton label={STRINGS.workspace.nav.calendar} active={view === 'calendar'} onClick={() => go('calendar')} glyph="▦" />
-        <RailButton label={STRINGS.workspace.nav.notes} active={view === 'notes'} onClick={() => go('notes')} glyph="≡" />
+        <RailButton label={STRINGS.workspace.nav.today} active={view === 'today'} onClick={() => go('today')} icon="home" />
+        <RailButton label={STRINGS.workspace.nav.chat} active={view === 'chat'} onClick={() => go('chat')} icon="chat" />
+        <RailButton label={STRINGS.workspace.nav.calendar} active={view === 'calendar'} onClick={() => go('calendar')} icon="calendar" />
+        <RailButton label={STRINGS.workspace.nav.notes} active={view === 'notes'} onClick={() => go('notes')} icon="note" />
         <div style={{ flex: 1 }} />
         {/* The account row replaces the gear: Settings and Log out both live in
             its menu, so signing out is one click from anywhere rather than
@@ -194,7 +194,7 @@ function isTyping(e: KeyboardEvent): boolean {
   return !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
 }
 
-function RailButton({ label, glyph, active, onClick }: { label: string; glyph: string; active: boolean; onClick: () => void }): React.JSX.Element {
+function RailButton({ label, icon, active, onClick }: { label: string; icon: IconName; active: boolean; onClick: () => void }): React.JSX.Element {
   return (
     <button
       onClick={onClick}
@@ -217,8 +217,8 @@ function RailButton({ label, glyph, active, onClick }: { label: string; glyph: s
         fontWeight: active ? 500 : 400,
       }}
     >
-      <span style={{ fontSize: 17, width: 20, textAlign: 'center', flexShrink: 0 }} aria-hidden="true">
-        {glyph}
+      <span style={{ width: 20, display: 'flex', justifyContent: 'center', flexShrink: 0 }} aria-hidden="true">
+        <Icon name={icon} size={17} />
       </span>
       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
     </button>

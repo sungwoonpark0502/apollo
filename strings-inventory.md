@@ -5,7 +5,7 @@ Use this for the C10/C18 tone review (sentence case, no corporate filler, presen
 
 Regenerate with `node apps/desktop/scripts/gen-strings-inventory.mjs` after changing strings.ts.
 
-Total user-facing strings: 625 (543 literal, 82 templated)
+Total user-facing strings: 626 (544 literal, 82 templated)
 
 | key | copy |
 |-----|------|
@@ -286,6 +286,7 @@ Total user-facing strings: 625 (543 literal, 82 templated)
 | `settings.proactive.outcomeLabels.snoozed` | "snoozed" |
 | `settings.proactive.outcomeLabels.expired` | "expired" |
 | `settings.general.launchAtLogin` | "Launch at login" |
+| `settings.general.advanced` | "Advanced" |
 | `settings.general.orbEdge` | "Orb edge" |
 | `settings.general.homeLocation` | "Location" |
 | `settings.general.openWorkspaceOnLaunch` | "Open Workspace on launch" |

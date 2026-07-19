@@ -374,6 +374,7 @@ export const STRINGS = {
     },
     general: {
       launchAtLogin: 'Launch at login',
+      advanced: 'Advanced',
       orbEdge: 'Orb edge',
       homeLocation: 'Location',
       openWorkspaceOnLaunch: 'Open Workspace on launch',

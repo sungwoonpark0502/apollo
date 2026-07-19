@@ -10,7 +10,7 @@ import React from 'react';
  * Deliberately minimal: 1.5px strokes on a 16px grid, matching the rest of the
  * chrome. Add icons here rather than reaching for a glyph inline.
  */
-export type IconName = 'pin' | 'close' | 'settings' | 'help' | 'signOut' | 'search' | 'bold' | 'italic' | 'code' | 'bulletList' | 'orderedList' | 'checklist' | 'quote' | 'h1' | 'h2' | 'h3';
+export type IconName = 'pin' | 'close' | 'home' | 'chat' | 'calendar' | 'note' | 'settings' | 'help' | 'signOut' | 'search' | 'bold' | 'italic' | 'code' | 'bulletList' | 'orderedList' | 'checklist' | 'quote' | 'h1' | 'h2' | 'h3';
 
 const PATHS: Record<IconName, React.ReactNode> = {
   // A pushpin reading clearly at 14-16px: head, shaft, point.
@@ -25,6 +25,39 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <>
       <path d="M4 4l8 8" />
       <path d="M12 4l-8 8" />
+    </>
+  ),
+  // Rail navigation. A house that reads as a house at 17px: roof, walls, door.
+  home: (
+    <>
+      <path d="M2.5 7.8 8 3l5.5 4.8" />
+      <path d="M3.8 7V12.6a.9.9 0 0 0 .9.9h6.6a.9.9 0 0 0 .9-.9V7" />
+      <path d="M6.6 13.5V9.8h2.8v3.7" />
+    </>
+  ),
+  chat: (
+    <>
+      <path d="M13.5 9.5a1.8 1.8 0 0 1-1.8 1.8H7.2L4 13.8v-2.5H4a1.8 1.8 0 0 1-1.5-1.8V4.3a1.8 1.8 0 0 1 1.8-1.8h7.4a1.8 1.8 0 0 1 1.8 1.8z" />
+      <path d="M5.2 5.8h5.6" />
+      <path d="M5.2 8.2h3.6" />
+    </>
+  ),
+  calendar: (
+    <>
+      <rect x="2.5" y="3.5" width="11" height="10" rx="1.5" />
+      <path d="M2.5 6.6h11" />
+      <path d="M5.5 2v2.6" />
+      <path d="M10.5 2v2.6" />
+      <path d="M5.2 9.3h2" />
+    </>
+  ),
+  note: (
+    <>
+      <path d="M3.5 3.6a1.1 1.1 0 0 1 1.1-1.1h5.6l2.3 2.3v8.6a1.1 1.1 0 0 1-1.1 1.1H4.6a1.1 1.1 0 0 1-1.1-1.1z" />
+      <path d="M10 2.6V5h2.4" />
+      <path d="M5.6 7.4h4.8" />
+      <path d="M5.6 9.8h4.8" />
+      <path d="M5.6 12.2h2.8" />
     </>
   ),
   settings: (

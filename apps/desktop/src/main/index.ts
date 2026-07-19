@@ -186,9 +186,15 @@ function boot(): void {
     });
     configureCalendars(s.calendars.active);
   };
+  const applyLoginItem = (open: boolean): void => {
+    if (!app.isPackaged) return; // dev binary must never become a login item
+    app.setLoginItemSettings({ openAtLogin: open });
+  };
+
   const settings = createSettingsService(repos.settings, {
     onChange: (next, prev) => {
       applyFormat(next);
+      if (next.launchAtLogin !== prev.launchAtLogin) applyLoginItem(next.launchAtLogin);
       if (next.voice.pttHotkey !== prev.voice.pttHotkey || next.quickCapture.hotkey !== prev.quickCapture.hotkey) reRegisterHotkeys?.();
       if (next.wake.sensitivity !== prev.wake.sensitivity) workerHost.send({ t: 'setSensitivity', v: next.wake.sensitivity });
       if (next.voice.orbIdleMode !== prev.voice.orbIdleMode) orbControllerRef?.refresh(); // L3.1
@@ -204,6 +210,16 @@ function boot(): void {
     },
   });
   applyFormat(settings.get()); // seed format context at boot
+
+  // One-time: launch-at-login becomes default ON now that it is actually
+  // wired. A stored false from the era when the toggle did nothing was noise,
+  // not a choice; a false stored after this marker is a choice and is kept.
+  if (repos.settings.get('launchAtLoginWired') === null) {
+    repos.settings.set('launchAtLoginWired', '1');
+    if (!settings.get().launchAtLogin) settings.patch({ launchAtLogin: true });
+  }
+  // Converge the OS login item with the setting at every boot.
+  applyLoginItem(settings.get().launchAtLogin);
   const secrets = createSecrets({ settings: repos.settings, codec: safeStorageCodec(safeStorage), env: config.env, log });
   const testKey = createKeyTester({ secrets, model: settings.get().anthropic.model });
 
@@ -306,6 +322,12 @@ function boot(): void {
     },
     log,
   });
+
+  // Sign in once, stay signed in: restore the session from the safeStorage
+  // refresh token at every boot. This call was MISSING — the token was saved
+  // and never read back, so each launch started signed out. Only an explicit
+  // sign-out (or a revoked token family) lands on the sign-in form again.
+  void authSession.restore();
 
   /**
    * L0.2 transport selection. Both branches satisfy the same LlmClient, so the

@@ -25,7 +25,28 @@ export function GeneralTab(): React.JSX.Element {
       <Row label={STRINGS.settings.general.launchAtLogin}>
         <Toggle checked={settings.launchAtLogin} onChange={(v: boolean) => patch({ ...settings, launchAtLogin: v })} />
       </Row>
+      <Row label={STRINGS.settings.general.defaultView}>
+        <select
+          value={settings.workspace.defaultView}
+          onChange={(e) => patch({ ...settings, workspace: { ...settings.workspace, defaultView: e.target.value as Settings['workspace']['defaultView'] } })}
+          style={{ ...inputStyle, width: 160 }}
+        >
+          <option value="chat">{STRINGS.workspace.nav.chat}</option>
+          <option value="today">{STRINGS.workspace.nav.today}</option>
+          <option value="calendar">{STRINGS.workspace.nav.calendar}</option>
+          <option value="notes">{STRINGS.workspace.nav.notes}</option>
+        </select>
+      </Row>
+      <Row label={STRINGS.settings.general.chatSendOnEnter}>
+        <Toggle checked={settings.chat.sendOnEnter} onChange={(v: boolean) => patch({ ...settings, chat: { ...settings.chat, sendOnEnter: v } })} />
+      </Row>
 
+      {/* Everything a first-time user does not need sits behind one fold: a
+          settings page with fifteen visible knobs is itself a usability bug. */}
+      <details style={{ marginTop: 'var(--sp-4)' }}>
+        <summary style={{ cursor: 'pointer', fontSize: 'var(--fs-body)', color: 'var(--text-2)', padding: 'var(--sp-2) 0' }}>
+          {STRINGS.settings.general.advanced}
+        </summary>
       <Row label={STRINGS.settings.general.orbEdge}>
         <select
           value={settings.orb.edge}
@@ -39,36 +60,15 @@ export function GeneralTab(): React.JSX.Element {
           ))}
         </select>
       </Row>
-
       <Row label={STRINGS.settings.general.openWorkspaceOnLaunch}>
         <Toggle checked={settings.workspace.openOnLaunch} onChange={(v: boolean) => patch({ ...settings, workspace: { ...settings.workspace, openOnLaunch: v } })} />
       </Row>
-
-      <Row label={STRINGS.settings.general.defaultView}>
-        <select
-          value={settings.workspace.defaultView}
-          onChange={(e) => patch({ ...settings, workspace: { ...settings.workspace, defaultView: e.target.value as Settings['workspace']['defaultView'] } })}
-          style={{ ...inputStyle, width: 160 }}
-        >
-          <option value="chat">{STRINGS.workspace.nav.chat}</option>
-          <option value="today">{STRINGS.workspace.nav.today}</option>
-          <option value="calendar">{STRINGS.workspace.nav.calendar}</option>
-          <option value="notes">{STRINGS.workspace.nav.notes}</option>
-        </select>
-      </Row>
-
-      <Row label={STRINGS.settings.general.chatSendOnEnter}>
-        <Toggle checked={settings.chat.sendOnEnter} onChange={(v: boolean) => patch({ ...settings, chat: { ...settings.chat, sendOnEnter: v } })} />
-      </Row>
-
       <Row label={STRINGS.settings.general.chatShowToolActivity}>
         <Toggle checked={settings.chat.showToolActivity} onChange={(v: boolean) => patch({ ...settings, chat: { ...settings.chat, showToolActivity: v } })} />
       </Row>
-
       <Row label={STRINGS.settings.general.chatAutoScroll}>
         <Toggle checked={settings.chat.autoScroll} onChange={(v: boolean) => patch({ ...settings, chat: { ...settings.chat, autoScroll: v } })} />
       </Row>
-
       <Row label={STRINGS.settings.general.quickCaptureHotkey}>
         <input
           value={settings.quickCapture.hotkey}
@@ -77,7 +77,6 @@ export function GeneralTab(): React.JSX.Element {
           aria-label={STRINGS.settings.general.quickCaptureHotkey}
         />
       </Row>
-
       <Row label={STRINGS.settings.general.quickCaptureType}>
         <select
           value={settings.quickCapture.defaultType}
@@ -88,6 +87,7 @@ export function GeneralTab(): React.JSX.Element {
           <option value="todo">{STRINGS.quickCapture.chipTodo}</option>
         </select>
       </Row>
+      </details>
 
       <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-3)', marginTop: 'var(--sp-2)' }}>
         Home location, units, and time format live in the Profile tab.

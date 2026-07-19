@@ -206,7 +206,8 @@ export const SettingsSchema = z.object({
   allowLinkReading: z.boolean().default(true),
   // I6: one-time proactivity explainer has been shown
   firstNudgeSeen: z.boolean().default(false),
-  launchAtLogin: z.boolean().default(false),
+  // Default ON: sign in once, and Apollo is simply there from then on.
+  launchAtLogin: z.boolean().default(true),
   workspaceBounds: z
     .object({ x: z.number(), y: z.number(), width: z.number(), height: z.number() })
     .nullable()
