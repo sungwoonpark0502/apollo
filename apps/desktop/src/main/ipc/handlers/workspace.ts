@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon';
-import { calendarColor, type EventDTO, type InvokeReq, type InvokeRes } from '@apollo/shared';
+import { calendarColor, type EventDTO, type InvokeReq, type InvokeRes, type NoteDoc } from '@apollo/shared';
 import { type Repos, type EventRow } from '../../db/repos/index';
 import { isValidRrule } from '../../db/repos/events';
 import { applyUndoEntry, registerInverse, undoLabel } from '../../tools/undo';
@@ -182,6 +182,20 @@ export function buildWorkspaceHandlers(deps: WorkspaceHandlerDeps) {
       const n = repos.notes.get(req.id);
       if (!n || n.deletedAt) throw new Error('note not found');
       return { id: n.id, content: n.content, pinned: n.pinned, updatedAt: n.updatedAt };
+    },
+
+    'notes.getDoc': (req: InvokeReq<'notes.getDoc'>): InvokeRes<'notes.getDoc'> => {
+      const doc = repos.notes.getDoc(req.id);
+      if (!doc) throw new Error('note not found');
+      return { doc };
+    },
+
+    // L4: main owns the mirror regeneration so the doc and the FTS/embedding
+    // text can never drift apart.
+    'notes.saveDoc': (req: InvokeReq<'notes.saveDoc'>): InvokeRes<'notes.saveDoc'> => {
+      const saved = repos.notes.saveDoc(req.id, req.doc as NoteDoc);
+      if (!saved) throw new Error('note not found');
+      return { id: saved.id, content: saved.content, updatedAt: saved.updatedAt };
     },
 
     'notes.save': (req: InvokeReq<'notes.save'>): InvokeRes<'notes.save'> => {

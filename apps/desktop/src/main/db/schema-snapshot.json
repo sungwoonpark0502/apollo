@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "objects": [
     {
       "type": "index",
@@ -155,7 +155,7 @@
       "type": "table",
       "name": "notes",
       "tbl_name": "notes",
-      "sql": "CREATE TABLE notes(\n  id TEXT PRIMARY KEY, content TEXT NOT NULL, tags TEXT,\n  created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, deleted_at INTEGER, pinned INTEGER NOT NULL DEFAULT 0)"
+      "sql": "CREATE TABLE notes(\n  id TEXT PRIMARY KEY, content TEXT NOT NULL, tags TEXT,\n  created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, deleted_at INTEGER, pinned INTEGER NOT NULL DEFAULT 0, doc TEXT)"
     },
     {
       "type": "table",

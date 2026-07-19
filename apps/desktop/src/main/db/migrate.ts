@@ -7,6 +7,7 @@ import m0005 from './migrations/0005_hardening.sql?raw';
 import m0006 from './migrations/0006_gcal.sql?raw';
 import m0007 from './migrations/0007_chat.sql?raw';
 import m0008 from './migrations/0008_todos_to_note.sql?raw';
+import m0009 from './migrations/0009_notes_doc.sql?raw';
 
 const MIGRATIONS: ReadonlyArray<{ version: number; sql: string }> = [
   { version: 1, sql: m0001 },
@@ -17,6 +18,7 @@ const MIGRATIONS: ReadonlyArray<{ version: number; sql: string }> = [
   { version: 6, sql: m0006 },
   { version: 7, sql: m0007 },
   { version: 8, sql: m0008 },
+  { version: 9, sql: m0009 },
 ];
 
 export const LATEST_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

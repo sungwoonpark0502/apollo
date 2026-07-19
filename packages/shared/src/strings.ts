@@ -178,6 +178,9 @@ export const STRINGS = {
     newConversation: 'Starting fresh.',
     whileAway: (n: number) => `While you were away: ${n} ${n === 1 ? 'item' : 'items'}.`,
     briefIntro: 'Here is your brief.',
+    // L4.4 checklist (replaces the removed to-do tools)
+    listItemAdded: (item: string) => `Added "${item}" to your list.`,
+    listEmpty: 'Your list is empty.',
     weatherNow: (place: string, temp: number, condition: string) => `It's ${temp} degrees and ${condition.toLowerCase()} in ${place}.`,
     weatherForecast: (place: string, when: string, hi: number, lo: number, condition: string) =>
       `${when} in ${place}: ${condition.toLowerCase()}, high ${hi}, low ${lo}.`,
@@ -611,6 +614,9 @@ export const STRINGS = {
       invalidTime: 'Please enter a valid start and end time.',
     },
     notes: {
+      editorPlaceholder: 'Start writing, or press / for blocks…',
+      blockMenu: 'Insert a block',
+      blockMenuEmpty: 'No matching block',
       searchPlaceholder: 'Search notes…',
       newNote: 'New note',
       pinned: 'Pinned',

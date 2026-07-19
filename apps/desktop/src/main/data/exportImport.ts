@@ -1,6 +1,6 @@
 import AdmZip from 'adm-zip';
 import { DateTime } from 'luxon';
-import { icsDate as icsDateKey, icsDateTime, type Settings } from '@apollo/shared';
+import { docToMarkdown, icsDate as icsDateKey, icsDateTime, parseDoc, type Settings } from '@apollo/shared';
 import { type Repos } from '../db/repos/index';
 import { type EventRow } from '../db/repos/events';
 
@@ -92,7 +92,11 @@ export function exportZip(repos: Repos, settings: Settings, opts: { includeConve
     let name = `${slug(title)}__${n.id}.md`;
     while (used.has(name)) name = `${slug(title)}-x__${n.id}.md`;
     used.add(name);
-    zip.addFile(`notes/${name}`, Buffer.from(n.content, 'utf8'));
+    // L4.6: render from the doc so headings, lists, checkboxes, tables, code
+    // fences, quotes and dividers survive the round trip. Notes that predate
+    // the doc column fall back to their plain mirror via parseDoc.
+    const markdown = docToMarkdown(parseDoc(n.doc, n.content));
+    zip.addFile(`notes/${name}`, Buffer.from(markdown, 'utf8'));
   }
 
   const events = repos.events.allActive();

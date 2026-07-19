@@ -14,9 +14,9 @@ beforeEach(() => {
 });
 
 describe('migrations', () => {
-  it('applies to version 8 and is idempotent', () => {
-    expect(migrate(db)).toBe(8);
-    expect(migrate(db)).toBe(8);
+  it('applies to version 9 and is idempotent', () => {
+    expect(migrate(db)).toBe(9);
+    expect(migrate(db)).toBe(9);
     const tables = (db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as Array<{ name: string }>).map((t) => t.name);
     for (const t of ['events', 'reminders', 'timers', 'alarms', 'notes', 'todos', 'contacts', 'conversations', 'messages', 'memory_facts', 'oauth_accounts', 'capability_misses', 'feeds', 'perf_spans', 'undo_log', 'settings', 'sync_state', 'sync_queue']) {
       expect(tables).toContain(t);
@@ -27,6 +27,9 @@ describe('migrations', () => {
     // K2: conversations carries rename/pin columns.
     const convCols = (db.prepare('PRAGMA table_info(conversations)').all() as Array<{ name: string }>).map((c) => c.name);
     for (const c of ['title', 'pinned']) expect(convCols).toContain(c);
+    // L4: notes carry the TipTap document alongside the plain-text mirror.
+    const noteCols = (db.prepare('PRAGMA table_info(notes)').all() as Array<{ name: string }>).map((c) => c.name);
+    expect(noteCols).toContain('doc');
   });
 });
 

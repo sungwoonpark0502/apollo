@@ -15,6 +15,7 @@ const PER_MINUTE: Partial<Record<InvokeChannelName, number>> = {
   // local mutation channels
   'data.mutate': 120,
   'notes.save': 120,
+  'notes.saveDoc': 120,
   'notes.delete': 120,
   'notes.pin': 120,
   'events.create': 120,

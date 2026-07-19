@@ -21,13 +21,25 @@ const INVERSES: Record<string, InverseFn> = {
     r.notes.softDelete(String(d['id']));
     return 'deleted the note';
   },
-  'todo.add': (r, d) => {
-    r.todos.softDelete(String(d['id']));
-    return 'removed the todo';
-  },
-  'todo.complete': (r, d) => {
-    r.todos.uncomplete(String(d['id']));
-    return 'reopened the todo';
+  // L4.4: checklist items replace the removed todo.* tools. Undo either deletes
+  // the note we just created, or strips the appended line back off it.
+  'note.appendChecklistItem': (r, d) => {
+    const noteId = String(d['noteId']);
+    if (d['createdNote'] === true) {
+      r.notes.softDelete(noteId);
+      return 'removed the list';
+    }
+    const note = r.notes.get(noteId);
+    if (note) {
+      const lines = note.content.split('\n');
+      const target = `- [ ] ${String(d['text'])}`;
+      const idx = lines.lastIndexOf(target);
+      if (idx !== -1) {
+        lines.splice(idx, 1);
+        r.notes.update(noteId, lines.join('\n'));
+      }
+    }
+    return 'removed the list item';
   },
   'contact.add': (r, d) => {
     r.contacts.softDelete(String(d['id']));
@@ -74,8 +86,7 @@ const UNDO_LABELS: Record<string, string> = {
   'timer.start': 'Started a timer',
   'alarm.set': 'Set an alarm',
   'note.save': 'Created a note',
-  'todo.add': 'Added a to-do',
-  'todo.complete': 'Completed a to-do',
+  'note.appendChecklistItem': 'Added a list item',
   'contact.add': 'Added a contact',
   'memory.save': 'Remembered a fact',
   'memory.forget': 'Forgot a fact',

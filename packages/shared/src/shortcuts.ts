@@ -42,6 +42,10 @@ export const SHORTCUTS: readonly Shortcut[] = [
 
   // Notes
   { id: 'notes.new', scope: 'Notes', keys: 'Mod+N', description: 'New note', binding: { key: 'n', mod: true } },
+  // L4 editor: the block menu and the markdown input rules it mirrors.
+  { id: 'notes.blockMenu', scope: 'Notes', keys: '/', description: 'Insert a block (heading, list, checklist, quote, code, table)' },
+  { id: 'notes.bold', scope: 'Notes', keys: 'Mod+B', description: 'Bold' },
+  { id: 'notes.italic', scope: 'Notes', keys: 'Mod+I', description: 'Italic' },
 
   // Voice (handled by wake word + fast paths, no in-window binding)
   { id: 'voice.wake', scope: 'Voice', keys: "Say 'Apollo'", description: 'Start talking to Apollo' },

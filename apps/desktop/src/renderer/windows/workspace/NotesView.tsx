@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { fmtRelative, STRINGS, type NoteListItem } from '@apollo/shared';
+import { fmtRelative, STRINGS, type NoteListItem, type NoteDoc } from '@apollo/shared';
 import { useDataSync } from '../../lib/useLive';
 import { debounce, wordCount } from '../../lib/debounce';
+import { NoteEditor } from '../../components/notes/NoteEditor';
 
 type SaveState = 'idle' | 'saving' | 'saved';
 
@@ -87,7 +88,7 @@ export function NotesView({ initialNoteId }: { initialNoteId?: string }): React.
 
       <main style={{ flex: 1, position: 'relative' }}>
         {selectedId ? (
-          <NoteEditor
+          <NoteEditorPane
             key={selectedId}
             noteId={selectedId}
             onChanged={reload}
@@ -118,31 +119,39 @@ export function NotesView({ initialNoteId }: { initialNoteId?: string }): React.
   );
 }
 
-function NoteEditor({ noteId, onChanged, onDeleted }: { noteId: string; onChanged: () => void; onDeleted: (undoToken: string) => void }): React.JSX.Element {
+function NoteEditorPane({ noteId, onChanged, onDeleted }: { noteId: string; onChanged: () => void; onDeleted: (undoToken: string) => void }): React.JSX.Element {
   const n = STRINGS.workspace.notes;
+  // L4: the note is a TipTap document; `content` is the derived plain-text
+  // mirror main regenerates on save (used here for word count + link previews).
+  const [doc, setDoc] = useState<NoteDoc | null>(null);
   const [content, setContent] = useState<string | null>(null);
   const [pinned, setPinned] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>('idle');
 
   useEffect(() => {
     let alive = true;
-    void window.apollo.call('notes.get', { id: noteId }).then((note) => {
-      if (alive) {
-        setContent(note.content);
-        setPinned(note.pinned);
-      }
+    void Promise.all([
+      window.apollo.call('notes.get', { id: noteId }),
+      window.apollo.call('notes.getDoc', { id: noteId }),
+    ]).then(([note, d]) => {
+      if (!alive) return;
+      setContent(note.content);
+      setPinned(note.pinned);
+      setDoc(d.doc as NoteDoc);
     });
     return () => {
       alive = false;
     };
   }, [noteId]);
 
-  // Autosave: 800ms debounce + on blur + on unmount/window-close (E3.3)
+  // Autosave: 800ms debounce + on blur + on unmount/window-close (E3.3),
+  // now saving the doc; main regenerates the mirror so FTS stays in step.
   const save = useMemo(
     () =>
-      debounce((text: string) => {
+      debounce((next: NoteDoc) => {
         setSaveState('saving');
-        void window.apollo.call('notes.save', { id: noteId, content: text }).then(() => {
+        void window.apollo.call('notes.saveDoc', { id: noteId, doc: next }).then((saved) => {
+          setContent(saved.content);
           setSaveState('saved');
           onChanged();
         });
@@ -159,12 +168,11 @@ function NoteEditor({ noteId, onChanged, onDeleted }: { noteId: string; onChange
     };
   }, [save]);
 
-  if (content === null) return <div style={{ padding: 'var(--sp-6)', color: 'var(--text-3)' }}>…</div>;
+  if (content === null || doc === null) return <div style={{ padding: 'var(--sp-6)', color: 'var(--text-3)' }}>…</div>;
 
-  const onEdit = (text: string): void => {
-    setContent(text);
+  const onEdit = (next: NoteDoc): void => {
     setSaveState('saving');
-    save(text);
+    save(next);
   };
 
   const togglePin = (): void => {
@@ -188,14 +196,9 @@ function NoteEditor({ noteId, onChanged, onDeleted }: { noteId: string; onChange
         <button onClick={togglePin} style={toolBtn}>{pinned ? n.unpin : n.pin}</button>
         <button onClick={del} style={{ ...toolBtn, color: 'var(--danger)' }}>{n.delete}</button>
       </div>
-      <textarea
-        autoFocus
-        value={content}
-        onChange={(e) => onEdit(e.target.value)}
-        onBlur={() => save.flush()}
-        placeholder={n.placeholder}
-        style={editorArea}
-      />
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', padding: 'var(--sp-4)' }}>
+        <NoteEditor autoFocus doc={doc} onChange={onEdit} onBlur={() => save.flush()} />
+      </div>
       <LinkPreviews content={content} />
       <div style={{ padding: 'var(--sp-2) var(--sp-4)', borderTop: '1px solid var(--border)', fontSize: 'var(--fs-caption)', color: 'var(--text-3)' }}>
         {n.words(wordCount(content))}
@@ -315,9 +318,4 @@ const newBtn: React.CSSProperties = {
 const toolBtn: React.CSSProperties = {
   padding: 'var(--sp-1) var(--sp-3)', borderRadius: 'var(--radius-ctl)', border: '1px solid var(--border)',
   background: 'transparent', color: 'var(--text-1)', cursor: 'pointer', fontSize: 'var(--fs-caption)', fontFamily: 'var(--font-sans)',
-};
-const editorArea: React.CSSProperties = {
-  flex: 1, width: '100%', boxSizing: 'border-box', resize: 'none', border: 'none', outline: 'none',
-  padding: 'var(--sp-5)', fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-body)', lineHeight: 1.7,
-  background: 'var(--bg)', color: 'var(--text-1)',
 };

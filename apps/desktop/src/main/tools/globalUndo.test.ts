@@ -3,6 +3,7 @@ import { openDb, type Db } from '../db/connection';
 import { migrate } from '../db/migrate';
 import { createRepos, type Repos } from '../db/repos/index';
 import { applyUndoEntry, undoLabel } from './undo';
+import { appendChecklistItem } from '../notes/listNote';
 // Importing the workspace handlers registers the UI inverses (event exdate etc.).
 import '../ipc/handlers/workspace';
 
@@ -19,26 +20,27 @@ describe('I3 global undo ring across surfaces', () => {
   it('undo.recent lists the last actions newest-first with human labels, across surfaces', () => {
     const note = repos.notes.save({ content: 'Groceries' });
     repos.undo.push({ turnId: 't1', convId: 'voice-conv', tool: 'note.save', data: { id: note.id } });
-    const todo = repos.todos.add({ content: 'call mom' });
-    repos.undo.push({ turnId: 't2', convId: 'workspace-ui', tool: 'todo.add', data: { id: todo.id } });
+    // L4.4: checklist items replaced the removed to-do tools.
+    const added = appendChecklistItem(repos.notes, 'call mom');
+    repos.undo.push({ turnId: 't2', convId: 'workspace-ui', tool: 'note.appendChecklistItem', data: { noteId: added.noteId, text: added.text, createdNote: added.created } });
 
     const recent = repos.undo.recent(10);
     expect(recent).toHaveLength(2);
-    expect(undoLabel(recent[0]!.tool)).toBe('Added a to-do'); // newest first, from the workspace surface
+    expect(undoLabel(recent[0]!.tool)).toBe('Added a list item'); // newest first, from the workspace surface
     expect(undoLabel(recent[1]!.tool)).toBe('Created a note'); // from the voice surface
   });
 
   it('popNewest reverses the most recent action regardless of surface', () => {
     const note = repos.notes.save({ content: 'keep' });
     repos.undo.push({ turnId: 't1', convId: 'voice-conv', tool: 'note.save', data: { id: note.id } });
-    const todo = repos.todos.add({ content: 'undo me' });
-    repos.undo.push({ turnId: 't2', convId: 'workspace-ui', tool: 'todo.add', data: { id: todo.id } });
+    const added = appendChecklistItem(repos.notes, 'undo me');
+    repos.undo.push({ turnId: 't2', convId: 'workspace-ui', tool: 'note.appendChecklistItem', data: { noteId: added.noteId, text: added.text, createdNote: added.created } });
 
     const entry = repos.undo.popNewest()!;
-    expect(entry.tool).toBe('todo.add');
+    expect(entry.tool).toBe('note.appendChecklistItem');
     const what = applyUndoEntry(repos, entry);
-    expect(what).toBe('removed the todo');
-    expect(repos.todos.get(todo.id)?.deletedAt).toBeTruthy();
+    expect(what).toBe('removed the list'); // the append created the list note
+    expect(repos.notes.get(added.noteId)?.deletedAt).toBeTruthy();
     // the note action remains on the ring
     expect(repos.undo.recent(10)).toHaveLength(1);
   });

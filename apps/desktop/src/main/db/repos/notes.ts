@@ -1,22 +1,25 @@
-import { newId, nowMs, truncateGraphemes, type NoteListItem } from '@apollo/shared';
+import { docToPlainText, newId, nowMs, parseDoc, truncateGraphemes, type NoteDoc, type NoteListItem } from '@apollo/shared';
 import { type Db } from '../connection';
 
 export interface NoteRow {
   id: string; content: string; tags: string[]; pinned: boolean;
+  /** L4: portable TipTap document JSON; null on rows not yet converted. */
+  doc: string | null;
   createdAt: number; updatedAt: number; deletedAt: number | null;
 }
 
 export interface NoteHit { id: string; snippet: string; content: string }
 
 interface Raw {
-  id: string; content: string; tags: string | null; pinned: number;
+  id: string; content: string; tags: string | null; pinned: number; doc: string | null;
   created_at: number; updated_at: number; deleted_at: number | null;
 }
 
 function toRow(r: Raw): NoteRow {
   return {
     id: r.id, content: r.content, tags: r.tags ? (JSON.parse(r.tags) as string[]) : [],
-    pinned: r.pinned === 1, createdAt: r.created_at, updatedAt: r.updated_at, deletedAt: r.deleted_at,
+    pinned: r.pinned === 1, doc: r.doc ?? null,
+    createdAt: r.created_at, updatedAt: r.updated_at, deletedAt: r.deleted_at,
   };
 }
 
@@ -68,6 +71,31 @@ export function createNotesRepo(db: Db) {
       return row;
     },
     get,
+
+    /**
+     * L4: the note's document. Stored JSON when present, otherwise the plain
+     * mirror wrapped on read — which also turns the 0008 "- [ ]" To-dos lines
+     * into real checklist items.
+     */
+    getDoc(id: string): NoteDoc | null {
+      const row = get(id);
+      return row && !row.deletedAt ? parseDoc(row.doc, row.content) : null;
+    },
+
+    /**
+     * L4 save path: persist the doc and regenerate the plain-text mirror from
+     * it, so FTS, chunking/embedding, and title/snippet stay in step. This is
+     * the only place the two can diverge, so it is the only place that writes
+     * both.
+     */
+    saveDoc(id: string, doc: NoteDoc): NoteRow | null {
+      const cur = get(id);
+      if (!cur || cur.deletedAt) return null;
+      db.prepare('UPDATE notes SET doc=?, content=?, updated_at=? WHERE id=?')
+        .run(JSON.stringify(doc), docToPlainText(doc), nowMs(), id);
+      return get(id);
+    },
+
     /** All non-deleted notes with full content (H2 export). */
     allFull(): NoteRow[] {
       return (db.prepare('SELECT * FROM notes WHERE deleted_at IS NULL ORDER BY updated_at DESC').all() as Raw[]).map(toRow);

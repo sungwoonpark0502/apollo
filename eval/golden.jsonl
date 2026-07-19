@@ -139,3 +139,6 @@
 {"id":"chat-forbid-01","utterance":"what did we talk about earlier?","forbid_tools":["app.open"],"forbid_bare_refusal":true}
 {"id":"chat-forbid-02","utterance":"what's on my calendar tomorrow?","forbid_tools":["app.open"]}
 {"id":"chat-parity-01","utterance":"set a timer for 10 minutes","source":"text","expect_tools":[{"name":"timer.start"}],"note":"typed request produces the same tool sequence as the voice fixture voice-timer-01"}
+{"id":"list-add-01","utterance":"add milk to my list","expect_tools":[{"name":"note.appendChecklistItem","args_include":{"item":"milk"}}]}
+{"id":"list-add-02","utterance":"put renew passport on my to-do list","expect_tools":[{"name":"note.appendChecklistItem"}]}
+{"id":"list-read-01","prior_user":"add milk to my list","utterance":"what's on my list?","expect_tools":[{"name":"note.readList"}]}

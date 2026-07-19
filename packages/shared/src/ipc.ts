@@ -189,6 +189,13 @@ export const invokeChannels = {
     req: z.object({ id: z.string() }),
     res: z.object({ id: z.string(), content: z.string(), pinned: z.boolean(), updatedAt: z.number() }),
   },
+  // L4: the note's TipTap document. `doc` is portable ProseMirror JSON; the
+  // plain-text mirror is regenerated from it in main on every save.
+  'notes.getDoc': { req: z.object({ id: z.string() }), res: z.object({ doc: z.unknown() }) },
+  'notes.saveDoc': {
+    req: z.object({ id: z.string(), doc: z.unknown() }),
+    res: z.object({ id: z.string(), content: z.string(), updatedAt: z.number() }),
+  },
   'notes.save': {
     req: z.object({ id: z.string().optional(), content: z.string() }), // upsert
     res: z.object({ id: z.string(), content: z.string(), pinned: z.boolean(), updatedAt: z.number() }),

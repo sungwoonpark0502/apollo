@@ -85,6 +85,8 @@ const invokeFixtures: Record<InvokeChannelName, { req: unknown; res: unknown }> 
   },
   'notes.get': { req: { id: 'n1' }, res: { id: 'n1', content: 'Groceries\nmilk', pinned: false, updatedAt: 1 } },
   'notes.save': { req: { content: 'Groceries\nmilk, eggs' }, res: { id: 'n1', content: 'Groceries\nmilk, eggs', pinned: false, updatedAt: 1 } },
+  'notes.getDoc': { req: { id: 'n1' }, res: { doc: { type: 'doc', content: [{ type: 'paragraph' }] } } },
+  'notes.saveDoc': { req: { id: 'n1', doc: { type: 'doc', content: [{ type: 'paragraph' }] } }, res: { id: 'n1', content: '', updatedAt: 1 } },
   'notes.delete': { req: { id: 'n1' }, res: { undoToken: 'u1' } },
   'notes.pin': { req: { id: 'n1', pinned: true }, res: { ok: true } },
   'undo.apply': { req: { undoToken: 'u1' }, res: { ok: true } },
