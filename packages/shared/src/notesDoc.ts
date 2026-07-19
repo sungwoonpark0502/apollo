@@ -323,3 +323,43 @@ export function docTitle(doc: NoteDoc): string {
   const first = docToPlainText(doc).split('\n').find((l) => l.trim().length > 0);
   return (first ?? '').trim().slice(0, 80);
 }
+
+/**
+ * L4.4 title/body split. The note title stays the document's first block rather
+ * than a new column, so there is still exactly one source of truth: the title
+ * remains part of the doc, which means FTS, the chunker, recall, markdown
+ * export, and `docTitle` keep working with no migration and no second field to
+ * hold in sync.
+ *
+ * The editor renders the title in its own input and the rest below it; these
+ * two functions are the seam. `joinTitle(splitTitle(d))` round-trips.
+ */
+export function splitTitle(doc: NoteDoc): { title: string; body: NoteDoc } {
+  const blocks = doc.content ?? [];
+  const first = blocks[0];
+  // Only a heading or a paragraph acts as the title. A note that opens with a
+  // list or a table has no title line to steal, so the body stays whole.
+  const isTitleBlock = first !== undefined && (first.type === 'heading' || first.type === 'paragraph');
+  if (!isTitleBlock) return { title: '', body: doc };
+  const title = nodeText(first).trim();
+  const rest = blocks.slice(1);
+  return { title, body: { type: 'doc', content: rest.length > 0 ? rest : [{ type: 'paragraph' }] } };
+}
+
+export function joinTitle(title: string, body: NoteDoc): NoteDoc {
+  const head: DocNode = {
+    type: 'heading',
+    attrs: { level: 1 },
+    ...(title.length > 0 ? { content: [{ type: 'text', text: title }] } : {}),
+  };
+  const rest = body.content ?? [];
+  // An empty title still occupies the first block, or typing one later would
+  // silently promote the first body paragraph into the title.
+  return { type: 'doc', content: [head, ...rest] };
+}
+
+/** Flattened text of a single node, including its descendants. */
+function nodeText(node: DocNode): string {
+  if (node.text !== undefined) return node.text;
+  return (node.content ?? []).map(nodeText).join('');
+}

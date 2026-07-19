@@ -14,8 +14,13 @@ CREATE TABLE IF NOT EXISTS users (
   name TEXT NOT NULL,
   email TEXT NOT NULL,
   plan TEXT NOT NULL DEFAULT 'free',
+  password_hash TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- L1.4: added after the first deploy, so guard it for existing databases.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT;
+-- One account per address, case-insensitive, across both sign-in paths.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_lower ON users(lower(email));
 CREATE TABLE IF NOT EXISTS refresh_tokens (
   token_hash TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -54,6 +59,27 @@ export async function createPostgresStore(connectionString: string): Promise<Sto
     async getUser(id) {
       const { rows } = await pool.query<User>('SELECT id, name, email, plan, subject FROM users WHERE id=$1', [id]);
       return rows[0] ?? null;
+    },
+    async getUserByEmail(email) {
+      const { rows } = await pool.query<User & { password_hash: string | null }>(
+        'SELECT id, name, email, plan, subject, password_hash FROM users WHERE lower(email)=lower($1)',
+        [email],
+      );
+      const r = rows[0];
+      return r ? { id: r.id, name: r.name, email: r.email, plan: r.plan, subject: r.subject, passwordHash: r.password_hash } : null;
+    },
+    async createPasswordUser({ name, email, passwordHash }) {
+      const { rows } = await pool.query<User>(
+        `INSERT INTO users(id, subject, name, email, password_hash)
+         VALUES ('usr_' || substr(md5(random()::text), 1, 16), 'local:pending', $1, $2, $3)
+         RETURNING id, name, email, plan, subject`,
+        [name, email, passwordHash],
+      );
+      const u = rows[0]!;
+      // subject is derived from the id, which Postgres generates, so settle it
+      // in a second statement rather than guessing the id client-side.
+      await pool.query('UPDATE users SET subject = $1 WHERE id = $2', [`local:${u.id}`, u.id]);
+      return { ...u, subject: `local:${u.id}`, passwordHash };
     },
     async putRefresh(rec) {
       await pool.query('INSERT INTO refresh_tokens(token_hash, user_id, expires_at, rotated_at) VALUES ($1,$2,$3,$4)', [

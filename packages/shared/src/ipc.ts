@@ -114,8 +114,26 @@ export const invokeChannels = {
   'dictation.start': { req: z.object({}), res: z.object({ ok: z.boolean() }) },
   'dictation.stop': { req: z.object({}), res: ackSchema },
   // L1 accounts. Tokens never cross this boundary — only status and profile.
-  'auth.signIn': { req: z.object({}), res: ackSchema }, // opens the system browser
+  'auth.signIn': { req: z.object({}), res: ackSchema }, // OIDC path: opens the system browser
   'auth.signOut': { req: z.object({}), res: ackSchema },
+  /**
+   * L1.4 in-app credentials. The password crosses this boundary once, in
+   * memory, on its way to the backend over TLS; main never persists or logs it
+   * (the throttle keeps a brute-force attempt from being cheap, and the
+   * response carries only status + profile, never a token).
+   */
+  'auth.signInWithPassword': {
+    req: z.object({ email: z.string().email().max(254), password: z.string().min(1).max(200) }),
+    res: z.object({ ok: z.boolean(), error: z.string().optional() }),
+  },
+  'auth.signUpWithPassword': {
+    req: z.object({
+      email: z.string().email().max(254),
+      password: z.string().min(1).max(200),
+      name: z.string().max(80).optional(),
+    }),
+    res: z.object({ ok: z.boolean(), error: z.string().optional() }),
+  },
   'auth.usage': {
     req: z.object({}),
     res: z.object({ used: z.number(), limit: z.number(), resetIso: z.string() }),

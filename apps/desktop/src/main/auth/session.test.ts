@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type TokenResponse } from '@apollo/shared';
-import { createSession, type AuthState } from './session';
+import { createSession, type SessionDeps, type AuthState } from './session';
 import { byokAllowedFromEnv, resolveMode } from './mode';
 import { createBackendSttToken, createBackendSearch } from './transports';
 
@@ -205,5 +205,110 @@ describe('L0.2 managed transports', () => {
     ) as unknown as typeof fetch;
     const search = createBackendSearch({ baseUrl: BASE, getAccessToken: async () => 'access-1', fetchFn });
     expect((await search('rain')).results[0]).toMatchObject({ title: 'Rain tomorrow' });
+  });
+});
+
+describe('L1.4 password sign-in', () => {
+  function passwordDeps(over: Partial<SessionDeps> = {}) {
+    return {
+      baseUrl: BASE,
+      fetchFn: vi.fn() as unknown as typeof fetch,
+      loadRefreshToken: () => null,
+      saveRefreshToken: vi.fn(),
+      runSignInFlow: vi.fn(),
+      onChange: vi.fn(),
+      now: () => clock,
+      ...over,
+    } as SessionDeps;
+  }
+
+  const okBody = {
+    accessToken: 'access-1',
+    refreshToken: 'refresh-1',
+    expiresIn: 900,
+    user: { id: 'u1', name: 'Sam', email: 'sam@example.com', plan: 'free' },
+  };
+
+  it('signs in and stores only the refresh token', async () => {
+    const saveRefreshToken = vi.fn();
+    const fetchFn = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => okBody });
+    const s = createSession(passwordDeps({ fetchFn: fetchFn as unknown as typeof fetch, saveRefreshToken }));
+
+    const res = await s.signInWithPassword('sam@example.com', 'a good long password');
+    expect(res.ok).toBe(true);
+    expect(s.state()).toMatchObject({ status: 'signedIn', user: { email: 'sam@example.com' } });
+    expect(saveRefreshToken).toHaveBeenCalledWith('refresh-1');
+    // The password is never handed to the persistence layer.
+    for (const call of saveRefreshToken.mock.calls) {
+      expect(JSON.stringify(call)).not.toContain('a good long password');
+    }
+  });
+
+  it('posts to /auth/login, and to /auth/signup when creating an account', async () => {
+    const fetchFn = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => okBody });
+    const s = createSession(passwordDeps({ fetchFn: fetchFn as unknown as typeof fetch }));
+
+    await s.signInWithPassword('sam@example.com', 'a good long password');
+    expect(fetchFn.mock.calls[0]![0]).toBe(`${BASE}/auth/login`);
+
+    await s.signOut();
+    await s.signInWithPassword('sam@example.com', 'a good long password', { signUp: true, name: 'Sam' });
+    const signupCall = fetchFn.mock.calls.find((c) => String(c[0]).endsWith('/auth/signup'));
+    expect(signupCall).toBeTruthy();
+    expect(JSON.parse(String(signupCall![1].body))).toMatchObject({ name: 'Sam' });
+  });
+
+  it('maps backend rejections to codes the UI can render', async () => {
+    const cases: Array<[number, Record<string, string>, string]> = [
+      [401, { error: 'invalid_credentials' }, 'invalidCredentials'],
+      [429, { error: 'too_many_attempts' }, 'tooManyAttempts'],
+      [409, { error: 'signup_failed' }, 'emailTaken'],
+      [400, { error: 'weak_password' }, 'weakPassword'],
+    ];
+    for (const [status, body, expected] of cases) {
+      const fetchFn = vi.fn().mockResolvedValue({ ok: false, status, json: async () => body });
+      const s = createSession(passwordDeps({ fetchFn: fetchFn as unknown as typeof fetch }));
+      const res = await s.signInWithPassword('sam@example.com', 'pw');
+      expect(res).toEqual({ ok: false, error: expected });
+      expect(s.state().status).toBe('signedOut');
+    }
+  });
+
+  it('reports a network failure without signing a user in', async () => {
+    const fetchFn = vi.fn().mockRejectedValue(new Error('offline'));
+    const s = createSession(passwordDeps({ fetchFn: fetchFn as unknown as typeof fetch }));
+    expect(await s.signInWithPassword('sam@example.com', 'pw')).toEqual({ ok: false, error: 'network' });
+    expect(s.state().status).toBe('signedOut');
+  });
+
+  it('rejects a malformed success body rather than trusting it', async () => {
+    const fetchFn = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ accessToken: 'only-this' }) });
+    const s = createSession(passwordDeps({ fetchFn: fetchFn as unknown as typeof fetch }));
+    expect(await s.signInWithPassword('sam@example.com', 'pw')).toEqual({ ok: false, error: 'malformed' });
+    expect(s.state().status).toBe('signedOut');
+  });
+
+  it('never writes the password to the log', async () => {
+    const lines: string[] = [];
+    const fetchFn = vi.fn().mockResolvedValue({ ok: false, status: 401, json: async () => ({ error: 'invalid_credentials' }) });
+    const s = createSession(passwordDeps({ fetchFn: fetchFn as unknown as typeof fetch, log: (m: string) => lines.push(m) }));
+    await s.signInWithPassword('sam@example.com', 'SUPER-SECRET-PASSWORD');
+    expect(lines.join('\n')).not.toContain('SUPER-SECRET-PASSWORD');
+
+    const netLines: string[] = [];
+    const failing = vi.fn().mockRejectedValue(new Error('offline'));
+    const s2 = createSession(passwordDeps({ fetchFn: failing as unknown as typeof fetch, log: (m: string) => netLines.push(m) }));
+    await s2.signInWithPassword('sam@example.com', 'SUPER-SECRET-PASSWORD');
+    expect(netLines.join('\n')).not.toContain('SUPER-SECRET-PASSWORD');
+  });
+
+  it('refuses a second concurrent attempt instead of racing', async () => {
+    let release: (v: unknown) => void = () => undefined;
+    const fetchFn = vi.fn().mockReturnValue(new Promise((r) => { release = r; }));
+    const s = createSession(passwordDeps({ fetchFn: fetchFn as unknown as typeof fetch }));
+    const first = s.signInWithPassword('sam@example.com', 'pw');
+    expect(await s.signInWithPassword('sam@example.com', 'pw')).toEqual({ ok: false, error: 'busy' });
+    release({ ok: true, status: 200, json: async () => okBody });
+    expect((await first).ok).toBe(true);
   });
 });

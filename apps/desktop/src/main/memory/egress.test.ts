@@ -60,18 +60,21 @@ describe('no network egress during embed + recall (G8)', () => {
   it('the runtime egress allowlist stays the C14.9 Google-family set (I7 adds only the Calendar API host)', () => {
     // Embedding/recall (Part G) add no host. I7 adds www.googleapis.com (Google
     // Calendar API) — a first-party Google host, no wildcard, no arbitrary egress.
-    expect(BASE_ALLOWED_HOSTS).toEqual([
+    // Compared as a sorted set: this asserts exact membership, which is the
+    // security property. Order within an allowlist means nothing, and pinning it
+    // made an L6 regrouping look like a policy change.
+    expect([...BASE_ALLOWED_HOSTS].sort()).toEqual([
+      'accounts.google.com',
       'api.anthropic.com',
       'api.deepgram.com',
-      'api.search.brave.com',
       'api.open-meteo.com',
+      'api.search.brave.com',
       'geocoding-api.open-meteo.com',
       'gmail.googleapis.com',
-      'www.googleapis.com',
       'oauth2.googleapis.com',
-      'accounts.google.com',
       'speech.platform.bing.com',
-    ]);
+      'www.googleapis.com',
+    ].sort());
     expect(BASE_ALLOWED_HOSTS).not.toContain('huggingface.co');
   });
 });

@@ -1,3 +1,4 @@
+import { Icon } from '../../components/Icon';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { fmtRelative, STRINGS, type NoteListItem, type NoteDoc } from '@apollo/shared';
 import { useDataSync } from '../../lib/useLive';
@@ -292,8 +293,17 @@ function NoteRow({ note, active, onClick }: { note: NoteListItem; active: boolea
         background: active ? 'var(--accent-soft)' : 'transparent',
       }}
     >
-      <div style={{ fontSize: 'var(--fs-body)', fontWeight: 500, color: 'var(--text-1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-        {note.title || STRINGS.workspace.notes.untitled}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-1)' }}>
+        {/* A pinned note has to read as pinned wherever it appears, not only by
+            sitting under the Pinned heading — search results mix both. */}
+        {note.pinned ? (
+          <span style={{ color: 'var(--accent)', display: 'flex' }} title={STRINGS.workspace.notes.pinned}>
+            <Icon name="pin" size={12} filled />
+          </span>
+        ) : null}
+        <div style={{ flex: 1, fontSize: 'var(--fs-body)', fontWeight: 500, color: 'var(--text-1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {note.title || STRINGS.workspace.notes.untitled}
+        </div>
       </div>
       <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
         {note.snippet || fmtRelative(note.updatedAt)}

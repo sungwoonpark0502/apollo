@@ -50,6 +50,8 @@ export interface HandlerDeps {
   authSignIn?: () => Promise<{ ok: boolean }>;
   authSignOut?: () => Promise<void>;
   authUsage?: () => Promise<InvokeRes<'auth.usage'>>;
+  authPasswordSignIn?: (email: string, password: string) => Promise<InvokeRes<'auth.signInWithPassword'>>;
+  authPasswordSignUp?: (email: string, password: string, name?: string) => Promise<InvokeRes<'auth.signUpWithPassword'>>;
   appMode?: () => 'managed' | 'byok';
   checkForUpdates?: () => Promise<InvokeRes<'update.check'>>;
   installUpdate?: () => void;
@@ -200,6 +202,12 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
       await deps.authSignOut?.();
       return { ok: true as const };
     },
+    // L1.4: the credential goes straight through to the backend and is never
+    // stored, echoed, or logged here. Only the outcome comes back.
+    'auth.signInWithPassword': async (req) =>
+      (await deps.authPasswordSignIn?.(req.email, req.password)) ?? { ok: false, error: 'unavailable' },
+    'auth.signUpWithPassword': async (req) =>
+      (await deps.authPasswordSignUp?.(req.email, req.password, req.name)) ?? { ok: false, error: 'unavailable' },
     'auth.usage': async () => (deps.authUsage ? deps.authUsage() : { used: 0, limit: 0, resetIso: '' }),
     'app.mode': () => ({ mode: deps.appMode?.() ?? ('managed' as const) }),
     'chat.regenerate': (req) => {

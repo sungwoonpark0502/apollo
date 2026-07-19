@@ -1,3 +1,4 @@
+import { Icon } from '../../components/Icon';
 import React, { useEffect, useRef, useState } from 'react';
 import { fmtRelative, STRINGS } from '@apollo/shared';
 import { filterConversations, groupConversations, type ConversationSummary } from '../../components/chat/sidebarModel';
@@ -105,7 +106,19 @@ export function ChatSidebar({ activeConvId, historyEnabled, refreshTick, onNewCh
               <div key={g.label}>
                 <div style={groupLabelStyle}>{g.label}</div>
                 {g.conversations.map((c) => (
-                  <div key={c.id} style={{ position: 'relative' }}>
+                  <div
+                    key={c.id}
+                    style={{
+                      position: 'relative',
+                      // The highlight belongs to the whole row. It used to live on
+                      // the button alone, which excluded the timestamp line below
+                      // and left the pill visibly clipped at the bottom.
+                      background: c.id === activeConvId ? 'var(--accent-soft)' : 'transparent',
+                      borderRadius: 'var(--radius-ctl)',
+                      padding: 'var(--sp-1) 0',
+                      marginBottom: 2,
+                    }}
+                  >
                     {renaming?.id === c.id ? (
                       <input
                         autoFocus
@@ -124,10 +137,15 @@ export function ChatSidebar({ activeConvId, historyEnabled, refreshTick, onNewCh
                         onClick={() => onSelect(c.id)}
                         onContextMenu={(e) => { e.preventDefault(); setMenuFor(c.id); }}
                         aria-current={c.id === activeConvId ? 'true' : undefined}
-                        style={{ ...rowStyle, background: c.id === activeConvId ? 'var(--accent-soft)' : 'transparent' }}
+                        style={rowStyle}
                       >
+                        {c.pinned ? (
+                          <span style={{ color: 'var(--accent)', display: 'flex' }} title={s.groupPinned}>
+                            <Icon name="pin" size={13} filled />
+                          </span>
+                        ) : null}
                         <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left' }}>
-                          {c.pinned ? '📌 ' : ''}{c.title}
+                          {c.title}
                         </span>
                         <span
                           role="button"
@@ -140,7 +158,7 @@ export function ChatSidebar({ activeConvId, historyEnabled, refreshTick, onNewCh
                         </span>
                       </button>
                     )}
-                    <div style={{ fontSize: 10, color: 'var(--text-3)', padding: '0 var(--sp-2) var(--sp-1)' }}>
+                    <div style={{ fontSize: 10, color: 'var(--text-3)', padding: '0 var(--sp-2)' }}>
                       {fmtRelative(c.lastTs)} · {s.messageCount(c.messageCount)}
                     </div>
                     {menuFor === c.id ? (
@@ -193,7 +211,7 @@ const groupLabelStyle: React.CSSProperties = {
 
 const rowStyle: React.CSSProperties = {
   display: 'flex', width: '100%', alignItems: 'center', gap: 'var(--sp-1)',
-  border: 'none', cursor: 'pointer', padding: 'var(--sp-2) var(--sp-2) 0', borderRadius: 'var(--radius-ctl)',
+  border: 'none', cursor: 'pointer', padding: '2px var(--sp-2)', borderRadius: 'var(--radius-ctl)',
   color: 'var(--text-1)', fontSize: 'var(--fs-body)', fontFamily: 'var(--font-sans)', background: 'transparent',
 };
 

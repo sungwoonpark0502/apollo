@@ -321,3 +321,118 @@ describe('L7 SSE parser (shared contract, both sides)', () => {
     expect(vi.isMockFunction(vi.fn())).toBe(true);
   });
 });
+
+describe('L1.4 in-app password sign-in', () => {
+  const CREDS = { email: 'New.User@Example.com', password: 'correct horse battery staple', name: 'Sam' };
+
+  async function signup(app: ReturnType<typeof server>, over: Record<string, unknown> = {}) {
+    return app.inject({ method: 'POST', url: '/auth/signup', payload: { ...CREDS, ...over } });
+  }
+  async function login(app: ReturnType<typeof server>, over: Record<string, unknown> = {}) {
+    return app.inject({ method: 'POST', url: '/auth/login', payload: { email: CREDS.email, password: CREDS.password, ...over } });
+  }
+
+  it('signs up and returns the same session shape as the OIDC path', async () => {
+    const app = server();
+    const res = await signup(app);
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.accessToken).toBeTruthy();
+    expect(body.refreshToken).toBeTruthy();
+    expect(body).toMatchObject({ expiresIn: 900, user: { name: 'Sam', plan: 'free' } });
+    // Email is normalized, so a later login with different casing still matches.
+    expect(body.user.email).toBe('new.user@example.com');
+  });
+
+  it('logs in with the right password and rejects the wrong one', async () => {
+    const app = server();
+    await signup(app);
+    expect((await login(app)).statusCode).toBe(200);
+    expect((await login(app, { password: 'not the password' })).statusCode).toBe(401);
+  });
+
+  it('login is case-insensitive on the email', async () => {
+    const app = server();
+    await signup(app);
+    expect((await login(app, { email: 'NEW.USER@EXAMPLE.COM' })).statusCode).toBe(200);
+  });
+
+  it('never returns the password or its hash', async () => {
+    const app = server();
+    const raw = (await signup(app)).body + (await login(app)).body;
+    expect(raw).not.toContain(CREDS.password);
+    expect(raw).not.toContain('scrypt$');
+    expect(raw).not.toContain('passwordHash');
+  });
+
+  it('does not reveal whether an email is registered', async () => {
+    const app = server();
+    await signup(app);
+    // Wrong password on a real account and any password on a missing account
+    // must be indistinguishable to the client.
+    const wrong = await login(app, { password: 'wrong password here' });
+    const missing = await login(app, { email: 'nobody@example.com', password: 'wrong password here' });
+    expect(wrong.statusCode).toBe(missing.statusCode);
+    expect(wrong.json()).toEqual(missing.json());
+  });
+
+  it('rejects a duplicate signup without confirming the account exists', async () => {
+    const app = server();
+    await signup(app);
+    const dup = await signup(app);
+    expect(dup.statusCode).toBe(409);
+    expect(JSON.stringify(dup.json())).not.toContain('exists');
+  });
+
+  it('enforces the password policy', async () => {
+    const app = server();
+    for (const password of ['short', 'password123']) {
+      const res = await signup(app, { email: `x${password}@example.com`, password });
+      expect(res.statusCode).toBe(400);
+      expect(res.json().error).toBe('weak_password');
+    }
+  });
+
+  it('throttles repeated failures for one email, then recovers after the lockout', async () => {
+    const app = server();
+    await signup(app);
+    for (let i = 0; i < 8; i++) expect((await login(app, { password: 'wrong guess xx' })).statusCode).toBe(401);
+    // The 9th is refused outright — the correct password is not even checked.
+    const locked = await login(app);
+    expect(locked.statusCode).toBe(429);
+
+    clock += 16 * 60_000; // past the 15-minute lockout
+    expect((await login(app)).statusCode).toBe(200);
+  });
+
+  it('a successful login clears the failure counter', async () => {
+    const app = server();
+    await signup(app);
+    for (let i = 0; i < 5; i++) await login(app, { password: 'wrong guess xx' });
+    expect((await login(app)).statusCode).toBe(200);
+    for (let i = 0; i < 5; i++) await login(app, { password: 'wrong guess xx' });
+    expect((await login(app)).statusCode).toBe(200); // counter reset, not at 10
+  });
+
+  it('an OIDC account cannot be logged into with a password', async () => {
+    const app = server();
+    await signIn(app); // creates james@example.com with no password hash
+    const res = await login(app, { email: 'james@example.com', password: 'anything at all' });
+    expect(res.statusCode).toBe(401);
+  });
+
+  it('the issued session works on a protected route and refreshes', async () => {
+    const app = server();
+    const { accessToken, refreshToken } = (await signup(app)).json();
+    const me = await app.inject({ method: 'GET', url: '/v1/me', headers: { authorization: `Bearer ${accessToken}` } });
+    expect(me.statusCode).toBe(200);
+    const refreshed = await app.inject({ method: 'POST', url: '/auth/refresh', payload: { refreshToken } });
+    expect(refreshed.statusCode).toBe(200);
+  });
+
+  it('rejects a malformed email or an oversized password', async () => {
+    const app = server();
+    expect((await signup(app, { email: 'not-an-email' })).statusCode).toBe(400);
+    expect((await signup(app, { password: 'x'.repeat(300) })).statusCode).toBe(400);
+  });
+});

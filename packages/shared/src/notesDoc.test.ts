@@ -3,6 +3,8 @@ import {
   appendChecklistItemToDoc,
   docTitle,
   docToMarkdown,
+  joinTitle,
+  splitTitle,
   docToPlainText,
   parseDoc,
   plainTextToDoc,
@@ -200,5 +202,66 @@ describe('L4 unicode safety (J4 parity)', () => {
     expect(docToPlainText(doc)).toContain('🎉 会議 مرحبا');
     expect(docToPlainText(doc)).toContain('🚀 launch');
     expect(docToMarkdown(doc)).toContain('- [ ] 🚀 launch');
+  });
+});
+
+describe('L4.4 title/body split', () => {
+  it('round-trips a note with a heading title', () => {
+    const doc = joinTitle('Groceries', { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'milk' }] }] });
+    const split = splitTitle(doc);
+    expect(split.title).toBe('Groceries');
+    expect(docToPlainText(split.body)).toBe('milk');
+    expect(joinTitle(split.title, split.body)).toEqual(doc);
+  });
+
+  it('treats a leading paragraph as the title too, so old notes get one', () => {
+    // Notes written before L4.4 (and every migrated to-do list) start with a
+    // plain paragraph; that first line is what docTitle already showed.
+    const doc: NoteDoc = {
+      type: 'doc',
+      content: [
+        { type: 'paragraph', content: [{ type: 'text', text: 'Trip plan' }] },
+        { type: 'paragraph', content: [{ type: 'text', text: 'book flights' }] },
+      ],
+    };
+    const split = splitTitle(doc);
+    expect(split.title).toBe('Trip plan');
+    expect(docToPlainText(split.body)).toBe('book flights');
+  });
+
+  it('does not steal a list or table as the title', () => {
+    const doc: NoteDoc = {
+      type: 'doc',
+      content: [{ type: 'bulletList', content: [{ type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'a' }] }] }] }],
+    };
+    const split = splitTitle(doc);
+    expect(split.title).toBe('');
+    expect(split.body).toEqual(doc); // body untouched
+  });
+
+  it('keeps an empty first block so a later title cannot promote a body line', () => {
+    const joined = joinTitle('', { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'body' }] }] });
+    expect(joined.content[0]!.type).toBe('heading');
+    expect(splitTitle(joined).title).toBe('');
+    expect(docToPlainText(splitTitle(joined).body)).toBe('body');
+  });
+
+  it('never loses body content across an edit cycle', () => {
+    const body: NoteDoc = {
+      type: 'doc',
+      content: [
+        { type: 'taskList', content: [{ type: 'taskItem', attrs: { checked: true }, content: [{ type: 'paragraph', content: [{ type: 'text', text: 'done' }] }] }] },
+        { type: 'codeBlock', content: [{ type: 'text', text: 'x = 1' }] },
+      ],
+    };
+    let doc = joinTitle('A', body);
+    for (const t of ['AB', 'ABC', '']) doc = joinTitle(t, splitTitle(doc).body);
+    expect(docToPlainText(splitTitle(doc).body)).toBe(docToPlainText(body));
+  });
+
+  it('the title stays inside the doc, so it is still indexed for search', () => {
+    const doc = joinTitle('Quarterly report', { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'draft' }] }] });
+    expect(docToPlainText(doc)).toContain('Quarterly report');
+    expect(docTitle(doc)).toBe('Quarterly report');
   });
 });

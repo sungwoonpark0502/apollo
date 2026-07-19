@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Icon } from '../../components/Icon';
 import { DateTime } from 'luxon';
 import { calendarColor, fmtDate, fmtDateIso, fmtRelative, fmtTime, STRINGS, type OccurrenceDTO, type Settings } from '@apollo/shared';
 import { useDataSync } from '../../lib/useLive';
@@ -322,7 +323,7 @@ function DayPanel({
         <button onClick={onOpenWeek} style={{ ...linkBtn, fontWeight: 600, fontSize: 'var(--fs-body)' }}>
           {fmtDateIso(dateIso, 'weekday-full')}
         </button>
-        <button onClick={onClose} style={linkBtn} aria-label="Close">✕</button>
+        <button onClick={onClose} style={linkBtn} aria-label="Close"><Icon name="close" size={14} /></button>
       </div>
       {events.length === 0 ? (
         <div style={{ color: 'var(--text-3)', fontSize: 'var(--fs-body)' }}>{STRINGS.workspace.today.emptyEvents}</div>

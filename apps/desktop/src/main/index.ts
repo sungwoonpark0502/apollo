@@ -214,7 +214,25 @@ function boot(): void {
     log,
   });
 
-  const egress = createEgressPolicy(() => repos.feeds.list().map((f) => new URL(f.url).hostname));
+  // L0.2 mode: BYOK only when the build permits it AND a real key exists;
+  // otherwise managed (backend transport, no provider keys on the device).
+  const byokAllowed = byokAllowedFromEnv(process.env);
+  // The smoke gate drives a real turn end to end and must stay account-free and
+  // offline (A2/C17): it verifies the app's own wiring, not the backend's. Left
+  // in managed mode it would fail on AUTH_REQUIRED at the first turn.
+  const smoke = process.env['APOLLO_SMOKE'] === '1';
+  const appMode = smoke
+    ? ('byok' as const)
+    : resolveMode({ allowByok: byokAllowed, hasProviderKey: secrets.has('anthropic') });
+  log(`operating mode: ${appMode}`);
+
+  // L6: the allowlist follows the mode. A managed build must not retain the
+  // ability to reach Anthropic or Brave directly — it has no key for them, and
+  // an allowlist entry is what a bug or an injected URL would try to exploit.
+  const egress = createEgressPolicy(() => repos.feeds.list().map((f) => new URL(f.url).hostname), {
+    mode: () => appMode,
+    hosts: { backendBaseUrl: config.backendBaseUrl, oidcAuthorizeUrl: config.oidcAuthorizeUrl },
+  });
   // H4: use Electron's net.fetch transport (system proxy, PAC, OS cert store) while
   // preserving the httpClient interface, breaker, and egress allowlist.
   const http = createHttpClient({ egress, breaker: createBreaker(), fetchFn: (url, init) => net.fetch(url as string, init), log });
@@ -252,12 +270,6 @@ function boot(): void {
       approvedDirs: [app.getPath('documents'), app.getPath('desktop'), app.getPath('downloads')],
     });
   }
-
-  // L0.2 mode: BYOK only when the build permits it AND a real key exists;
-  // otherwise managed (backend transport, no provider keys on the device).
-  const byokAllowed = byokAllowedFromEnv(process.env);
-  const appMode = resolveMode({ allowByok: byokAllowed, hasProviderKey: secrets.has('anthropic') });
-  log(`operating mode: ${appMode}`);
 
   const egressCheckedFetch = ((input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
@@ -860,6 +872,9 @@ function boot(): void {
     // L1 accounts: main owns the tokens; the renderer only ever sees state.
     authSignIn: () => authSession.signIn(),
     authSignOut: () => authSession.signOut(),
+    authPasswordSignIn: (email, password) => authSession.signInWithPassword(email, password),
+    authPasswordSignUp: (email, password, name) =>
+      authSession.signInWithPassword(email, password, { signUp: true, ...(name ? { name } : {}) }),
     authUsage: async () => {
       const token = await authSession.getAccessToken();
       if (!token) return { used: 0, limit: 0, resetIso: '' };

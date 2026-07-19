@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { newId, STRINGS, type AgentEvent, type CardPayload, type SuggestionDTO, type VoiceState } from '@apollo/shared';
 import { CardShell, CardView } from '../../components/cards/CardView';
+import { Icon } from '../../components/Icon';
 import { StageCard } from '../../components/StageCard';
 import { NudgeCard, NudgeGroupCard } from '../../components/NudgeCard';
 import { RingingCard, type RingingAlert } from '../../components/RingingCard';
@@ -341,7 +342,7 @@ export function OrbApp(): React.JSX.Element {
           {firstNudgeNote ? (
             <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-2)', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-card)', padding: 'var(--sp-3)', display: 'flex', gap: 'var(--sp-2)', alignItems: 'flex-start' }}>
               <span style={{ flex: 1 }}>{STRINGS.nudges.firstNudgeExplainer}</span>
-              <button onClick={() => setFirstNudgeNote(false)} aria-label="Dismiss" style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-3)' }}>✕</button>
+              <button onClick={() => setFirstNudgeNote(false)} aria-label="Dismiss" style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-3)' }}><Icon name="close" size={13} /></button>
             </div>
           ) : null}
           {nudges.map((p) => (
@@ -397,11 +398,11 @@ export function OrbApp(): React.JSX.Element {
                       border: 'none',
                       background: 'transparent',
                       cursor: 'pointer',
-                      fontSize: 'var(--fs-caption)',
+                      display: 'flex',
                       color: c.pinned ? 'var(--accent)' : 'var(--text-3)',
                     }}
                   >
-                    ⦿
+                    <Icon name="pin" size={14} filled={c.pinned} />
                   </button>
                   <OpenInChatButton convId={convId} right={30} />
                   <CardView card={c.card} convId={convId} />

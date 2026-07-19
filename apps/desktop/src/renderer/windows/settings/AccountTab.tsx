@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { fmtDate, fmtNumber, STRINGS, type AuthStatus } from '@apollo/shared';
 import { buttonStyle } from '../../components/cards/TimerCard';
+import { SignInForm } from '../../components/auth/SignInForm';
 
 interface AuthUser {
   name: string;
@@ -50,17 +51,12 @@ export function AccountTab({ mode }: { mode: 'managed' | 'byok' }): React.JSX.El
   }
 
   if (status !== 'signedIn') {
+    // L1.4: sign-in happens here, in Apollo's own UI. No browser hand-off, no
+    // embedded web view — see DECISIONS for why this departs from RFC 8252.
     return (
       <div>
         <h2 style={heading}>{a.title}</h2>
-        <p style={{ color: 'var(--text-2)', fontSize: 'var(--fs-body)', marginBottom: 'var(--sp-4)' }}>{a.signInBody}</p>
-        <button
-          onClick={() => void window.apollo.call('auth.signIn', {})}
-          disabled={status === 'signingIn'}
-          style={{ ...buttonStyle, background: 'var(--accent)', color: '#fff', borderColor: 'var(--accent)' }}
-        >
-          {status === 'signingIn' ? a.signingIn : a.signIn}
-        </button>
+        <SignInForm busy={status === 'signingIn'} />
       </div>
     );
   }

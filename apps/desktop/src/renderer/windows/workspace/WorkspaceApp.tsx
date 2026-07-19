@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { Icon } from '../../components/Icon';
 import { assistantReadiness, matchesBinding, shortcut, STRINGS, type AuthStatus, type ReadinessState } from '@apollo/shared';
 import { useFormatInit, useNavigate, useSettings } from '../../lib/useLive';
 import { TodayView } from './TodayView';
@@ -117,7 +118,7 @@ export function WorkspaceApp(): React.JSX.Element {
           >
             {readiness.kind === 'signInRequired' ? STRINGS.onboarding.signInAction : STRINGS.onboarding.byokKeysAction}
           </button>
-          <button onClick={() => setBannerDismissed(true)} aria-label={STRINGS.onboarding.dismiss} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-3)' }}>✕</button>
+          <button onClick={() => setBannerDismissed(true)} aria-label={STRINGS.onboarding.dismiss} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-3)' }}><Icon name="close" size={14} /></button>
         </div>
       ) : null}
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>

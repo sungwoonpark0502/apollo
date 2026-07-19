@@ -9,8 +9,12 @@ export interface User {
   name: string;
   email: string;
   plan: string;
-  /** Subject claim from the identity provider (OIDC `sub`). */
+  /** Subject claim from the identity provider (OIDC `sub`). For a
+   *  password account this is `local:<userId>`, so one users table serves
+   *  both sign-in paths without a nullable discriminator. */
   subject: string;
+  /** L1.4 scrypt record for password accounts; null for IdP accounts. */
+  passwordHash?: string | null;
 }
 
 export interface RefreshRecord {
@@ -31,6 +35,10 @@ export interface UsageWindow {
 export interface Store {
   upsertUserBySubject(input: { subject: string; name: string; email: string }): Promise<User>;
   getUser(id: string): Promise<User | null>;
+
+  // L1.4 in-app password accounts.
+  getUserByEmail(email: string): Promise<User | null>;
+  createPasswordUser(input: { name: string; email: string; passwordHash: string }): Promise<User>;
 
   putRefresh(rec: RefreshRecord): Promise<void>;
   getRefresh(tokenHash: string): Promise<RefreshRecord | null>;
@@ -57,6 +65,7 @@ function periodKey(now: number): string {
 export function createMemoryStore(): Store {
   const users = new Map<string, User>();
   const bySubject = new Map<string, string>();
+  const byEmail = new Map<string, string>();
   const refresh = new Map<string, RefreshRecord>();
   const usage = new Map<string, number>(); // `${userId}:${period}` → turns
 
@@ -74,10 +83,24 @@ export function createMemoryStore(): Store {
       const user: User = { id: `usr_${seq}`, name, email, plan: 'free', subject };
       users.set(user.id, user);
       bySubject.set(subject, user.id);
+      byEmail.set(email.toLowerCase(), user.id);
       return user;
     },
     async getUser(id) {
       return users.get(id) ?? null;
+    },
+    async getUserByEmail(email) {
+      const id = byEmail.get(email.toLowerCase());
+      return id ? (users.get(id) ?? null) : null;
+    },
+    async createPasswordUser({ name, email, passwordHash }) {
+      seq += 1;
+      // subject is synthesized so password and IdP accounts share one table.
+      const user: User = { id: `usr_${seq}`, name, email, plan: 'free', subject: `local:usr_${seq}`, passwordHash };
+      users.set(user.id, user);
+      byEmail.set(email.toLowerCase(), user.id);
+      bySubject.set(user.subject, user.id);
+      return user;
     },
     async putRefresh(rec) {
       refresh.set(rec.tokenHash, rec);

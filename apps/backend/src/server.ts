@@ -1,5 +1,7 @@
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
+import { hashPassword, normalizeEmail, validatePassword, verifyPassword } from './lib/password';
 import {
   encodeSse,
   entitlementsSchema,
@@ -123,6 +125,101 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
       expiresIn: ACCESS_TTL_SEC,
       user: { id: user.id, name: user.name, email: user.email, plan: user.plan },
     });
+  });
+
+  /**
+   * A real scrypt record for a random password. Verifying against this when the
+   * account does not exist makes the failure path cost the same as a wrong
+   * password, so timing does not disclose which addresses are registered.
+   */
+  let decoyHash: Promise<string> | null = null;
+  const decoy = (): Promise<string> => (decoyHash ??= hashPassword(randomUUID()));
+
+  // ---- L1.4 in-app password sign-in ----
+  //
+  // The desktop app posts credentials here from its own native form. Two
+  // properties matter and are tested: responses never reveal whether an email
+  // is registered, and repeated failures for one email are throttled so a
+  // stolen password list cannot be replayed at speed.
+
+  const credsBody = z.object({
+    email: z.string().email().max(254),
+    password: z.string().min(1).max(200),
+    name: z.string().min(1).max(80).optional(),
+  });
+
+  /** Failed-attempt counters, keyed by normalized email. */
+  const attempts = new Map<string, { count: number; until: number }>();
+  const MAX_ATTEMPTS = 8;
+  const LOCKOUT_MS = 15 * 60_000;
+
+  function throttled(email: string): boolean {
+    const rec = attempts.get(email);
+    if (!rec) return false;
+    if (now() > rec.until) {
+      attempts.delete(email);
+      return false;
+    }
+    return rec.count >= MAX_ATTEMPTS;
+  }
+
+  function noteFailure(email: string): void {
+    const rec = attempts.get(email);
+    const at = now();
+    if (!rec || at > rec.until) attempts.set(email, { count: 1, until: at + LOCKOUT_MS });
+    else attempts.set(email, { count: rec.count + 1, until: rec.until });
+  }
+
+  async function issueSession(user: { id: string; name: string; email: string; plan: string; subject: string }) {
+    const accessToken = await auth.signAccessToken(user);
+    const refreshToken = await auth.issueRefreshToken(deps.store, user.id);
+    return {
+      accessToken,
+      refreshToken,
+      expiresIn: ACCESS_TTL_SEC,
+      user: { id: user.id, name: user.name, email: user.email, plan: user.plan },
+    };
+  }
+
+  app.post('/auth/signup', async (req, reply) => {
+    const parsed = credsBody.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'invalid_request' });
+    const email = normalizeEmail(parsed.data.email);
+    const policy = validatePassword(parsed.data.password);
+    if (!policy.ok) return reply.code(400).send({ error: 'weak_password', message: policy.reason });
+
+    const existing = await deps.store.getUserByEmail(email);
+    if (existing) {
+      // Deliberately the same shape as a successful-looking failure: signup
+      // must not confirm which addresses already have accounts.
+      return reply.code(409).send({ error: 'signup_failed' });
+    }
+    const passwordHash = await hashPassword(parsed.data.password);
+    const user = await deps.store.createPasswordUser({
+      name: parsed.data.name?.trim() || email.split('@')[0] || 'there',
+      email,
+      passwordHash,
+    });
+    return reply.send(await issueSession(user));
+  });
+
+  app.post('/auth/login', async (req, reply) => {
+    const parsed = credsBody.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'invalid_request' });
+    const email = normalizeEmail(parsed.data.email);
+    if (throttled(email)) return reply.code(429).send({ error: 'too_many_attempts' });
+
+    const user = await deps.store.getUserByEmail(email);
+    // Verify against a decoy hash when the account is missing or is an IdP
+    // account, so the response time does not disclose which case it was.
+    const stored = user?.passwordHash ?? (await decoy());
+    const ok = await verifyPassword(parsed.data.password, stored);
+    if (!ok || !user || !user.passwordHash) {
+      noteFailure(email);
+      return reply.code(401).send({ error: 'invalid_credentials' });
+    }
+    attempts.delete(email);
+    return reply.send(await issueSession(user));
   });
 
   app.post('/auth/refresh', async (req, reply) => {

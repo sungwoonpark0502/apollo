@@ -122,3 +122,76 @@ currently surfaces as an actionless OS notification. Deleting them would remove
 capability rather than dead weight, and choosing where reminder actions belong
 (notification actions, a ringing overlay, a Today row) is a product decision
 outside L3.2's scope. Recorded in AUDIT-controls.md and HUMAN_TODO.md.
+
+## L1.4 — sign-in moved into the app, departing from RFC 8252
+
+**This reverses a rule set earlier in Phase 12** ("login opens the system
+browser with Authorization Code + PKCE and loopback/custom-scheme redirect;
+never an embedded web view"). It was changed on explicit instruction after the
+browser hand-off was tried and rejected as the product experience. Recording the
+trade honestly, because it is a security-relevant reversal, not a refactor.
+
+Two problems were reported: the browser opened a dead domain, and the login
+surface should live inside Apollo. The dead domain was a separate real bug —
+`auth.apolloassistant.app` is the placeholder default in config.ts and nothing
+is deployed there, so the flow could never have completed. That would have been
+fixed regardless of this decision.
+
+Three options were on the table, and the middle one was chosen:
+
+1. Keep the system browser. Preserves RFC 8252 exactly. Rejected as the desired
+   experience.
+2. **A native form in Apollo's own UI, posting credentials to the Apollo
+   backend.** Chosen.
+3. An embedded webview pointed at the IdP. Rejected, and worth stating why: this
+   is the specific pattern RFC 8252 prohibits, because the host app can read the
+   authentication page's DOM and the user cannot inspect the URL bar to tell a
+   real login page from a forgery. Option 2 does not have this property — Apollo
+   is asking for a password it will hold anyway on the way to its own backend,
+   which is honest about the trust relationship, whereas a webview asks the user
+   to trust an IdP page the app fully controls.
+
+What this costs, plainly: Apollo now handles raw passwords, and the account
+system no longer inherits an IdP's 2FA, SSO, breach detection, or password
+reset. Those are now Apollo's to build. The password is also present in the
+renderer process for as long as the user is typing it, which the browser flow
+avoided entirely.
+
+What was done to bound the cost:
+
+- scrypt (N=2^15, r=8) with a per-account salt and a self-describing record, so
+  parameters can be raised later without invalidating stored hashes.
+- Sign-in responses cannot distinguish "wrong password" from "no such account",
+  including on the timing path: a missing account is verified against a real
+  decoy hash so the failure costs the same as a genuine one. Signup returns the
+  same opaque failure for a duplicate address.
+- Per-email throttling (8 failures → 15-minute lockout, cleared by a success),
+  plus a tight per-channel IPC bucket so a compromised renderer cannot use main
+  as a fast oracle.
+- The password crosses IPC once, in memory, and is never persisted or logged;
+  the Fastify logger's redact list already covers credentials, and the client
+  logs only the failure kind.
+- Password accounts and IdP accounts share one users table via a synthesized
+  `local:<id>` subject, so the OIDC path still works for self-hosters with a
+  real IdP, and the entire session/refresh/rotation machinery is unchanged.
+
+The RFC 8252 PKCE implementation is retained and still tested. It is now the
+self-host path rather than the default.
+
+## L6 — the egress allowlist follows the operating mode
+
+The allowlist is a statement about where a build is *able* to talk, so a managed
+build should not keep entries for hosts it can no longer authenticate to.
+Managed mode drops api.anthropic.com and api.search.brave.com (both proxied by
+the backend) and adds the backend and IdP hosts, taken from config so a
+self-hosted deployment is allowed by configuration rather than a hardcoded
+domain.
+
+Deepgram stays allowed in both modes, which looks like an inconsistency and is
+not: managed STT mints a short-lived scoped token at the backend and then
+streams audio straight to Deepgram, because proxying a live audio socket would
+add a round trip to every utterance. The credential is managed; the transport is
+direct.
+
+Calling `createEgressPolicy` without a mode preserves the original list, so
+callers written before L6 are never silently narrowed.

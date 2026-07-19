@@ -12,6 +12,11 @@ const PER_MINUTE: Partial<Record<InvokeChannelName, number>> = {
   'chat.editAndResend': 10,
   'capture.submit': 30,
   'keys.test': 10,
+  // L1.4 credentials: a tight local bucket so a compromised renderer cannot
+  // use the main process as a fast oracle against the backend. The backend
+  // throttles per email independently; this bounds the client side.
+  'auth.signInWithPassword': 10,
+  'auth.signUpWithPassword': 5,
   // local mutation channels
   'data.mutate': 120,
   'notes.save': 120,

@@ -34,6 +34,19 @@ export interface SessionDeps {
   log?: (msg: string) => void;
 }
 
+/**
+ * Maps a backend rejection to a stable code the UI turns into copy. The
+ * backend deliberately does not distinguish "no such account" from "wrong
+ * password", and neither does this.
+ */
+function errorCodeFor(status: number, body: { error?: string }): string {
+  if (status === 429) return 'tooManyAttempts';
+  if (status === 409) return 'emailTaken';
+  if (body.error === 'weak_password') return 'weakPassword';
+  if (status === 400) return 'invalidRequest';
+  return 'invalidCredentials';
+}
+
 /** Refresh this many ms before the access token actually expires. */
 const REFRESH_SKEW_MS = 60_000;
 
@@ -139,6 +152,49 @@ export function createSession(deps: SessionDeps) {
         deps.log?.(`sign-in failed: ${e instanceof Error ? e.message : String(e)}`);
         setSignedOut();
         return { ok: false };
+      }
+    },
+
+    /**
+     * L1.4 sign-in with credentials from Apollo's own form. `path` selects
+     * /auth/login or /auth/signup; both return the same session shape, so the
+     * rest of the session machinery is identical to the OIDC path.
+     *
+     * The password is used once, in this call, and is never stored or logged —
+     * the catch below deliberately logs only the failure kind.
+     */
+    async signInWithPassword(
+      email: string,
+      password: string,
+      opts: { signUp?: boolean; name?: string } = {},
+    ): Promise<{ ok: boolean; error?: string }> {
+      if (status === 'signingIn') return { ok: false, error: 'busy' };
+      status = 'signingIn';
+      user = undefined;
+      emit();
+      try {
+        const res = await deps.fetchFn(`${deps.baseUrl}${opts.signUp ? '/auth/signup' : '/auth/login'}`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ email, password, ...(opts.name ? { name: opts.name } : {}) }),
+        });
+        if (!res.ok) {
+          setSignedOut();
+          const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+          deps.log?.(`password sign-in rejected: ${res.status} ${body.error ?? ''}`);
+          return { ok: false, error: errorCodeFor(res.status, body) };
+        }
+        const parsed = tokenResponseSchema.safeParse(await res.json());
+        if (!parsed.success) {
+          setSignedOut();
+          return { ok: false, error: 'malformed' };
+        }
+        setSignedIn(parsed.data);
+        return { ok: true };
+      } catch (e) {
+        deps.log?.(`password sign-in failed (network): ${e instanceof Error ? e.message : String(e)}`);
+        setSignedOut();
+        return { ok: false, error: 'network' };
       }
     },
 

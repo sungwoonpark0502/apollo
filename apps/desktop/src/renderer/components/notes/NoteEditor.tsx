@@ -6,7 +6,8 @@ import TaskItem from '@tiptap/extension-task-item';
 import { Table, TableRow, TableHeader, TableCell } from '@tiptap/extension-table';
 import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
-import { EMPTY_DOC, STRINGS, type NoteDoc } from '@apollo/shared';
+import { EMPTY_DOC, joinTitle, splitTitle, STRINGS, type NoteDoc } from '@apollo/shared';
+import { Icon, type IconName } from '../Icon';
 
 /**
  * L4 note editor. A deliberately small block/mark set — headings H1-H3,
@@ -25,6 +26,22 @@ export interface NoteEditorProps {
   onBlur?: () => void;
   autoFocus?: boolean;
 }
+
+/** L4.4 the always-visible formatting bar. The slash menu and the selection
+ *  toolbar cover the same commands, but neither is discoverable — a user who
+ *  never types "/" had no way to know bold or checklists existed. */
+const TOOLBAR: Array<{ id: string; icon: IconName; label: string; run: (e: Editor) => void; isActive: (e: Editor) => boolean }> = [
+  { id: 'bold', icon: 'bold', label: 'Bold', run: (e) => e.chain().focus().toggleBold().run(), isActive: (e) => e.isActive('bold') },
+  { id: 'italic', icon: 'italic', label: 'Italic', run: (e) => e.chain().focus().toggleItalic().run(), isActive: (e) => e.isActive('italic') },
+  { id: 'code', icon: 'code', label: 'Inline code', run: (e) => e.chain().focus().toggleCode().run(), isActive: (e) => e.isActive('code') },
+  { id: 'h1', icon: 'h1', label: 'Heading 1', run: (e) => e.chain().focus().toggleHeading({ level: 1 }).run(), isActive: (e) => e.isActive('heading', { level: 1 }) },
+  { id: 'h2', icon: 'h2', label: 'Heading 2', run: (e) => e.chain().focus().toggleHeading({ level: 2 }).run(), isActive: (e) => e.isActive('heading', { level: 2 }) },
+  { id: 'h3', icon: 'h3', label: 'Heading 3', run: (e) => e.chain().focus().toggleHeading({ level: 3 }).run(), isActive: (e) => e.isActive('heading', { level: 3 }) },
+  { id: 'bullet', icon: 'bulletList', label: 'Bulleted list', run: (e) => e.chain().focus().toggleBulletList().run(), isActive: (e) => e.isActive('bulletList') },
+  { id: 'ordered', icon: 'orderedList', label: 'Numbered list', run: (e) => e.chain().focus().toggleOrderedList().run(), isActive: (e) => e.isActive('orderedList') },
+  { id: 'task', icon: 'checklist', label: 'Checklist', run: (e) => e.chain().focus().toggleTaskList().run(), isActive: (e) => e.isActive('taskList') },
+  { id: 'quote', icon: 'quote', label: 'Quote', run: (e) => e.chain().focus().toggleBlockquote().run(), isActive: (e) => e.isActive('blockquote') },
+];
 
 const EXTENSIONS = [
   StarterKit.configure({
@@ -69,11 +86,17 @@ export function NoteEditor({ doc, onChange, onBlur, autoFocus }: NoteEditorProps
   const containerRef = useRef<HTMLDivElement>(null);
   const loadedIdRef = useRef<NoteDoc | null>(null);
 
+  // L4.4: the title is the doc's first block, edited in its own input. Keeping
+  // it inside the doc means FTS, recall, and export need no changes.
+  const initial = splitTitle(doc ?? EMPTY_DOC);
+  const [title, setTitle] = useState(initial.title);
+  const titleRef = useRef(initial.title);
+
   const editor = useEditor({
     extensions: EXTENSIONS,
-    content: doc ?? EMPTY_DOC,
+    content: initial.body,
     autofocus: autoFocus ?? false,
-    onUpdate: ({ editor: e }) => onChange(e.getJSON() as NoteDoc),
+    onUpdate: ({ editor: e }) => onChange(joinTitle(titleRef.current, e.getJSON() as NoteDoc)),
     onBlur: () => {
       setSelectionToolbar(false);
       onBlur?.();
@@ -88,7 +111,10 @@ export function NoteEditor({ doc, onChange, onBlur, autoFocus }: NoteEditorProps
   useEffect(() => {
     if (!editor || loadedIdRef.current === doc) return;
     loadedIdRef.current = doc;
-    editor.commands.setContent(doc ?? EMPTY_DOC, { emitUpdate: false });
+    const next = splitTitle(doc ?? EMPTY_DOC);
+    setTitle(next.title);
+    titleRef.current = next.title;
+    editor.commands.setContent(next.body, { emitUpdate: false });
   }, [editor, doc]);
 
   const filtered = useMemo(() => {
@@ -138,6 +164,43 @@ export function NoteEditor({ doc, onChange, onBlur, autoFocus }: NoteEditorProps
 
   return (
     <div ref={containerRef} style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }} onKeyDown={onKeyDown}>
+      <input
+        value={title}
+        onChange={(e) => {
+          setTitle(e.target.value);
+          titleRef.current = e.target.value;
+          onChange(joinTitle(e.target.value, editor.getJSON() as NoteDoc));
+        }}
+        onKeyDown={(e) => {
+          // Enter and Down from the title move into the body rather than
+          // inserting a newline into what is a single-line field.
+          if (e.key === 'Enter' || e.key === 'ArrowDown') {
+            e.preventDefault();
+            editor.chain().focus('start').run();
+          }
+        }}
+        onBlur={onBlur}
+        placeholder={STRINGS.workspace.notes.titlePlaceholder}
+        aria-label={STRINGS.workspace.notes.titleLabel}
+        style={titleInput}
+      />
+      <div style={toolbarBar} role="toolbar" aria-label={STRINGS.workspace.notes.formatting}>
+        {TOOLBAR.map((t) => (
+          <button
+            key={t.id}
+            title={t.label}
+            aria-label={t.label}
+            aria-pressed={t.isActive(editor)}
+            onMouseDown={(e) => {
+              e.preventDefault(); // keep the selection while the command runs
+              t.run(editor);
+            }}
+            style={{ ...toolbarBarBtn, ...(t.isActive(editor) ? { background: 'var(--accent-soft)', color: 'var(--accent)' } : {}) }}
+          >
+            <Icon name={t.icon} size={15} />
+          </button>
+        ))}
+      </div>
       {selectionToolbar ? <SelectionToolbar editor={editor} /> : null}
       <EditorContent editor={editor} className="apollo-prose" style={{ flex: 1, minHeight: 0, overflowY: 'auto' }} />
       {slashOpen ? (
@@ -192,6 +255,24 @@ function SelectionToolbar({ editor }: { editor: Editor }): React.JSX.Element {
     </div>
   );
 }
+
+const titleInput: React.CSSProperties = {
+  border: 'none', outline: 'none', background: 'transparent', width: '100%',
+  fontSize: 'var(--fs-display)', fontWeight: 600, color: 'var(--text-1)',
+  fontFamily: 'var(--font-sans)', padding: '0 0 var(--sp-2)',
+};
+
+const toolbarBar: React.CSSProperties = {
+  display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center',
+  padding: 'var(--sp-1) 0 var(--sp-2)', marginBottom: 'var(--sp-2)',
+  borderBottom: '1px solid var(--border)',
+};
+
+const toolbarBarBtn: React.CSSProperties = {
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  border: 'none', background: 'transparent', cursor: 'pointer',
+  width: 28, height: 26, borderRadius: 'var(--radius-ctl)', color: 'var(--text-2)',
+};
 
 const slashMenuStyle: React.CSSProperties = {
   position: 'absolute', bottom: 'var(--sp-3)', left: 'var(--sp-3)', zIndex: 30, minWidth: 200,

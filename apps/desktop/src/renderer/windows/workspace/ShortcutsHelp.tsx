@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Icon } from '../../components/Icon';
 import { SHORTCUT_SCOPES, STRINGS, type ShortcutScope } from '@apollo/shared';
 
 type Row = { scope: ShortcutScope; keys: string; description: string };
@@ -27,7 +28,7 @@ export function ShortcutsHelp({ onClose }: { onClose: () => void }): React.JSX.E
       <div style={{ width: 520, maxHeight: '80vh', overflowY: 'auto', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-card)', boxShadow: 'var(--shadow-card)', padding: 'var(--sp-5)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--sp-4)' }}>
           <h2 style={{ fontSize: 'var(--fs-title)', margin: 0 }}>{STRINGS.shortcuts.title}</h2>
-          <button onClick={onClose} aria-label="Close" style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-3)', fontSize: 'var(--fs-title)' }}>✕</button>
+          <button onClick={onClose} aria-label="Close" style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-3)', fontSize: 'var(--fs-title)' }}><Icon name="close" size={14} /></button>
         </div>
         {grouped.map((g) => (
           <div key={g.scope} style={{ marginBottom: 'var(--sp-4)' }}>

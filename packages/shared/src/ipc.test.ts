@@ -137,6 +137,8 @@ const invokeFixtures: Record<InvokeChannelName, { req: unknown; res: unknown }> 
   'dictation.start': { req: {}, res: { ok: true } },
   'dictation.stop': { req: {}, res: { ok: true } },
   'auth.signIn': { req: {}, res: { ok: true } },
+  'auth.signInWithPassword': { req: { email: 'a@example.com', password: 'a password here' }, res: { ok: true } },
+  'auth.signUpWithPassword': { req: { email: 'a@example.com', password: 'a password here', name: 'Sam' }, res: { ok: true } },
   'auth.signOut': { req: {}, res: { ok: true } },
   'auth.usage': { req: {}, res: { used: 12, limit: 200, resetIso: '2026-08-01T00:00:00.000Z' } },
   'app.mode': { req: {}, res: { mode: 'managed' } },
