@@ -137,3 +137,31 @@ describe('L2 rail, Today, and To-dos removal (12.4)', () => {
     expect(golden).not.toContain('"todo.');
   });
 });
+
+
+describe('source hygiene (CI gate protection)', () => {
+  it('no source file contains a NUL byte', () => {
+    // A stray NUL makes grep report "Binary file X matches" and exit 0, which
+    // silently flips the negated security grep-gates into a failure that says
+    // nothing about the property being checked. Keep sources plain text and
+    // write control characters as escapes instead of embedding them.
+    const offenders: string[] = [];
+    for (const root of SCAN_ROOTS) {
+      for (const file of walk(join(REPO, root))) {
+        if (readFileSync(file).includes(0)) offenders.push(file);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it('no source file is checked out with CRLF line endings', () => {
+    // .gitattributes pins LF; a CRLF checkout diffs the schema snapshot.
+    const offenders: string[] = [];
+    for (const root of SCAN_ROOTS) {
+      for (const file of walk(join(REPO, root))) {
+        if (readFileSync(file, 'utf8').includes('\r\n')) offenders.push(file);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+});

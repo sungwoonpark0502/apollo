@@ -63,7 +63,8 @@ export function createOrbWindow(): BrowserWindow {
   } else {
     void orb.loadFile(join(__dirname, '../renderer/windows/orb/index.html'));
   }
-  orb.showInactive(); // visible without stealing focus
+  // L3.1: the orb starts hidden. orbController shows it (showInactive, so it
+  // never steals focus) on wake/PTT/nudge and hides it again when idle.
   return orb;
 }
 

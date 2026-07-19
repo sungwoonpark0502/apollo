@@ -42,6 +42,9 @@ export const SettingsSchema = z.object({
       // PART K: PTT keeps a global binding of its own now that the palette
       // hotkey is gone (K1 "retained: PTT binding under voice").
       pttHotkey: z.string().default('Alt+Space'),
+      // L3.1: the orb is invisible when idle by default and appears only on
+      // wake word, PTT, or a nudge/alert. 'dot' opts into the old idle dot.
+      orbIdleMode: z.enum(['hidden', 'dot']).default('hidden'),
     })
     .default({}),
   // PART K: Chat tab behavior

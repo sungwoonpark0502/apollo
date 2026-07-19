@@ -6,7 +6,7 @@ import { createTray, getTray } from './tray';
 import { AUDIO_SESSION_PARTITION, createAudioWindow, createOnboardingWindow, closeOnboardingWindow, createOrbWindow, openCaptureWindow, openSettingsWindow, openWorkspaceWindow, getWorkspaceWindow } from './windows';
 import { createTodayProvider } from './workspace/today';
 import { type CardPayload, type WorkspaceNavigate } from '@apollo/shared';
-import { createOrbController } from './orbController';
+import { createOrbController, type OrbController } from './orbController';
 import { createWorkerHost } from './voice/workerHost';
 import { createVoiceController } from './voice/voiceController';
 import { createTtsPipeline } from './voice/tts/pipeline';
@@ -163,6 +163,8 @@ function boot(): void {
   // Forward reference: the proactive controller is created later but settings.onChange
   // (which can fire during boot) must not touch it before it exists.
   let proactiveRef: ProactiveController | null = null;
+  // L3.1: settings.onChange can fire during boot, before the orb controller exists.
+  let orbControllerRef: OrbController | null = null;
   let quickCaptureRef: ReturnType<typeof createQuickCaptureService> | null = null;
   let reRegisterHotkeys: (() => void) | null = null;
   const onHotkeyPress = (): void => {
@@ -187,6 +189,7 @@ function boot(): void {
       applyFormat(next);
       if (next.voice.pttHotkey !== prev.voice.pttHotkey || next.quickCapture.hotkey !== prev.quickCapture.hotkey) reRegisterHotkeys?.();
       if (next.wake.sensitivity !== prev.wake.sensitivity) workerHost.send({ t: 'setSensitivity', v: next.wake.sensitivity });
+      if (next.voice.orbIdleMode !== prev.voice.orbIdleMode) orbControllerRef?.refresh(); // L3.1
       if (JSON.stringify(next.proactive) !== JSON.stringify(prev.proactive)) proactiveRef?.reconfigure();
       if (next.history.enabled !== prev.history.enabled) indexer.onHistoryToggled(next.history.enabled); // G3/G7 immediate purge
       // E7: broadcast so open views re-render on units/timeFormat/weekStart/profile changes.
@@ -223,6 +226,7 @@ function boot(): void {
   // H6 ringing overlay: push to the orb + OS notification. DND suppresses sound only.
   function ringAlert(kind: 'timer' | 'alarm', id: string, label: string | null, body: string): void {
     const silent = isDNDNow(settings.get(), Intl.DateTimeFormat().resolvedOptions().timeZone, Date.now());
+    orbController.setAttention(true); // L3.1: an alert surfaces the orb
     if (!orbWindow.isDestroyed()) pushTo(orbWindow.webContents, 'alert.ringing', { kind, id, label, firedAt: Date.now(), silent });
     const n = new Notification({ title: STRINGS.app.name, body });
     n.on('click', () => { if (!orbWindow.isDestroyed()) orbWindow.showInactive(); });
@@ -372,7 +376,8 @@ function boot(): void {
   );
 
   const orbWindow = createOrbWindow();
-  const orbController = createOrbController(orbWindow);
+  const orbController = createOrbController(orbWindow, { idleMode: () => settings.get().voice.orbIdleMode });
+  orbControllerRef = orbController;
 
   let lastBriefCard: CardPayload | null = null;
   const todayProvider = createTodayProvider({
@@ -497,6 +502,7 @@ function boot(): void {
     log,
   });
   function pushVoiceState(state: VoiceState): void {
+    orbController.onVoiceState(state); // L3.1: show on wake/PTT, hide when idle
     if (state === 'idle') indexer.pump(); // G3: index queue may drain once voice is idle
     for (const win of BrowserWindow.getAllWindows()) {
       if (!win.isDestroyed()) pushTo(win.webContents, 'voice.state', { state });
@@ -683,6 +689,7 @@ function boot(): void {
         else repos.alarms.set({ label: repos.alarms.get(id)?.label ?? null, atTs: at });
         scheduler.rearm();
       }
+      orbController.setAttention(false); // alert handled: release the hold
       if (!orbWindow.isDestroyed()) pushTo(orbWindow.webContents, 'alert.stop', { id });
     },
     onUserActivity: () => {
@@ -975,6 +982,7 @@ function boot(): void {
       // I6: the very first proactive nudge ever is preceded by a one-time explainer.
       const firstNudge = !settings.get().firstNudgeSeen;
       if (firstNudge) settings.patch({ firstNudgeSeen: true });
+      orbController.setAttention(true); // L3.1: a nudge surfaces the orb
       if (!orbWindow.isDestroyed()) pushTo(orbWindow.webContents, 'suggestion.show', { ...payload, silent: payload.silent ?? false, ...(firstNudge ? { firstNudge: true } : {}) });
     },
     notify: (title, body) => new Notification({ title, body }).show(),

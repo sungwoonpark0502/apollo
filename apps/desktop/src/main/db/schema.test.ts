@@ -10,9 +10,13 @@ import snapshot from './schema-snapshot.json';
  * migrator is idempotent-safe under the schema_version guard.
  */
 function freshSchema(db: ReturnType<typeof openDb>): Array<{ type: string; name: string; tbl_name: string; sql: string | null }> {
-  return db
+  const rows = db
     .prepare("SELECT type, name, tbl_name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name")
     .all() as Array<{ type: string; name: string; tbl_name: string; sql: string | null }>;
+  // The stored SQL echoes the migration file verbatim, so a CRLF checkout
+  // (Windows) would diff against the committed LF snapshot. .gitattributes
+  // pins LF; normalizing here keeps the gate honest regardless of checkout.
+  return rows.map((r) => ({ ...r, sql: r.sql === null ? null : r.sql.replace(/\r\n/g, '\n') }));
 }
 
 describe('migration integrity (J1.1)', () => {

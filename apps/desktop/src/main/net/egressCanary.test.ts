@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { BASE_ALLOWED_HOSTS, createEgressPolicy } from './egress';
 import { createHttpClient } from './httpClient';
@@ -56,7 +56,7 @@ describe('egress canary (H4)', () => {
         }
         if (!/\.(ts|tsx)$/.test(name) || name.endsWith('.test.ts') || name === 'linkReader.ts') continue;
         const text = readFileSync(p, 'utf8');
-        const rel = p.slice(SRC.length + 1);
+        const rel = p.slice(SRC.length + 1).split(sep).join('/'); // POSIX-style so the assertion is platform-agnostic
         if (/createLinkReader\s*\(/.test(text)) constructs.push(rel);
         if (/from '.*\/net\/linkReader'/.test(text)) importers.push(rel);
       }

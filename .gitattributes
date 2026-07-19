@@ -1,0 +1,15 @@
+# Keep checkouts byte-identical across platforms. The schema snapshot test
+# compares the SQL text stored in sqlite_master against a committed snapshot,
+# so a CRLF checkout on Windows would otherwise produce a spurious diff.
+* text=auto eol=lf
+
+# Fixtures and snapshots are compared byte-for-byte.
+*.sql   text eol=lf
+*.json  text eol=lf
+*.jsonl text eol=lf
+*.md    text eol=lf
+
+*.png binary
+*.wav binary
+*.ppn binary
+*.onnx binary

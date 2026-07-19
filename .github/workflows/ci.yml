@@ -58,11 +58,11 @@ jobs:
       # exec(/execSync(/child_process imports are dangerous; spawn is allowed.
       - name: grep-gate no exec()
         run: |
-          ! grep -rnE "child_process|\bexec\(|execSync\(" apps/desktop/src packages/shared/src --include='*.ts' --include='*.tsx' | grep -v spawn | grep -vE "\.exec\("
+          ! grep -ranE "child_process|\bexec\(|execSync\(" apps/desktop/src packages/shared/src --include='*.ts' --include='*.tsx' | grep -v spawn | grep -vE "\.exec\("
       # H3 extended grep gates: no TLS bypass, no insecure web content, no RunAsNode.
       - name: grep-gate no insecure flags
         run: |
-          ! grep -rnE "rejectUnauthorized\s*:\s*false|NODE_TLS_REJECT_UNAUTHORIZED|disable-web-security|allowRunningInsecureContent|ELECTRON_RUN_AS_NODE" apps/desktop/src packages/shared/src --include='*.ts' --include='*.tsx'
+          ! grep -ranE "rejectUnauthorized\s*:\s*false|NODE_TLS_REJECT_UNAUTHORIZED|disable-web-security|allowRunningInsecureContent|ELECTRON_RUN_AS_NODE" apps/desktop/src packages/shared/src --include='*.ts' --include='*.tsx'
       # pnpm's classic audit endpoint was retired (returns 410) mid-2026; tolerate
       # that specific failure so a registry change can't red the build, but still
       # fail on any real high-severity advisory it does report.

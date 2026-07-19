@@ -15,6 +15,9 @@ function hasLoneSurrogate(s: string): boolean {
 }
 
 describe('J4 large-input chunking (no OOM, within caps)', () => {
+  // 30s test timeout: chunking 5MB is real CPU work and the default 5s budget
+  // is too tight on a loaded CI runner. The in-test bound below is the actual
+  // hang detector.
   it('a ~5MB single-paragraph note chunks within caps and stays bounded', () => {
     const big = 'lorem ipsum '.repeat(450_000); // ~5.4MB, no blank lines
     const t0 = Date.now();
@@ -27,7 +30,7 @@ describe('J4 large-input chunking (no OOM, within caps)', () => {
     for (const c of chunks) expect(c.length).toBeLessThanOrEqual(CAP + 81);
     // total content is not silently dropped beyond a sane multiple of the input
     expect(chunks.length).toBeLessThan(big.length / 100);
-  });
+  }, 30_000);
 
   it('a 5MB note made of emoji chunks without ever splitting a surrogate pair', () => {
     const big = '😀'.repeat(200_000); // 400k UTF-16 units of astral chars

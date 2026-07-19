@@ -124,9 +124,12 @@ describe('system.volume / media / lock / screenshot use fixed spawn templates', 
   it('screenshot targets Pictures/Apollo with a timestamped name', async () => {
     const { reg, calls } = capture();
     const res = await reg.execute('system.screenshot', {}, makeCtx());
-    expect(res.llmText).toContain('/tmp/pics/Apollo/apollo-1234.png');
+    // The tool builds the path with path.join, so the expectation must too:
+    // a hardcoded POSIX string fails on Windows even though the code is right.
+    const expected = join('/tmp/pics', 'Apollo', 'apollo-1234.png');
+    expect(res.llmText).toContain(expected);
     expect(calls.at(-1)?.cmd).toBe('screencapture');
-    expect(calls.at(-1)?.args).toEqual(['-x', '/tmp/pics/Apollo/apollo-1234.png']);
+    expect(calls.at(-1)?.args).toEqual(['-x', expected]);
   });
 
   it('media reports no player gracefully; lock uses CGSession', async () => {

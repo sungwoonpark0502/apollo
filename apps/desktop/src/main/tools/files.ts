@@ -30,6 +30,8 @@ export function createFilesTool(deps: FilesToolDeps): ToolDef {
       const ext = a.extension?.replace(/^\./, '').toLowerCase();
       const needle = a.query.toLowerCase();
       const results: string[] = [];
+      // Canonical native forms of the approved roots, for the containment check.
+      const approved = dirs.map((d) => resolve(d));
 
       for (const dir of dirs) {
         if (results.length >= CAP) break;
@@ -50,9 +52,13 @@ export function createFilesTool(deps: FilesToolDeps): ToolDef {
           const name = basename(p).toLowerCase();
           if (!name.includes(needle)) continue;
           if (ext && !name.endsWith(`.${ext}`)) continue;
-          // C14.6: results stay confined to approved dirs
-          if (!dirs.some((d) => p.startsWith(d + sep) || p === d)) continue;
-          results.push(p);
+          // C14.6: results stay confined to approved dirs. fast-glob returns
+          // POSIX-style paths even on Windows, so compare canonical native
+          // paths — otherwise this check rejects everything on Windows and
+          // files.find silently finds nothing.
+          const native = resolve(p);
+          if (!approved.some((d) => native.startsWith(d + sep) || native === d)) continue;
+          results.push(native);
           if (results.length >= CAP) break;
         }
       }
