@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { STRINGS, type KeyProvider } from '@apollo/shared';
+import { SignInForm } from '../../components/auth/SignInForm';
+import { STRINGS, type KeyProvider, type AuthStatus } from '@apollo/shared';
 import { LocationPicker } from '../../components/LocationPicker';
 
 const KEY_PROVIDERS: Array<{ id: KeyProvider; required: boolean }> = [
@@ -15,9 +16,11 @@ export function OnboardingApp(): React.JSX.Element {
   const [step, setStep] = useState(0);
   const [profileName, setProfileName] = useState('');
   const [seedWelcome, setSeedWelcome] = useState(true); // I6 opt-in, default yes
+  const [mode, setMode] = useState<'managed' | 'byok'>('managed');
 
   useEffect(() => {
     void window.apollo.call('settings.get', {}).then((s) => setProfileName(s.profile.name));
+    void window.apollo.call('app.mode', {}).then((m) => setMode(m.mode));
   }, []);
 
   const finish = (): void => {
@@ -27,11 +30,12 @@ export function OnboardingApp(): React.JSX.Element {
   // H/E6 override: name is required to move past the Profile step; location is optional.
   const nameMissing = step === PROFILE_STEP && !profileName.trim();
 
+  // L1.4: managed users sign in here; only a BYOK build collects provider keys.
   const steps = [
     <Welcome key="w" />,
     <Profile key="pr" onNameChange={setProfileName} />,
     <Permissions key="p" />,
-    <Keys key="k" />,
+    mode === 'byok' ? <Keys key="k" /> : <AccountStep key="a" />,
     <WakeWord key="wa" />,
     <TryIt key="t" onDone={finish} seedWelcome={seedWelcome} onSeedChange={setSeedWelcome} />,
   ];
@@ -97,6 +101,26 @@ function Permissions(): React.JSX.Element {
           Accessibility {ax === true ? '✓' : ax === false ? '✕' : ''}
         </button>
       </div>
+    </Panel>
+  );
+}
+
+/**
+ * L1.4 onboarding sign-in. Reuses the Settings form so there is one sign-in
+ * implementation, and stays skippable — every local feature (notes, calendar,
+ * timers, reminders) works signed out.
+ */
+function AccountStep(): React.JSX.Element {
+  const [status, setStatus] = useState<AuthStatus>('signedOut');
+  useEffect(() => window.apollo.on('auth.state', (s) => setStatus(s.status)), []);
+  return (
+    <Panel title={STRINGS.onboarding.accountTitle}>
+      <p style={body}>{STRINGS.onboarding.accountBody}</p>
+      {status === 'signedIn' ? (
+        <p style={{ ...body, color: 'var(--accent)' }}>{STRINGS.onboarding.accountSignedIn}</p>
+      ) : (
+        <SignInForm busy={status === 'signingIn'} />
+      )}
     </Panel>
   );
 }

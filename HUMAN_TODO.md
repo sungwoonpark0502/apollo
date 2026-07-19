@@ -178,6 +178,19 @@ model **once at build time** (it is never downloaded at runtime):
 - [ ] Ringing overlay appears above fullscreen apps; sound plays; snooze/dismiss work.
 - [ ] Single instance: launching a second copy focuses the existing window and exits.
 
+## Backend deployment (Phase 12 / L1 — BLOCKS managed sign-in)
+- [ ] Nothing is deployed at `api.apolloassistant.app` (the placeholder default in config.ts), so managed sign-in cannot succeed on any machine yet. Deploy `apps/backend` (Fastify; needs `SESSION_SECRET` ≥32 bytes, `DATABASE_URL` for Postgres, and the provider keys ANTHROPIC/DEEPGRAM/BRAVE), then set `APOLLO_BACKEND_URL`. Until then, run with `APOLLO_ALLOW_BYOK=true` plus a local `ANTHROPIC_API_KEY` to exercise the app.
+- [ ] Decide the account-recovery story before real users exist. In-app password sign-in means Apollo owns password reset, and there is no reset flow yet — a forgotten password is currently an unrecoverable account. See the L1.4 entry in DECISIONS.md for the full list of what moving off an IdP costs (2FA, SSO, breach detection all now Apollo's to build).
+
+## Sign-in live pass (Phase 12 / L1.4 — needs a running backend)
+- [ ] Create an account from Settings → Account: the form accepts a 10+ character password, rejects a short one inline, and lands signed in without any browser window opening.
+- [ ] Sign out, sign back in with the same credentials. Then try a wrong password: the message must not reveal whether the account exists.
+- [ ] Try an email that has no account: identical message and comparable response time to the wrong-password case.
+- [ ] Fail sign-in 8 times for one email: the 9th is refused with "try again in 15 minutes" even if the password is correct.
+- [ ] Sign up with an address that already exists: an opaque failure, never "this account already exists".
+- [ ] Onboarding on a fresh profile shows the Sign in step (not Keys) in managed mode, and is skippable — notes, calendar, and timers all work signed out.
+- [ ] Check `~/Library/Application Support/@apollo/desktop/logs/apollo.log` after all of the above: no password appears anywhere in it.
+
 ## Reminder inline actions (Phase 12 / L3.2 — product decision needed)
 - [ ] `snoozeReminder` and `completeReminder` work end to end in the repo layer and are reachable by no control. Reminders currently fire as a plain OS notification with no buttons, and the inline actions E3.1 described lived on the To-dos surface that L2.4 removed. Decide where they belong — notification actions, a ringing overlay like timers/alarms, or a Today row — then wire and add the dispatch tests. Recorded in AUDIT-controls.md rather than deleted, because unlike the four defects fixed there this is missing UI, not dead code.
 

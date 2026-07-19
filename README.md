@@ -37,10 +37,38 @@ LLM-backed features show a clear "add a key" message until you provide one.
 Open the Workspace (tray icon) and type **"set a timer for 5 minutes"** in the
 Chat tab to see a live card.
 
-## Keys (Settings → Keys, or a `.env` at the repo root)
+## Accounts and modes
+
+Apollo runs in one of two modes. Which one is active is decided at boot and
+logged (`operating mode: …`); the orchestrator, tools, and voice code are
+identical in both, because the transport is selected behind the `LlmClient`
+interface.
+
+**Managed (the default, and what a real user gets).** You sign in to an Apollo
+account and inference is proxied by the Apollo backend. No provider keys ever
+touch the device, and there is no Keys tab. Sign-in happens in Apollo's own UI
+(**Settings → Account**) — a native form, not a browser hand-off and not an
+embedded web view. See DECISIONS.md for why this departs from RFC 8252 and what
+it costs. The backend is not deployed yet, so managed sign-in cannot succeed
+until it is; that is tracked in **HUMAN_TODO.md**.
+
+**BYOK (the developer / self-host path).** Set `APOLLO_ALLOW_BYOK=true` *and*
+supply a real provider key, and Apollo calls the providers directly with your
+own keys. Both conditions are required — a managed build with a stray key stays
+managed, so a normal user can never be silently dropped onto direct provider
+calls. This is the mode the entire Phase 0–11 offline test story runs in, and it
+needs no account and no backend.
+
+The egress allowlist follows the mode: managed drops the direct provider hosts
+it can no longer authenticate to and adds the backend and identity-provider
+hosts from config, so a self-hosted deployment is permitted by configuration
+rather than a hardcoded domain.
+
+### Keys (BYOK only — Settings → Keys, or a `.env` at the repo root)
 
 Keys are stored write-only, encrypted with the OS keychain via Electron
-`safeStorage`; the renderer can set and test them but never read them.
+`safeStorage`; the renderer can set and test them but never read them. In
+managed mode this tab does not exist.
 
 | Provider | Env var | Purpose | Required |
 |----------|---------|---------|----------|
@@ -50,9 +78,13 @@ Keys are stored write-only, encrypted with the OS keychain via Electron
 | Brave | `BRAVE_API_KEY` | web search | optional |
 | Google OAuth | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Gmail | optional |
 
+Google Calendar and Gmail are per-user connections in both modes, so those stay
+here regardless.
+
 Model id comes from config key `anthropic.model` (default `claude-sonnet-4-6`),
-overridable via `ANTHROPIC_MODEL`. See `.env.example`. Full setup steps for each
-account are in **HUMAN_TODO.md**.
+overridable via `ANTHROPIC_MODEL`. Backend and identity endpoints come from
+`APOLLO_BACKEND_URL`, `APOLLO_OIDC_AUTHORIZE_URL`, and `APOLLO_OIDC_CLIENT_ID`.
+See `.env.example`. Full setup steps for each account are in **HUMAN_TODO.md**.
 
 ## Permissions (macOS)
 

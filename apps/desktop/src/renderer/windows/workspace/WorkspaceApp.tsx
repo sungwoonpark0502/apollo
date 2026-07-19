@@ -113,7 +113,9 @@ export function WorkspaceApp(): React.JSX.Element {
                 : STRINGS.onboarding.byokKeysBanner}
           </span>
           <button
-            onClick={() => void (readiness.kind === 'signInRequired' ? window.apollo.call('auth.signIn', {}) : window.apollo.call('settings.open', {}))}
+            // L1.4: both paths open Settings — sign-in is a form on the Account
+            // tab now, not a browser hand-off this button could trigger.
+            onClick={() => void window.apollo.call('settings.open', {})}
             style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-1)', borderRadius: 'var(--radius-ctl)', padding: '1px var(--sp-2)', cursor: 'pointer', fontSize: 'var(--fs-caption)', fontFamily: 'var(--font-sans)' }}
           >
             {readiness.kind === 'signInRequired' ? STRINGS.onboarding.signInAction : STRINGS.onboarding.byokKeysAction}
