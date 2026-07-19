@@ -69,10 +69,25 @@ export const SettingsSchema = z.object({
     })
     .default({}),
   backup: z.object({ autoWeekly: z.boolean().default(true) }).default({}),
+  /** Quiet hours: nudges and spoken alerts stay silent inside this window. */
   dnd: z
     .object({
+      enabled: z.boolean().default(true),
       startHH: z.number().int().min(0).max(23).default(22),
       endHH: z.number().int().min(0).max(23).default(8),
+    })
+    .default({}),
+  /**
+   * Break reminders. Off by default: an assistant that interrupts you on a
+   * timer you did not ask for is the behavior people uninstall. Respects quiet
+   * hours and never fires mid-turn.
+   */
+  breaks: z
+    .object({
+      enabled: z.boolean().default(false),
+      everyMin: z.number().int().min(15).max(240).default(60),
+      /** Only remind while the user has actually been active. */
+      onlyWhenActive: z.boolean().default(true),
     })
     .default({}),
   brief: z.object({ timeHHMM: z.string().regex(/^\d{2}:\d{2}$/).default('08:30') }).default({}),

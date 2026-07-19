@@ -195,3 +195,61 @@ direct.
 
 Calling `createEgressPolicy` without a mode preserves the original list, so
 callers written before L6 are never silently narrowed.
+
+## Settings regrouped by intent; L5's "Account first" superseded
+
+Settings had a tab per subsystem: Voice, Assistant, Calendars, Integrations,
+Profile. That splits one user question — "what is this thing allowed to do?" —
+across four screens, and it put Profile (two fields) at the same level as
+Privacy. The sections are now General, Account, Capabilities, Time and Focus,
+Customize, Privacy, About.
+
+Capabilities and Customize compose the existing tabs rather than replacing them:
+each old tab gained an `embedded` prop that suppresses its own display heading,
+so its behavior and its tests are untouched and there is one implementation of
+each screen. Profile's fields moved into Account, where they belong now that an
+account supplies the name.
+
+L5 specified Account first. General leads instead, because it is what people
+open most; Account is second. The property L5 was actually protecting — Account
+exists in managed and never in BYOK, Keys the reverse — is unchanged and still
+tested.
+
+## Quiet hours had a schema field and no screen
+
+`settings.dnd` existed from Phase F, the governor honored it, and there was no
+UI anywhere to change it — the defaults (22:00–08:00) were unreachable. It now
+lives under Time and Focus, and gained an `enabled` flag so it can be turned off
+outright rather than only moved around the clock. Both `isDND` in the governor
+and the shared `isDNDNow` check it.
+
+## Break reminders default to off
+
+The politeness rules are the feature. A break reminder that fires during quiet
+hours, interrupts an answer mid-sentence, or accumulates while the laptop is
+shut and then bursts out is worse than no feature, so `breakDecision` is a pure
+function tested against a clock: quiet hours outrank an overdue reminder, a
+turn in flight defers rather than drops, the interval restarts after firing so
+a deferred reminder fires once rather than once per missed tick, and a settings
+change pushes the next one out instead of firing immediately.
+
+Default is off. An assistant that starts interrupting on a schedule nobody asked
+for is the behavior people uninstall over.
+
+## Settings search indexes settings, not sections
+
+Searching "quiet" has to find Quiet hours, not just point at Time and Focus and
+leave the user scanning it. `settingsIndex.ts` is therefore a data table of
+individual settings with the words people actually type ("dnd", "log out",
+"volume", "pomodoro", "delete everything"), ranked so a label prefix beats a
+keyword hit. Two integrity tests keep it honest: every entry must point at a tab
+that exists, and every tab in the managed UI must have at least one indexed
+setting, so a section cannot become unreachable by search.
+
+## Customize ships only real connectors
+
+Skills and plugins were requested for this section. They are not there, because
+each needs an execution model, a permission story, and a distribution channel
+before a screen for them means anything — an empty Skills tab implies capability
+the app does not have. Customize contains the Google connector and the news
+feeds, both real. Skills, plugins, and the Chrome extension are in HUMAN_TODO.

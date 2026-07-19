@@ -161,7 +161,8 @@ export type ProactiveController = ReturnType<typeof createProactiveController>;
 
 /** Shared DND check (F3.2 step 4) so controller + governor agree. */
 export function isDNDNow(settings: Settings, tz: string, atMs: number): boolean {
-  const { startHH, endHH } = settings.dnd;
+  const { enabled, startHH, endHH } = settings.dnd;
+  if (!enabled) return false;
   const hour = DateTime.fromMillis(atMs, { zone: tz }).hour;
   return startHH <= endHH ? hour >= startHH && hour < endHH : hour >= startHH || hour < endHH;
 }

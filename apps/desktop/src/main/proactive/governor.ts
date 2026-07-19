@@ -36,7 +36,9 @@ type Decision = { kind: 'deliver'; silent: boolean } | { kind: 'defer'; atMs: nu
 /** F3.2 governor: the politeness pipeline, code-enforced and clock-injectable. */
 export function createGovernor(deps: GovernorDeps) {
   function isDND(atMs: number): boolean {
-    const { startHH, endHH } = deps.settings().dnd;
+    const { enabled, startHH, endHH } = deps.settings().dnd;
+    if (!enabled) return false; // quiet hours switched off entirely
+
     const hour = DateTime.fromMillis(atMs, { zone: deps.tz() }).hour;
     return startHH <= endHH ? hour >= startHH && hour < endHH : hour >= startHH || hour < endHH;
   }

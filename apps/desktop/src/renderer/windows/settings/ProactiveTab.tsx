@@ -16,7 +16,7 @@ const RULE_META: Array<{ id: string; params: Array<{ key: string; label: string;
 
 type Recent = InvokeRes<'proactive.recent'>;
 
-export function ProactiveTab(): React.JSX.Element {
+export function ProactiveTab({ embedded = false }: { embedded?: boolean } = {}): React.JSX.Element {
   const p = STRINGS.settings.proactive;
   const [settings, setSettings] = useState<Settings | null>(null);
   const [recent, setRecent] = useState<Recent>([]);
@@ -45,7 +45,7 @@ export function ProactiveTab(): React.JSX.Element {
 
   return (
     <div style={{ maxWidth: 520 }}>
-      <h2 style={{ fontSize: 'var(--fs-display)', margin: '0 0 var(--sp-3)' }}>{p.title}</h2>
+      {embedded ? null : <h2 style={{ fontSize: 'var(--fs-display)', margin: '0 0 var(--sp-3)' }}>{p.title}</h2>}
 
       <Row>
         <label style={toggleLabel}>

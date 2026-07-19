@@ -62,6 +62,7 @@ import { createRecall } from './memory/recall';
 import { createRecallTool } from './tools/recall';
 import { initUpdater } from './updater';
 import { createEmailService } from './security/emailService';
+import { createBreakScheduler } from './proactive/breaks';
 import { createDailyBrief } from './scheduler/dailyBrief';
 import { createOrchestrator, type Orchestrator } from './agent/orchestrator';
 import { createConversationManager } from './agent/conversationManager';
@@ -987,6 +988,21 @@ function boot(): void {
     log,
   });
   dailyBrief.start();
+
+  // Break reminders (Time and Focus). Off unless the user turns them on, and
+  // routed through the same politeness constraints as everything else: quiet
+  // hours, no interrupting a turn, and only while they are actually here.
+  const breakScheduler = createBreakScheduler({
+    settings: () => settings.get(),
+    now: () => Date.now(),
+    busy: () => voiceController.state() !== 'idle' || orchestrator.hasPendingConfirmation(),
+    userActive: () => Date.now() - lastActivityMs < 10 * 60_000,
+    isDnd: (atMs) => isDNDNow(settings.get(), Intl.DateTimeFormat().resolvedOptions().timeZone, atMs),
+    notify: () => {
+      new Notification({ title: STRINGS.notifications.breakTitle, body: STRINGS.notifications.breakBody }).show();
+    },
+  });
+  breakScheduler.start();
 
   // F3 proactive engine: deterministic, local-only nudges gated by the governor.
   const proactive = createProactiveController({

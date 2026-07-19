@@ -72,7 +72,11 @@ describe('L5 settings tabs by mode', () => {
     const tabs = settingsTabsFor('managed');
     expect(tabs).toContain('account');
     expect(tabs).not.toContain('keys');
-    expect(tabs[0]).toBe('account'); // first, per L5
+    // Supersedes L5's "Account first": the sections are now ordered by how
+    // often they are opened, and General leads. Account is still present and
+    // still absent in BYOK, which is what the mode rule actually protects.
+    expect(tabs[0]).toBe('general');
+    expect(tabs.indexOf('account')).toBe(1);
   });
 
   it('BYOK shows Keys and hides Account', () => {

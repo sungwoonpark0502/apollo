@@ -4,7 +4,7 @@ import { fmtRelative, STRINGS, type CalendarCollection } from '@apollo/shared';
 import { buttonStyle } from '../../components/cards/TimerCard';
 import { useSettings } from '../../lib/useLive';
 
-export function AccountsTab(): React.JSX.Element {
+export function AccountsTab({ embedded = false }: { embedded?: boolean } = {}): React.JSX.Element {
   const [address, setAddress] = useState<string | null>(null);
   const [needsReauth, setNeedsReauth] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -37,7 +37,7 @@ export function AccountsTab(): React.JSX.Element {
 
   return (
     <div>
-      <h2 style={{ fontSize: 'var(--fs-display)', margin: '0 0 var(--sp-4)' }}>{STRINGS.settings.tabs.accounts}</h2>
+      {embedded ? null : <h2 style={{ fontSize: 'var(--fs-display)', margin: '0 0 var(--sp-4)' }}>{STRINGS.settings.customize.connectors}</h2>}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--sp-3) 0', borderBottom: '1px solid var(--border)' }}>
         <div>
           <div style={{ fontSize: 'var(--fs-body)', color: 'var(--text-1)', display: 'flex', gap: 'var(--sp-2)', alignItems: 'center' }}>

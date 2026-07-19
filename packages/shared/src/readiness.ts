@@ -46,7 +46,16 @@ export function assistantReadiness(input: ReadinessInputs): ReadinessState {
 }
 
 /** L5: the Keys tab exists only in BYOK builds; Account only in managed. */
+/**
+ * Settings sections, in order. Grouped by what a person is trying to do rather
+ * than by which subsystem owns the setting: Voice/Assistant/Calendars were
+ * three tabs that all answered "what can it do", and Do Not Disturb had a
+ * schema field but no screen at all.
+ *
+ * Diagnostics stays inside About (L5) — it is for us, not for the user.
+ */
 export function settingsTabsFor(mode: AppMode): string[] {
-  const common = ['general', 'voice', 'assistant', 'calendars', 'accounts', 'privacy', 'about'];
-  return mode === 'managed' ? ['account', 'profile', ...common] : ['profile', ...common, 'keys'];
+  const core = ['general', 'account', 'capabilities', 'timeFocus', 'customize', 'privacy', 'about'];
+  // BYOK has no account to manage, and needs the Keys screen instead.
+  return mode === 'managed' ? core : [...core.filter((t) => t !== 'account'), 'keys'];
 }

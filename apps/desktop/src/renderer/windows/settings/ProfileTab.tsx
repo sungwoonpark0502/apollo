@@ -3,7 +3,7 @@ import { STRINGS, type Settings } from '@apollo/shared';
 import { LocationPicker } from '../../components/LocationPicker';
 
 /** E7 Profile tab: name, home location (autocomplete), units, time format, week start. */
-export function ProfileTab(): React.JSX.Element {
+export function ProfileTab({ embedded = false }: { embedded?: boolean } = {}): React.JSX.Element {
   const p = STRINGS.settings.profile;
   const [settings, setSettings] = useState<Settings | null>(null);
 
@@ -23,7 +23,7 @@ export function ProfileTab(): React.JSX.Element {
 
   return (
     <div style={{ maxWidth: 460 }}>
-      <h2 style={{ fontSize: 'var(--fs-display)', margin: '0 0 var(--sp-4)' }}>{p.title}</h2>
+      {embedded ? null : <h2 style={{ fontSize: 'var(--fs-display)', margin: '0 0 var(--sp-4)' }}>{p.title}</h2>}
 
       <Field label={p.nameRequired}>
         <input

@@ -5,7 +5,7 @@ import { STRINGS, type Settings } from '@apollo/shared';
 
 interface Dev { deviceId: string; label: string }
 
-export function VoiceTab(): React.JSX.Element {
+export function VoiceTab({ embedded = false }: { embedded?: boolean } = {}): React.JSX.Element {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [devices, setDevices] = useState<{ inputs: Dev[]; outputs: Dev[] }>({ inputs: [], outputs: [] });
 
@@ -23,7 +23,7 @@ export function VoiceTab(): React.JSX.Element {
 
   return (
     <div>
-      <h2 style={{ fontSize: 'var(--fs-display)', margin: '0 0 var(--sp-4)' }}>{STRINGS.settings.tabs.voice}</h2>
+      {embedded ? null : <h2 style={{ fontSize: 'var(--fs-display)', margin: '0 0 var(--sp-4)' }}>{STRINGS.settings.capabilities.voiceSection}</h2>}
 
       <Row label={STRINGS.settings.voice.wake}>
         <Toggle checked={settings.wake.enabled} onChange={(v: boolean) => patch({ ...settings, wake: { ...settings.wake, enabled: v } })} />

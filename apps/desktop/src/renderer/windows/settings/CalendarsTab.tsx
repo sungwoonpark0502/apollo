@@ -7,7 +7,7 @@ import { useSettings } from '../../lib/useLive';
  * (with reassign). L5: user-chosen colors are removed — calendars are told
  * apart by name and a neutral source dot, so there are no color pickers here.
  */
-export function CalendarsTab(): React.JSX.Element {
+export function CalendarsTab({ embedded = false }: { embedded?: boolean } = {}): React.JSX.Element {
   const c = STRINGS.settings.calendars;
   const settings = useSettings();
   const [newName, setNewName] = useState('');
@@ -36,7 +36,7 @@ export function CalendarsTab(): React.JSX.Element {
 
   return (
     <div style={{ maxWidth: 480 }}>
-      <h2 style={{ fontSize: 'var(--fs-display)', margin: '0 0 var(--sp-1)' }}>{c.title}</h2>
+      {embedded ? null : <h2 style={{ fontSize: 'var(--fs-display)', margin: '0 0 var(--sp-1)' }}>{c.title}</h2>}
       <p style={{ color: 'var(--text-2)', fontSize: 'var(--fs-body)', margin: '0 0 var(--sp-4)' }}>{c.subtitle}</p>
 
       {calendars.map((cal) => (

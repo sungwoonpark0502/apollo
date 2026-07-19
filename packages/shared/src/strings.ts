@@ -243,7 +243,57 @@ export const STRINGS = {
     // L5: 'account' (Apollo sign-in) is managed-only and first; 'keys' is
     // BYOK-only; 'assistant' replaces the old 'proactive' grab-bag;
     // 'diagnostics' is no longer a top-level tab (it lives under About).
-    tabs: { account: 'Account', profile: 'Profile', general: 'General', calendars: 'Calendars', voice: 'Voice', assistant: 'Assistant', accounts: 'Integrations', keys: 'Keys', privacy: 'Privacy', about: 'About' },
+    tabs: {
+      general: 'General',
+      account: 'Account',
+      capabilities: 'Capabilities',
+      timeFocus: 'Time and Focus',
+      customize: 'Customize',
+      privacy: 'Privacy',
+      about: 'About',
+      keys: 'Keys',
+    },
+    search: {
+      placeholder: 'Search settings',
+      noResults: (q: string) => `Nothing in settings matches “${q}”.`,
+      resultsLabel: 'Search results',
+    },
+    timeFocus: {
+      title: 'Time and Focus',
+      subtitle: 'When Apollo may interrupt you, and when it should stay quiet.',
+      quietHours: 'Quiet hours',
+      quietHoursBody: 'Nudges stay silent and alerts do not speak during this window. Timers and alarms still ring.',
+      quietFrom: 'From',
+      quietTo: 'To',
+      breaks: 'Break reminders',
+      breaksBody: 'A quiet nudge to step away. Off by default, skipped during quiet hours, and never mid-conversation.',
+      breakEvery: 'Remind me every',
+      breakOnlyActive: 'Only while I am using the computer',
+      breakOnlyActiveHint: 'Skips the reminder if you have been away anyway.',
+      minutes: (n: number) => `${n} min`,
+      dailyBrief: 'Daily brief',
+      dailyBriefBody: 'The morning summary of your day.',
+      briefTime: 'Deliver at',
+      followUp: 'Follow-up window',
+      followUpBody: 'How long Apollo keeps listening after it answers, so you can reply without the wake word.',
+    },
+    capabilities: {
+      title: 'Capabilities',
+      subtitle: 'What Apollo is allowed to do, and how it talks.',
+      voiceSection: 'Voice',
+      proactiveSection: 'Proactive nudges',
+      calendarSection: 'Calendars',
+      filesSection: 'Files it may read',
+      filesBody: 'Apollo can only search and read inside these folders.',
+    },
+    customize: {
+      title: 'Customize',
+      subtitle: 'Connect other services and tailor what Apollo can reach.',
+      connectors: 'Connectors',
+      connectorsBody: 'Accounts Apollo can read from, with your permission.',
+      feeds: 'News sources',
+      feedsBody: 'The feeds behind your daily brief and news card.',
+    },
     account: {
       title: 'Your Apollo account',
       signedInAs: (email: string) => `Signed in as ${email}`,
@@ -412,6 +462,8 @@ export const STRINGS = {
   },
 
   notifications: {
+    breakTitle: 'Time for a break',
+    breakBody: "You've been at it a while. Stretch, look away, get some water.",
     whileAwayTitle: 'While you were away',
     voiceDisabled: 'Voice is disabled after repeated audio errors. Text still works.',
     updateReady: 'An update is ready. It will apply on next launch.',
