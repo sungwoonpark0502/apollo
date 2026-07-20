@@ -18,8 +18,20 @@ const apollo: ApolloBridge = {
     ipcRenderer.on(channel, wrapped);
     return () => ipcRenderer.removeListener(channel, wrapped);
   },
-  sendAudioPort(port) {
-    ipcRenderer.postMessage(AUDIO_PORT_CHANNEL, null, [port]);
+  /**
+   * A MessagePort cannot survive contextBridge: what reaches the preload is a
+   * proxy object, and ipcRenderer.postMessage rejects it with "Invalid value
+   * for transfer". That threw inside startCapture BEFORE the frame handler was
+   * attached, so no audio ever reached the worker.
+   *
+   * Electron's documented pattern instead: mint the channel here, send port2 to
+   * main over IPC, and hand port1 to the page with window.postMessage, which
+   * does carry real transferables. The page never constructs the port itself.
+   */
+  requestAudioPort() {
+    const { port1, port2 } = new MessageChannel();
+    ipcRenderer.postMessage(AUDIO_PORT_CHANNEL, null, [port2]);
+    window.postMessage(AUDIO_PORT_CHANNEL, '*', [port1]);
   },
 };
 

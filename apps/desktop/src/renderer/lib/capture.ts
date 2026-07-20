@@ -1,3 +1,5 @@
+import { AUDIO_PORT_CHANNEL } from '@apollo/shared';
+
 /**
  * C12.1 capture: getUserMedia with OS echo cancellation + AudioWorklet framer.
  * Frames flow renderer → audio worker over a dedicated MessagePort (C4).
@@ -21,12 +23,34 @@ export async function startCapture(): Promise<void> {
   const framer = new AudioWorkletNode(ctx, 'apollo-framer');
   source.connect(framer);
 
-  // Hand one side of a channel to main, which forwards it to the audio worker.
-  const channel = new MessageChannel();
-  window.apollo.sendAudioPort(channel.port2);
+  // The preload mints the channel and delivers our end as a window message,
+  // because a MessagePort cannot cross contextBridge (see preload/index.ts).
+  const port = await audioPort();
   framer.port.onmessage = (e: MessageEvent<ArrayBuffer>) => {
-    channel.port1.postMessage(e.data, [e.data]);
+    port.postMessage(e.data, [e.data]);
   };
+}
+
+/** Resolves with the renderer's end of the audio channel. */
+function audioPort(): Promise<MessagePort> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      window.removeEventListener('message', onMessage);
+      // Fail loudly: silently returning would leave a live mic capturing into
+      // nothing, which is exactly how the original bug stayed invisible.
+      reject(new Error('audio port was never delivered by the preload'));
+    }, 5000);
+    function onMessage(e: MessageEvent): void {
+      if (e.source !== window || e.data !== AUDIO_PORT_CHANNEL) return;
+      const p = e.ports[0];
+      if (!p) return;
+      clearTimeout(timer);
+      window.removeEventListener('message', onMessage);
+      resolve(p);
+    }
+    window.addEventListener('message', onMessage);
+    window.apollo.requestAudioPort();
+  });
 }
 
 export async function stopCapture(): Promise<void> {

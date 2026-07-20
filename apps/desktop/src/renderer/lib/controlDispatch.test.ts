@@ -290,3 +290,30 @@ function walk(dir: string): string[] {
   }
   return out;
 }
+
+describe('reminder alert controls (AUDIT follow-up)', () => {
+  it('Done completes the reminder rather than only closing the card', () => {
+    expect(ipcOf(controlDispatch('ringing.complete', { alert: { kind: 'reminder', id: 'r1' } }))).toEqual({
+      channel: 'alert.action',
+      payload: { kind: 'reminder', id: 'r1', action: 'complete' },
+    });
+  });
+
+  it('dismiss stays distinct from complete, so a closed popup is not a done task', () => {
+    const dismissed = ipcOf(controlDispatch('ringing.dismiss', { alert: { kind: 'reminder', id: 'r1' } }));
+    const completed = ipcOf(controlDispatch('ringing.complete', { alert: { kind: 'reminder', id: 'r1' } }));
+    expect(dismissed).not.toEqual(completed);
+    expect((dismissed.payload as { action: string }).action).toBe('dismiss');
+  });
+
+  it('snooze carries the chosen interval for a reminder', () => {
+    expect(ipcOf(controlDispatch('ringing.snooze', { alert: { kind: 'reminder', id: 'r1' }, snoozeMin: 30 }))).toEqual({
+      channel: 'alert.action',
+      payload: { kind: 'reminder', id: 'r1', action: 'snooze', snoozeMin: 30 },
+    });
+  });
+
+  it('dispatches nothing without an alert in context', () => {
+    expect(controlDispatch('ringing.complete', {})).toBeNull();
+  });
+});

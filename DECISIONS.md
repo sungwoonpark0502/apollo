@@ -347,3 +347,43 @@ things that compile, look wired, and do nothing:
 4. The follow-up window had two sliders (VoiceTab + Time and Focus) writing the
    same setting; Time and Focus owns it now.
 5. Break-reminder settings changes never reset the running countdown.
+
+## Audit — the audio capture path was dead, and nothing said so
+
+`startCapture` built a MessageChannel in the page and passed `port2` across
+`contextBridge` to the preload. A MessagePort cannot survive that boundary: the
+preload receives a proxy object, and `ipcRenderer.postMessage` rejects it with
+"Invalid value for transfer". The throw landed on line 26 — *before* line 27
+attached `framer.port.onmessage` — so `getUserMedia` had already opened the
+microphone and every captured frame went nowhere. Wake word and VAD could never
+have worked in a real run.
+
+It stayed invisible because the only symptom was one `console.error` inside a
+hidden window that nobody reads, and because the unit tests exercise the worker
+with synthetic frames rather than the real bridge. The smoke gate ran green
+throughout: it drives a typed turn, which needs no audio.
+
+Fixed with Electron's documented pattern — the preload mints the channel, sends
+`port2` to main over IPC, and delivers `port1` to the page via
+`window.postMessage`, which does carry real transferables. The bridge now
+exposes `requestAudioPort()` instead of `sendAudioPort(port)`: the page can no
+longer construct a port at all, which is what made the bug expressible.
+
+Three follow-ups so this class of failure cannot repeat quietly:
+- The port wait rejects after 5s instead of hanging, so a missing port is an
+  error rather than a live mic feeding silence.
+- Main logs whether the port attached to the worker.
+- `preload/audioPort.test.ts` asserts the split (main gets one end, the page the
+  other, the ends are connected and distinct) rather than re-testing Electron.
+
+Worth stating plainly: only a live-audio pass proves voice end to end, and that
+remains in HUMAN_TODO. This fixes a provable defect on the path.
+
+## Audit — BYOK never activated from `.env`
+
+`byokAllowedFromEnv(process.env)` read the process environment, but every other
+key in this app comes from `config.env`, which merges the repo `.env` on top of
+it. Setting `APOLLO_ALLOW_BYOK=true` in `.env` therefore did nothing while
+`ANTHROPIC_API_KEY` on the next line worked, so a developer with a valid key
+still ran in managed mode and hit `AUTH_REQUIRED` on the first turn. Now reads
+`config.env`, the same source as the keys it gates.

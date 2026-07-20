@@ -23,3 +23,26 @@ describe('ring policy (H6)', () => {
     expect(defaultSnoozeMin('alarm')).toBe(10);
   });
 });
+
+describe('reminder ring policy', () => {
+  it('a reminder never rings, at any elapsed time', () => {
+    // A reminder is a prompt, not an alarm. One that made noise would train
+    // people to dismiss it fast, which defeats the point.
+    for (const ms of [0, 1000, 60_000, 600_000]) {
+      expect(ringState('reminder', ms)).toEqual({ looping: false, gain: 0 });
+    }
+  });
+
+  it('timers and alarms are unchanged by the reminder addition', () => {
+    expect(ringState('timer', 0)).toEqual({ looping: true, gain: 1 });
+    expect(ringState('timer', 60_001).looping).toBe(false);
+    expect(ringState('alarm', 0)).toEqual({ looping: true, gain: 1 });
+    expect(ringState('alarm', 120_000).gain).toBeCloseTo(0.64, 5);
+  });
+
+  it('reminder snooze defaults to 10 minutes, not a timer 5', () => {
+    expect(defaultSnoozeMin('reminder')).toBe(10);
+    expect(defaultSnoozeMin('timer')).toBe(5);
+    expect(defaultSnoozeMin('alarm')).toBe(10);
+  });
+});

@@ -63,7 +63,13 @@ export interface HandlerDeps {
   currentConvId?: () => string; // K2: pure read of the active id (no rotation side effect)
   setActiveConversation?: (id: string) => void;
   newConversation?: () => string; // K2: returns the fresh conversation id
-  alertAction?: (kind: 'timer' | 'alarm', id: string, action: 'dismiss' | 'snooze', snoozeMin?: number) => void;
+  /** Derived from the channel so the dep and the contract cannot drift. */
+  alertAction?: (
+    kind: InvokeReq<'alert.action'>['kind'],
+    id: string,
+    action: InvokeReq<'alert.action'>['action'],
+    snoozeMin?: number,
+  ) => void;
   listDevices?: () => Promise<InvokeRes<'devices.list'>>;
   suggestionAction?: (suggestionId: string, actionId: string) => void;
   openCapture?: () => void;

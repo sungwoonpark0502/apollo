@@ -565,7 +565,12 @@ export const STRINGS = {
   alerts: {
     timer: 'Timer',
     alarm: 'Alarm',
+    reminder: 'Reminder',
     dismiss: 'Dismiss',
+    /** Reminder-only: marks the underlying reminder done, not just the popup. */
+    complete: 'Done',
+    /** Dismissing a reminder popup leaves the reminder itself pending. */
+    remindLater: 'Not now',
     snoozeMin: (m: number) => `Snooze ${m}m`,
     since: (t: string) => `Ringing ${t}`,
     now: 'now',
@@ -615,6 +620,7 @@ export const STRINGS = {
     chat: {
       modelPicker: 'Model',
       composerPlaceholder: 'Message Apollo…',
+      composerPlaceholderHero: 'How can I help you today?',
       send: 'Send',
       stop: 'Stop',
       sendHintEnter: 'Enter to send · Shift+Enter for a new line',

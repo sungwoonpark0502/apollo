@@ -145,7 +145,7 @@ const invokeFixtures: Record<InvokeChannelName, { req: unknown; res: unknown }> 
   'auth.usage': { req: {}, res: { used: 12, limit: 200, resetIso: '2026-08-01T00:00:00.000Z' } },
   'app.mode': { req: {}, res: { mode: 'managed' } },
   'devices.list': { req: {}, res: { inputs: [{ deviceId: 'default', label: 'Built-in Mic' }], outputs: [{ deviceId: 'default', label: 'Built-in Speakers' }] } },
-  'alert.action': { req: { kind: 'alarm', id: 'a1', action: 'snooze', snoozeMin: 10 }, res: { ok: true } },
+  'alert.action': { req: { kind: 'reminder', id: 'r1', action: 'complete' }, res: { ok: true } },
   'keys.info': { req: {}, res: [{ provider: 'anthropic', configured: true, last4: 'x123', setAt: 1 }] },
   'keys.remove': { req: { provider: 'anthropic' }, res: { ok: true } },
   'settings.open': { req: {}, res: { ok: true } },

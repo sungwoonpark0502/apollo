@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Icon } from '../../components/Icon';
 import { STRINGS, type Settings } from '@apollo/shared';
 import { ChatThread } from '../../components/chat/ChatThread';
 import { Composer } from '../../components/chat/Composer';
@@ -177,18 +178,28 @@ export function ChatView({ settings, initialConvId }: ChatViewProps): React.JSX.
   };
 
   const c = STRINGS.workspace.chat;
+  // Icon affordances rather than a row of words: the labels survive as tooltips
+  // and aria-labels, so nothing is lost for screen readers or keyboard users.
   const renderMessageActions = (m: MsgItem): React.ReactNode => (
     <>
       {m.role === 'assistant' ? (
-        <button style={actionBtn} onClick={() => copyMessage(m)}>{copiedId === m.id ? c.copied : c.copy}</button>
+        <button style={actionBtn} onClick={() => copyMessage(m)} title={copiedId === m.id ? c.copied : c.copy} aria-label={c.copy}>
+          <Icon name="copy" size={15} />
+        </button>
       ) : null}
+      <button style={actionBtn} onClick={() => speakThis(m)} title={c.speakThis} aria-label={c.speakThis}>
+        <Icon name="speak" size={15} />
+      </button>
       {m.role === 'assistant' && m.id === lastAssistantId && isPersisted(m.id) && !thread.streaming ? (
-        <button style={actionBtn} onClick={() => regenerate(m)}>{c.regenerate}</button>
+        <button style={actionBtn} onClick={() => regenerate(m)} title={c.regenerate} aria-label={c.regenerate}>
+          <Icon name="retry" size={15} />
+        </button>
       ) : null}
       {m.role === 'user' && isPersisted(m.id) && !thread.streaming ? (
-        <button style={actionBtn} onClick={() => setEditing({ id: m.id, text: m.content })}>{c.edit}</button>
+        <button style={actionBtn} onClick={() => setEditing({ id: m.id, text: m.content })} title={c.edit} aria-label={c.edit}>
+          <Icon name="edit" size={15} />
+        </button>
       ) : null}
-      <button style={actionBtn} onClick={() => speakThis(m)}>{c.speakThis}</button>
     </>
   );
 
@@ -217,19 +228,45 @@ export function ChatView({ settings, initialConvId }: ChatViewProps): React.JSX.
   };
 
   const name = settings?.profile.name ?? '';
-  const emptyState = (
-    <div style={{ textAlign: 'center', marginTop: '18vh' }}>
-      <div style={{ fontSize: 'var(--fs-display)', color: 'var(--text-1)', marginBottom: 'var(--sp-4)' }}>
-        {STRINGS.workspace.chat.emptyGreeting(name)}
-      </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--sp-2)', justifyContent: 'center' }}>
-        {STRINGS.workspace.chat.examples.map((ex) => (
-          <button key={ex} onClick={() => setText(ex)} style={chipStyle}>
-            {ex}
-          </button>
-        ))}
+  const heroGreeting = (
+    <div style={{ textAlign: 'center' }}>
+      <div style={heroHeadingStyle}>
+        <span className="apollo-spark" aria-hidden="true" style={{ fontSize: '0.85em' }}>
+          ✳
+        </span>
+        <span>{STRINGS.workspace.chat.emptyGreeting(name)}</span>
       </div>
     </div>
+  );
+
+  const exampleChips = (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--sp-2)', justifyContent: 'center', marginTop: 'var(--sp-3)' }}>
+      {STRINGS.workspace.chat.examples.map((ex) => (
+        <button key={ex} onClick={() => setText(ex)} style={chipStyle}>
+          {ex}
+        </button>
+      ))}
+    </div>
+  );
+
+  // The composer is built once and placed by the branch below, so switching out
+  // of the hero on first send never remounts it (draft text and history recall
+  // would be lost mid-turn).
+  const isEmpty = thread.items.length === 0 && !thread.streaming;
+  const composer = (
+    <Composer
+      sendOnEnter={settings?.chat.sendOnEnter ?? true}
+      streaming={thread.streaming}
+      inputHistory={inputHistory}
+      onSend={onSend}
+      onStop={onStop}
+      mic={{ state: micState, onToggle: toggleDictation }}
+      degraded={degraded}
+      text={text}
+      onTextChange={setText}
+      hero={isEmpty}
+      footerLeft={settings ? <ModelPicker settings={settings} onPatch={(next) => void window.apollo.call('settings.set', next)} /> : null}
+    />
   );
 
   return (
@@ -242,35 +279,38 @@ export function ChatView({ settings, initialConvId }: ChatViewProps): React.JSX.
         onSelect={(id) => void openConversation(id, true)}
       />
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-        <ChatThread
-          thread={thread}
-          showToolActivity={settings?.chat.showToolActivity ?? true}
-          autoScroll={settings?.chat.autoScroll ?? true}
-          renderMessageActions={renderMessageActions}
-          renderMessage={renderMessage}
-          onCancelWindow={() => onStop()}
-          emptyState={emptyState}
-        />
-        <Composer
-          sendOnEnter={settings?.chat.sendOnEnter ?? true}
-          streaming={thread.streaming}
-          inputHistory={inputHistory}
-          onSend={onSend}
-          onStop={onStop}
-          mic={{ state: micState, onToggle: toggleDictation }}
-          degraded={degraded}
-          text={text}
-          onTextChange={setText}
-          footerLeft={
-            settings ? (
-              <ModelPicker settings={settings} onPatch={(next) => void window.apollo.call('settings.set', next)} />
-            ) : null
-          }
-        />
+        {isEmpty ? (
+          // Hero: greeting and composer sit together in the middle of the pane,
+          // rather than a greeting stranded above a docked composer bar.
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: 'var(--sp-6) var(--sp-4)', overflowY: 'auto' }}>
+            {heroGreeting}
+            <div style={{ marginTop: 'var(--sp-5)' }}>{composer}</div>
+            {exampleChips}
+          </div>
+        ) : (
+          <>
+            <ChatThread
+              thread={thread}
+              showToolActivity={settings?.chat.showToolActivity ?? true}
+              autoScroll={settings?.chat.autoScroll ?? true}
+              renderMessageActions={renderMessageActions}
+              renderMessage={renderMessage}
+              onCancelWindow={() => onStop()}
+              emptyState={null}
+            />
+            {composer}
+          </>
+        )}
       </div>
     </div>
   );
 }
+
+const heroHeadingStyle: React.CSSProperties = {
+  fontFamily: 'var(--font-display)', fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 400,
+  color: 'var(--text-1)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+  gap: 'var(--sp-3)', lineHeight: 1.15,
+};
 
 const chipStyle: React.CSSProperties = {
   border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-2)',
@@ -279,7 +319,8 @@ const chipStyle: React.CSSProperties = {
 
 const actionBtn: React.CSSProperties = {
   border: 'none', background: 'transparent', color: 'var(--text-3)', cursor: 'pointer',
-  fontSize: 'var(--fs-caption)', fontFamily: 'var(--font-sans)', padding: '0 var(--sp-1)',
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  width: 26, height: 26, borderRadius: 'var(--radius-ctl)', padding: 0,
 };
 
 const editAreaStyle: React.CSSProperties = {

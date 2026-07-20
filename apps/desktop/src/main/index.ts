@@ -237,7 +237,10 @@ function boot(): void {
 
   // L0.2 mode: BYOK only when the build permits it AND a real key exists;
   // otherwise managed (backend transport, no provider keys on the device).
-  const byokAllowed = byokAllowedFromEnv(process.env);
+  // config.env merges the repo .env with the process env — the same source the
+  // API keys load from. Reading process.env here meant APOLLO_ALLOW_BYOK in
+  // .env was silently ignored while the key right next to it worked.
+  const byokAllowed = byokAllowedFromEnv(config.env);
   // The smoke gate drives a real turn end to end and must stay account-free and
   // offline (A2/C17): it verifies the app's own wiring, not the backend's. Left
   // in managed mode it would fail on AUTH_REQUIRED at the first turn.
@@ -276,7 +279,14 @@ function boot(): void {
     repos,
     onTimerFire: (t) => ringAlert('timer', t.id, t.label, STRINGS.spoken.timerDone(t.label)),
     onReminderFire: (r) => {
-      // Reminders route to Workspace Today on click (not a ringing overlay).
+      // A reminder now surfaces the orb card so Done/Snooze are one click away.
+      // It stays silent and non-looping — a reminder is not an alarm — but the
+      // actions are reachable, which they were not when this fired as a bare
+      // notification (AUDIT-controls.md).
+      orbController.setAttention(true);
+      if (!orbWindow.isDestroyed()) {
+        pushTo(orbWindow.webContents, 'alert.ringing', { kind: 'reminder', id: r.id, label: r.text, firedAt: Date.now(), silent: true });
+      }
       const n = new Notification({ title: STRINGS.app.name, body: STRINGS.spoken.reminderFired(r.text) });
       n.on('click', () => openWorkspace({ view: 'today' }));
       n.show();
@@ -643,7 +653,14 @@ function boot(): void {
       return;
     }
     const port = event.ports[0];
-    if (port) workerHost.attachAudioPort(port);
+    // Observable on purpose: when this silently never arrived, the mic was
+    // live and every frame went nowhere, with nothing in the log to show it.
+    if (port) {
+      workerHost.attachAudioPort(port);
+      log('audio.port attached to worker');
+    } else {
+      log('audio.port message carried no port');
+    }
   });
   createAudioWindow();
 
@@ -730,7 +747,16 @@ function boot(): void {
       }
     },
     alertAction: (kind, id, action, snoozeMin) => {
-      if (action === 'snooze') {
+      // Reminders own their snooze/complete in the reminders repo; timers and
+      // alarms snooze by scheduling a fresh one-shot.
+      if (kind === 'reminder') {
+        if (action === 'snooze') repos.reminders.snooze(id, snoozeMin ?? 10);
+        else if (action === 'complete') repos.reminders.complete(id);
+        // 'dismiss' leaves the reminder pending on purpose: dismissing the
+        // popup is not the same as saying the thing got done.
+        // The repo bus already fans data.changed out to every window.
+        if (action !== 'dismiss') scheduler.rearm();
+      } else if (action === 'snooze') {
         const min = snoozeMin ?? (kind === 'alarm' ? 10 : 5);
         const at = Date.now() + min * 60_000;
         // Snooze a one-shot alert; a recurring alarm keeps its own schedule (C19/H6).

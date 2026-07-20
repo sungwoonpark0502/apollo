@@ -365,7 +365,16 @@ export const invokeChannels = {
   },
   // ---- H6 alerts ----
   'alert.action': {
-    req: z.object({ kind: z.enum(['timer', 'alarm']), id: z.string(), action: z.enum(['dismiss', 'snooze']), snoozeMin: z.number().int().min(1).max(120).optional() }),
+    req: z.object({
+      // 'reminder' joins timer/alarm: reminders fired as an actionless OS
+      // notification, so snooze/complete existed in the repo with no way to
+      // reach them (recorded in AUDIT-controls.md).
+      kind: z.enum(['timer', 'alarm', 'reminder']),
+      id: z.string(),
+      // 'complete' is reminder-only; the handler rejects it for timers/alarms.
+      action: z.enum(['dismiss', 'snooze', 'complete']),
+      snoozeMin: z.number().int().min(1).max(120).optional(),
+    }),
     res: ackSchema,
   },
   // H3 key metadata (write-only keys; this returns non-secret metadata only)
@@ -443,7 +452,7 @@ export const pushChannels = {
   }),
   'capture.result': z.object({ ok: z.boolean() }), // main → capture window: morph + close, or shake
   // H6: main → orb ringing overlay
-  'alert.ringing': z.object({ kind: z.enum(['timer', 'alarm']), id: z.string(), label: z.string().nullable(), firedAt: z.number(), silent: z.boolean().default(false) }),
+  'alert.ringing': z.object({ kind: z.enum(['timer', 'alarm', 'reminder']), id: z.string(), label: z.string().nullable(), firedAt: z.number(), silent: z.boolean().default(false) }),
   'alert.stop': z.object({ id: z.string() }), // main → orb: stop ringing (snoozed/dismissed elsewhere)
   'update.state': z.object({ status: z.enum(['idle', 'checking', 'downloading', 'ready']), version: z.string().optional() }), // H7
   // I7 Google Calendar sync status → Calendar header indicator
@@ -472,7 +481,12 @@ export interface ApolloBridge {
   call<K extends InvokeChannelName>(channel: K, payload: InvokeReq<K>): Promise<InvokeRes<K>>;
   on<K extends PushChannelName>(channel: K, listener: (payload: PushPayload<K>) => void): () => void;
   /** Capture renderer only: hands the audio-frame MessagePort to main (→ audio worker). */
-  sendAudioPort(port: MessagePort): void;
+  /**
+   * Asks the preload to mint the renderer↔worker audio channel. The port
+   * arrives as a window 'message' event whose data is AUDIO_PORT_CHANNEL —
+   * ports cannot be returned across contextBridge (see preload).
+   */
+  requestAudioPort(): void;
 }
 
 /** postMessage channel name for the audio port hand-off (not an invoke channel). */

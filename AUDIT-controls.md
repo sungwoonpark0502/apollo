@@ -90,6 +90,7 @@ no approval dispatch can be constructed without a `confirmationId`.
 | Control | id | Dispatch |
 | --- | --- | --- |
 | Dismiss | `ringing.dismiss` | `alert.action` `{ kind, id, action: 'dismiss' }` |
+| Done (reminder only) | `ringing.complete` | `alert.action` `{ kind, id, action: 'complete' }` |
 | Snooze (5 / 10 / 15) | `ringing.snooze` | `alert.action` with that preset's `snoozeMin`; omitted lets main apply the per-kind default |
 
 ### Nudge cards
@@ -136,3 +137,26 @@ actions E3.1 describes lived on surfaces that L2.4 removed. Unlike the four
 defects above, closing this gap means adding UI, which is outside L3.2's scope —
 so it is recorded here and in HUMAN_TODO.md rather than being silently deleted
 along with the genuinely dead ops.
+
+
+## Follow-up: the reminder gap is closed
+
+The original audit recorded `snoozeReminder` / `completeReminder` as working
+repo methods reachable by no control, because reminders fired as a bare OS
+notification and the inline actions E3.1 described lived on the To-dos surface
+L2.4 removed. That is now fixed, and the fix reused the audited machinery rather
+than adding a fourth alert surface: a fired reminder raises the same orb card
+timers and alarms use, with `alert.action` widened to carry `kind: 'reminder'`
+and a new `complete` action.
+
+Two behaviors are deliberate:
+
+- **A reminder never rings.** `ringState` returns `{ looping: false, gain: 0 }`
+  for it and the card skips the audio element entirely. A reminder is a prompt,
+  not an alarm, and one that made noise would train people to dismiss it fast.
+- **Dismiss does not complete.** "Not now" closes the card and leaves the
+  reminder pending; only "Done" calls `reminders.complete`. Treating a dismissed
+  popup as a finished task is how reminders quietly disappear unfinished.
+
+Snooze presets differ by kind for the same reason — 1/5/10 minutes suits a
+timer, 10/30/60 suits a reminder.

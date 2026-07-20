@@ -328,7 +328,8 @@ export function OrbApp(): React.JSX.Element {
                 earconVolume={earconVol}
                 onAction={(id, action, snoozeMin) => {
                   setRinging((rs) => rs.filter((r) => r.id !== id));
-                  void fireControl(action === 'snooze' ? 'ringing.snooze' : 'ringing.dismiss', { alert: { kind: a.kind, id }, ...(snoozeMin ? { snoozeMin } : {}) });
+                  const control = action === 'snooze' ? 'ringing.snooze' : action === 'complete' ? 'ringing.complete' : 'ringing.dismiss';
+                  void fireControl(control, { alert: { kind: a.kind, id }, ...(snoozeMin ? { snoozeMin } : {}) });
                 }}
               />
             </CardShell>

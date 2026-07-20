@@ -10,13 +10,14 @@ export interface RingingAlert {
 }
 
 const SNOOZE_PRESETS = [1, 5, 10];
+const REMINDER_SNOOZE_PRESETS = [10, 30, 60];
 
 /** H6 ringing overlay (Stage width). Plays ring.wav at earconVolume × the ramp
  *  gain; timers stop the loop after 60s, alarms ramp down until dismissed. */
 export function RingingCard({ alert, earconVolume, onAction }: {
   alert: RingingAlert;
   earconVolume: number;
-  onAction: (id: string, action: 'dismiss' | 'snooze', snoozeMin?: number) => void;
+  onAction: (id: string, action: 'dismiss' | 'snooze' | 'complete', snoozeMin?: number) => void;
 }): React.JSX.Element {
   const [elapsed, setElapsed] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -30,7 +31,8 @@ export function RingingCard({ alert, earconVolume, onAction }: {
 
   // sound loop driven by the shared ring policy
   useEffect(() => {
-    if (alert.silent) return;
+    // A reminder is silent by construction, so no audio element is created.
+    if (alert.silent || alert.kind === 'reminder') return;
     const a = new Audio('/earcons/ring.wav');
     a.loop = true;
     audioRef.current = a;
@@ -39,7 +41,7 @@ export function RingingCard({ alert, earconVolume, onAction }: {
       a.pause();
       audioRef.current = null;
     };
-  }, [alert.silent]);
+  }, [alert.silent, alert.kind]);
 
   useEffect(() => {
     const { looping, gain } = ringState(alert.kind, elapsed);
@@ -53,18 +55,33 @@ export function RingingCard({ alert, earconVolume, onAction }: {
   const ss = Math.floor((elapsed % 60_000) / 1000);
   const sinceLabel = elapsed < 1000 ? STRINGS.alerts.now : `${mm}:${String(ss).padStart(2, '0')}`;
 
+  const isReminder = alert.kind === 'reminder';
+  const kindLabel = isReminder ? STRINGS.alerts.reminder : alert.kind === 'alarm' ? STRINGS.alerts.alarm : STRINGS.alerts.timer;
+  // A reminder snoozes in coarser steps than a timer: 1 minute is a stopwatch
+  // affordance, not something you ask to be reminded again in.
+  const snoozeOptions = isReminder ? REMINDER_SNOOZE_PRESETS : SNOOZE_PRESETS;
+
   return (
-    <div role="alertdialog" aria-label={STRINGS.alerts.ariaRinging(alert.label ?? alert.kind)} style={{ padding: 'var(--sp-4)' }}>
+    <div role="alertdialog" aria-label={STRINGS.alerts.ariaRinging(alert.label ?? kindLabel)} style={{ padding: 'var(--sp-4)' }}>
       <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-        {alert.kind === 'alarm' ? STRINGS.alerts.alarm : STRINGS.alerts.timer}
+        {kindLabel}
       </div>
       <div style={{ fontSize: 'var(--fs-display)', fontWeight: 600, color: 'var(--text-1)', margin: 'var(--sp-1) 0' }}>
-        {alert.label ?? (alert.kind === 'alarm' ? STRINGS.alerts.alarm : STRINGS.alerts.timer)}
+        {alert.label ?? kindLabel}
       </div>
       <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-2)' }}>{STRINGS.alerts.since(sinceLabel)}</div>
       <div style={{ display: 'flex', gap: 'var(--sp-2)', marginTop: 'var(--sp-3)', flexWrap: 'wrap' }}>
-        <button onClick={() => onAction(alert.id, 'dismiss')} style={primary}>{STRINGS.alerts.dismiss}</button>
-        {SNOOZE_PRESETS.map((m) => (
+        {isReminder ? (
+          // Done completes the reminder; "Not now" only closes the card, so a
+          // reminder is never silently marked done by dismissing a popup.
+          <>
+            <button onClick={() => onAction(alert.id, 'complete')} style={primary}>{STRINGS.alerts.complete}</button>
+            <button onClick={() => onAction(alert.id, 'dismiss')} style={ghost}>{STRINGS.alerts.remindLater}</button>
+          </>
+        ) : (
+          <button onClick={() => onAction(alert.id, 'dismiss')} style={primary}>{STRINGS.alerts.dismiss}</button>
+        )}
+        {snoozeOptions.map((m) => (
           <button key={m} onClick={() => onAction(alert.id, 'snooze', m)} style={ghost}>
             {STRINGS.alerts.snoozeMin(m)}
           </button>

@@ -1,4 +1,4 @@
-import type { InvokeChannelName, InvokeReq } from '@apollo/shared';
+import type { AlertKind, InvokeChannelName, InvokeReq } from '@apollo/shared';
 
 /**
  * L3.2 control dispatch registry.
@@ -62,6 +62,7 @@ export const ORB_CONTROLS: readonly ControlSpec[] = [
   { id: 'confirm.batchDeny', surface: 'confirm', label: 'Cancel batch' },
   { id: 'confirm.cancelWindow', surface: 'confirm', label: 'Undo within the cancel window' },
   { id: 'ringing.dismiss', surface: 'ringing', label: 'Dismiss alert' },
+  { id: 'ringing.complete', surface: 'ringing', label: 'Complete reminder' },
   { id: 'ringing.snooze', surface: 'ringing', label: 'Snooze alert' },
   { id: 'nudge.action', surface: 'nudge', label: 'Nudge action (per suggestion)' },
   { id: 'nudge.dismissFirstRunNote', surface: 'nudge', label: 'Dismiss the first-nudge explainer' },
@@ -80,7 +81,7 @@ export interface ControlContext {
   readonly confirmationId?: string;
   readonly approved?: boolean;
   readonly deniedIndices?: number[];
-  readonly alert?: { kind: 'timer' | 'alarm'; id: string };
+  readonly alert?: { kind: AlertKind; id: string };
   readonly action?: 'dismiss' | 'snooze';
   readonly snoozeMin?: number;
   readonly suggestionId?: string;
@@ -147,6 +148,10 @@ export function controlDispatch(id: string, ctx: ControlContext = {}): Dispatch 
 
     case 'ringing.dismiss':
       return ctx.alert ? ipc('alert.action', { kind: ctx.alert.kind, id: ctx.alert.id, action: 'dismiss' }) : null;
+    case 'ringing.complete':
+      // Reminder-only: marks the reminder itself done, unlike dismiss which
+      // only closes the card.
+      return ctx.alert ? ipc('alert.action', { kind: ctx.alert.kind, id: ctx.alert.id, action: 'complete' }) : null;
     case 'ringing.snooze':
       return ctx.alert
         ? ipc('alert.action', {
