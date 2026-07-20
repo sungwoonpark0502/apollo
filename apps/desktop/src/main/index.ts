@@ -16,7 +16,7 @@ import { createDeepgramStt } from './voice/sttDeepgram';
 import { FakeStt, type FakeSttFixture } from './voice/sttFake';
 import { wavToFrames } from './voice/wav';
 import { readFileSync, rmSync } from 'node:fs';
-import { AUDIO_PORT_CHANNEL, type VoiceState } from '@apollo/shared';
+import { AppError, AUDIO_PORT_CHANNEL, type VoiceState } from '@apollo/shared';
 import { createLogger, readLogTail } from './logger';
 import { loadConfig } from './config';
 import { openDb } from './db/connection';
@@ -742,7 +742,9 @@ function boot(): void {
         const map = (k: string): Array<{ deviceId: string; label: string }> =>
           raw.filter((d) => d.kind === k).map((d) => ({ deviceId: d.deviceId, label: d.label || 'Device' }));
         return { inputs: map('audioinput'), outputs: map('audiooutput') };
-      } catch {
+      } catch (e) {
+        // Empty lists render as "no devices"; log so the real cause is findable.
+        log(`device enumeration failed: ${e instanceof Error ? e.message : String(e)}`);
         return { inputs: [], outputs: [] };
       }
     },
@@ -898,8 +900,12 @@ function boot(): void {
             tz: r.timezone ?? 'auto',
             countryCode: (r.country_code ?? '').toUpperCase(),
           }));
-      } catch {
-        return [];
+      } catch (e) {
+        // Rethrow rather than returning []: an empty array is indistinguishable
+        // from "no city matched", so a network failure used to read as "your
+        // city does not exist". The picker turns this into a retry message.
+        log(`geocode search failed: ${e instanceof Error ? e.message : String(e)}`);
+        throw new AppError('OFFLINE', 'could not reach the location service', e);
       }
     },
     linkPreview: async (url) => {

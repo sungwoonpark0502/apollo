@@ -29,7 +29,8 @@ export function CalendarsTab({ embedded = false }: { embedded?: boolean } = {}):
             setDeleting({ cal, count: r.eventCount });
           }
         } else {
-          setError(r.error ?? 'failed');
+          // Map the code to written copy; the raw code must never be shown.
+          setError(r.error ? (c[r.error] ?? c.genericError) : c.genericError);
         }
       }
     });

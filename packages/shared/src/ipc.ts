@@ -212,7 +212,12 @@ export const invokeChannels = {
       z.object({ op: z.literal('delete'), id: z.string(), reassignTo: z.string().optional() }),
       z.object({ op: z.literal('setDefault'), id: z.string() }),
     ]),
-    res: z.object({ ok: z.boolean(), error: z.string().optional(), eventCount: z.number().optional() }),
+    // A stable code the renderer maps to copy, not prose (C16).
+    res: z.object({
+      ok: z.boolean(),
+      error: z.enum(['notFound', 'cannotDeleteDefault', 'cannotDeleteLast', 'hasEvents', 'invalidReassign']).optional(),
+      eventCount: z.number().optional(),
+    }),
   },
   'notes.list': {
     req: z.object({ query: z.string().optional(), limit: z.number().int().positive().max(200).default(50) }),

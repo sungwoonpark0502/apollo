@@ -88,17 +88,28 @@ function CityField({ country, onSelect, placeholder, disabledHint, noMatches }: 
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const [searched, setSearched] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   const cache = useMemo(() => createGeocodeCache((q, cc) => window.apollo.call('geocode.search', { query: q, ...(cc ? { countryCode: cc } : {}) })), []);
   const search = useMemo(
     () =>
       debounce((q: string, cc: string) => {
-        void cache.search(q, cc).then((r) => {
-          setResults(r);
-          setSearched(true);
-          setOpen(true);
-          setActive(0);
-        });
+        void cache
+          .search(q, cc)
+          .then((r) => {
+            setResults(r);
+            setFailed(false);
+            setSearched(true);
+            setOpen(true);
+            setActive(0);
+          })
+          .catch(() => {
+            // A lookup failure is not "no such city": say so, and invite a retry.
+            setResults([]);
+            setFailed(true);
+            setSearched(true);
+            setOpen(true);
+          });
       }, 300),
     [cache],
   );
@@ -106,6 +117,7 @@ function CityField({ country, onSelect, placeholder, disabledHint, noMatches }: 
   const onChange = (q: string): void => {
     setText(q);
     setSearched(false);
+    setFailed(false);
     if (q.trim() && country) search(q, country.code);
     else { setResults([]); setOpen(false); }
   };
@@ -146,7 +158,11 @@ function CityField({ country, onSelect, placeholder, disabledHint, noMatches }: 
             ))}
           </ul>
         ) : searched && text.trim() ? (
-          <ul style={dropdown}><li style={{ ...item, color: 'var(--text-3)', cursor: 'default' }}>{noMatches}</li></ul>
+          <ul style={dropdown}>
+            <li style={{ ...item, color: failed ? 'var(--danger)' : 'var(--text-3)', cursor: 'default' }}>
+              {failed ? STRINGS.settings.profile.locationLookupFailed : noMatches}
+            </li>
+          </ul>
         ) : null
       ) : null}
     </div>

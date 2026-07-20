@@ -224,3 +224,9 @@ model **once at build time** (it is never downloaded at runtime):
 - [ ] Picovoice access key (wake word): https://console.picovoice.ai/ → AccessKey. Set `PICOVOICE_ACCESS_KEY`. Optional: train a "Hey Apollo" keyword on the console and save as `apps/desktop/resources/hey_apollo.ppn` (until then the dev wake word is "jarvis").
 - [ ] Brave Search API key: https://api-dashboard.search.brave.com/ → set `BRAVE_API_KEY`.
 - [ ] Google OAuth client (Gmail, Phase 3): create an installed-app OAuth client at https://console.cloud.google.com/apis/credentials with scopes gmail.readonly and gmail.send; set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
+
+## Billing / plan management (audit — deferred, not dropped)
+- [ ] The Account tab had a "Manage plan" string with no button and no billing
+  surface behind it. Removed the dead copy rather than shipping a button that
+  goes nowhere. Real plan management needs a payment provider and a billing
+  portal URL the Account tab can open; decide the provider first.

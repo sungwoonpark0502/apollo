@@ -60,7 +60,7 @@ describe('calendars CRUD reducer', () => {
     let s = base();
     ({ state: s } = applyCalendarCrud(s, { op: 'create', name: 'Work', color: '#4C8BF5' }, noEvents));
     const { result } = applyCalendarCrud(s, { op: 'delete', id: 'cal-1', reassignTo: 'ghost' }, { eventCount: () => 1, reassign: vi.fn(), newId: () => 'x' });
-    expect(result).toMatchObject({ ok: false, error: 'invalid reassign target' });
+    expect(result).toMatchObject({ ok: false, error: 'invalidReassign' });
   });
 
   it('setDefault requires the calendar to exist', () => {

@@ -387,3 +387,39 @@ it. Setting `APOLLO_ALLOW_BYOK=true` in `.env` therefore did nothing while
 `ANTHROPIC_API_KEY` on the next line worked, so a developer with a valid key
 still ran in managed mode and hit `AUTH_REQUIRED` on the first turn. Now reads
 `config.env`, the same source as the keys it gates.
+
+## Audit — internal error prose was reaching users
+
+`calendars.crud` returned English sentences like "cannot delete the last
+calendar" and the Calendars tab rendered `r.error` verbatim. That breaks C16
+(raw messages never reach the user) and the strings-centralization rule, and it
+was visible: the written copy for exactly this case — "You need at least one
+calendar." — sat in STRINGS unused, which is what surfaced the bug.
+
+The service now returns stable codes (`cannotDeleteLast`, `notFound`, …), the
+channel validates them as an enum, and the renderer maps code → copy. Typing the
+result caught a second gap: `hasEvents` normally routes to the reassign dialog,
+but nothing guaranteed `eventCount` was present, so a fallback could have shown
+a blank. That path now has copy too.
+
+## Audit — dead UI copy removed
+
+Four strings had zero references and no control behind them:
+`onboarding.finishTitle`/`finishBody` (superseded by the real final step's
+`tryTitle`/`tryBody`/`tryFinish`), `general.homeLocation` (superseded by
+`profile.home`), and `a11y.copyReply` (superseded by `a11y.copy`). Removed per
+the clean-removal rule.
+
+`account.managePlan` was the interesting one: copy for a button that never
+existed, because there is no billing surface. Removed rather than shipping a
+control that goes nowhere — the same defect class as the unwired "Skip sentence"
+found in L3.2 — with the real work recorded in HUMAN_TODO.
+
+## Audit — failures that looked like empty results
+
+`geocode.search` caught every error and returned `[]`, so a network failure
+rendered as "No matches" and read as "your city does not exist". It now logs and
+throws `OFFLINE`, and the location picker distinguishes a failed lookup from a
+genuine no-match with a retry message. Device enumeration keeps returning an
+empty list (an empty device menu is honest) but now logs the cause, which it
+previously swallowed entirely.

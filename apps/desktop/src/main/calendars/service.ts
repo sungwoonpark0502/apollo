@@ -12,9 +12,16 @@ export interface CalendarsState {
 }
 
 export type CrudReq = InvokeReq<'calendars.crud'>;
+/**
+ * A stable code, never prose. The renderer maps it to copy in STRINGS — these
+ * strings used to be rendered verbatim, so users saw developer English like
+ * "cannot delete the last calendar" while the written copy sat unused (C16).
+ */
+export type CrudError = 'notFound' | 'cannotDeleteDefault' | 'cannotDeleteLast' | 'hasEvents' | 'invalidReassign';
+
 export interface CrudResult {
   ok: boolean;
-  error?: string;
+  error?: CrudError;
   eventCount?: number;
 }
 
@@ -45,22 +52,22 @@ export function applyCalendarCrud(
     }
     case 'rename': {
       const cal = find(req.id);
-      if (!cal) return { state, result: { ok: false, error: 'no such calendar' } };
+      if (!cal) return { state, result: { ok: false, error: 'notFound' } };
       const next = active.map((c) => (c.id === req.id ? { ...c, name: req.name.trim() } : c));
       return { state: { ...state, active: next }, result: { ok: true } };
     }
     case 'delete': {
       const cal = find(req.id);
-      if (!cal) return { state, result: { ok: false, error: 'no such calendar' } };
-      if (req.id === DEFAULT_ID) return { state, result: { ok: false, error: 'cannot delete the default calendar' } };
-      if (active.length <= 1) return { state, result: { ok: false, error: 'cannot delete the last calendar' } };
+      if (!cal) return { state, result: { ok: false, error: 'notFound' } };
+      if (req.id === DEFAULT_ID) return { state, result: { ok: false, error: 'cannotDeleteDefault' } };
+      if (active.length <= 1) return { state, result: { ok: false, error: 'cannotDeleteLast' } };
       const count = ctx.eventCount(req.id);
       if (count > 0 && !req.reassignTo) {
-        return { state, result: { ok: false, error: 'calendar has events', eventCount: count } };
+        return { state, result: { ok: false, error: 'hasEvents', eventCount: count } };
       }
       if (req.reassignTo) {
         if (req.reassignTo === req.id || !find(req.reassignTo)) {
-          return { state, result: { ok: false, error: 'invalid reassign target' } };
+          return { state, result: { ok: false, error: 'invalidReassign' } };
         }
         if (count > 0) ctx.reassign(req.id, req.reassignTo);
       }
@@ -69,7 +76,7 @@ export function applyCalendarCrud(
       return { state: { active: next, defaultCalendarId }, result: { ok: true } };
     }
     case 'setDefault': {
-      if (!find(req.id)) return { state, result: { ok: false, error: 'no such calendar' } };
+      if (!find(req.id)) return { state, result: { ok: false, error: 'notFound' } };
       return { state: { ...state, defaultCalendarId: req.id }, result: { ok: true } };
     }
   }
