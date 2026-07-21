@@ -71,8 +71,11 @@ describe('search.web', () => {
   it('returns ERROR KEY_MISSING guidance without a key (no dead end)', async () => {
     const reg = createRegistry([createSearchWebTool({ http: stubHttp(() => ({})), getBraveKey: () => null })]);
     const res = await reg.execute('search.web', { query: 'anything' }, makeCtx());
-    expect(res.llmText).toContain('ERROR KEY_MISSING');
-    expect(res.llmText).toContain('Settings > Keys');
+    expect(res.llmText).toContain('ERROR CAPABILITY_OFF');
+    // No dead end: the model is told what to do instead. And no plumbing —
+    // the user must never be pointed at a vendor or a key.
+    expect(res.llmText).toMatch(/Answer from what you already know/);
+    expect(res.llmText).not.toMatch(/key|Brave|API/i);
   });
 
   it('returns top-5 untrusted results with a newsList card', async () => {

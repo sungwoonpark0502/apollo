@@ -79,10 +79,14 @@ describe('L5 settings tabs by mode', () => {
     expect(tabs.indexOf('account')).toBe(1);
   });
 
-  it('BYOK shows Keys and hides Account', () => {
-    const tabs = settingsTabsFor('byok');
-    expect(tabs).toContain('keys');
-    expect(tabs).not.toContain('account');
+  it('BYOK hides Account (there is none to manage)', () => {
+    expect(settingsTabsFor('byok')).not.toContain('account');
+  });
+
+  it('the credentials screen is hidden unless explicitly revealed', () => {
+    // Keys come from the environment; the screen is developer plumbing.
+    expect(settingsTabsFor('byok')).not.toContain('keys');
+    expect(settingsTabsFor('byok', { showKeys: true })).toContain('keys');
   });
 
   it('neither mode exposes Diagnostics as a top-level tab (it moved under About)', () => {

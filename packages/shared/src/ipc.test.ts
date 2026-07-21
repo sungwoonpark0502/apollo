@@ -143,7 +143,7 @@ const invokeFixtures: Record<InvokeChannelName, { req: unknown; res: unknown }> 
   'auth.signUpWithPassword': { req: { email: 'a@example.com', password: 'a password here', name: 'Sam' }, res: { ok: true } },
   'auth.signOut': { req: {}, res: { ok: true } },
   'auth.usage': { req: {}, res: { used: 12, limit: 200, resetIso: '2026-08-01T00:00:00.000Z' } },
-  'app.mode': { req: {}, res: { mode: 'managed' } },
+  'app.mode': { req: {}, res: { mode: 'byok', showKeys: false } },
   'devices.list': { req: {}, res: { inputs: [{ deviceId: 'default', label: 'Built-in Mic' }], outputs: [{ deviceId: 'default', label: 'Built-in Speakers' }] } },
   'alert.action': { req: { kind: 'reminder', id: 'r1', action: 'complete' }, res: { ok: true } },
   'keys.info': { req: {}, res: [{ provider: 'anthropic', configured: true, last4: 'x123', setAt: 1 }] },

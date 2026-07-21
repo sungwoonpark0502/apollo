@@ -958,6 +958,9 @@ function boot(): void {
       }
     },
     appMode: () => appMode,
+    // Credentials normally come from the environment; the screen stays hidden
+    // unless explicitly asked for, so no vendor names reach the product UI.
+    showKeys: () => config.env['APOLLO_SHOW_KEYS'] === '1' || config.env['APOLLO_SHOW_KEYS'] === 'true',
     // Model picker source. BYOK is Anthropic-only by design (adding providers
     // there would widen the C14.9 egress allowlist per provider — DECISIONS);
     // managed asks the backend which keys the deployment actually holds, and a

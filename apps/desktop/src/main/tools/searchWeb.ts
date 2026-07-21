@@ -24,7 +24,9 @@ export function createSearchWebTool(deps: SearchToolDeps): ToolDef {
     async execute(a) {
       const results = deps.managedSearch ? await viaBackend(a.query) : await viaLocalKey(a.query);
       if (results === null) {
-        return { llmText: `ERROR KEY_MISSING: ${STRINGS.errors.KEY_MISSING('Brave Search')} Web search is unavailable until a key is added.` };
+        // Tells the model the capability is off so it can say so plainly.
+        // Deliberately names no vendor and no settings screen.
+        return { llmText: `ERROR CAPABILITY_OFF: ${STRINGS.errors.CAPABILITY_OFF('Web search')} Answer from what you already know, and say you could not search.` };
       }
       if (results.length === 0) return { llmText: `No web results for "${a.query}".`, untrusted: true };
       return {

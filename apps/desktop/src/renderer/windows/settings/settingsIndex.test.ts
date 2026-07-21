@@ -91,13 +91,21 @@ describe('settings index integrity', () => {
 });
 
 describe('settings tab list', () => {
-  it('managed shows Account and hides Keys; BYOK does the opposite', () => {
-    const managed = settingsTabsFor('managed');
-    const byok = settingsTabsFor('byok');
-    expect(managed).toContain('account');
-    expect(managed).not.toContain('keys');
-    expect(byok).toContain('keys');
-    expect(byok).not.toContain('account');
+  it('managed shows Account; BYOK has no account to manage', () => {
+    expect(settingsTabsFor('managed')).toContain('account');
+    expect(settingsTabsFor('byok')).not.toContain('account');
+  });
+
+  it('the credentials screen is hidden in BOTH modes by default', () => {
+    // Credentials come from the environment. A tab full of vendor names and
+    // "API key" fields is plumbing, and no user should meet it.
+    expect(settingsTabsFor('managed')).not.toContain('keys');
+    expect(settingsTabsFor('byok')).not.toContain('keys');
+  });
+
+  it('APOLLO_SHOW_KEYS reveals it for the rare paste-a-key case', () => {
+    expect(settingsTabsFor('byok', { showKeys: true })).toContain('keys');
+    expect(settingsTabsFor('managed', { showKeys: true })).toContain('keys');
   });
 
   it('leads with General and keeps the requested core sections', () => {

@@ -24,12 +24,16 @@ import { useFormatInit } from '../../lib/useLive';
 export function SettingsApp(): React.JSX.Element {
   useFormatInit();
   const [mode, setMode] = useState<'managed' | 'byok'>('managed');
+  const [showKeys, setShowKeys] = useState(false);
   const [tab, setTab] = useState<TabId>('general');
   const [query, setQuery] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    void window.apollo.call('app.mode', {}).then(({ mode: m }) => setMode(m));
+    void window.apollo.call('app.mode', {}).then(({ mode: m, showKeys: sk }) => {
+      setMode(m);
+      setShowKeys(sk);
+    });
   }, []);
 
   useEffect(() => {
@@ -43,7 +47,7 @@ export function SettingsApp(): React.JSX.Element {
     return () => document.removeEventListener('keydown', onKey);
   }, []);
 
-  const tabs = settingsTabsFor(mode) as TabId[];
+  const tabs = settingsTabsFor(mode, { showKeys }) as TabId[];
   const results = useMemo(() => searchSettings(query).filter((r) => tabs.includes(r.tab)), [query, tabs]);
   const searching = query.trim().length > 0;
 

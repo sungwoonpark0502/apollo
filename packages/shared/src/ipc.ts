@@ -150,7 +150,11 @@ export const invokeChannels = {
     res: z.object({ used: z.number(), limit: z.number(), resetIso: z.string() }),
   },
   /** L0.2: which mode the build is running in, so the UI can hide Keys/Account. */
-  'app.mode': { req: z.object({}), res: z.object({ mode: z.enum(['managed', 'byok']) }) },
+  'app.mode': {
+    req: z.object({}),
+    // showKeys: whether the credentials screen is revealed (APOLLO_SHOW_KEYS).
+    res: z.object({ mode: z.enum(['managed', 'byok']), showKeys: z.boolean().default(false) }),
+  },
   /** Providers/models this install can use: the backend's catalog in managed
    *  mode, Anthropic-only in BYOK (see DECISIONS on egress). */
   'chat.models': { req: z.object({}), res: availableModelsSchema },

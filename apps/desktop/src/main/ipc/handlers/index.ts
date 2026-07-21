@@ -54,6 +54,7 @@ export interface HandlerDeps {
   authPasswordSignIn?: (email: string, password: string) => Promise<InvokeRes<'auth.signInWithPassword'>>;
   authPasswordSignUp?: (email: string, password: string, name?: string) => Promise<InvokeRes<'auth.signUpWithPassword'>>;
   appMode?: () => 'managed' | 'byok';
+  showKeys?: () => boolean;
   chatModels?: () => Promise<InvokeRes<'chat.models'>>;
   checkForUpdates?: () => Promise<InvokeRes<'update.check'>>;
   installUpdate?: () => void;
@@ -218,7 +219,7 @@ export function buildHandlers(deps: HandlerDeps): Handlers {
     'auth.signUpWithPassword': async (req) =>
       (await deps.authPasswordSignUp?.(req.email, req.password, req.name)) ?? { ok: false, error: 'unavailable' },
     'auth.usage': async () => (deps.authUsage ? deps.authUsage() : { used: 0, limit: 0, resetIso: '' }),
-    'app.mode': () => ({ mode: deps.appMode?.() ?? ('managed' as const) }),
+    'app.mode': () => ({ mode: deps.appMode?.() ?? ('managed' as const), showKeys: deps.showKeys?.() ?? false }),
     'chat.models': async () => (deps.chatModels ? deps.chatModels() : { providers: [] }),
     'chat.regenerate': (req) => {
       deps.onUserActivity?.();

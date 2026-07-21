@@ -51,9 +51,17 @@ export const STRINGS = {
   },
 
   errors: {
-    KEY_MISSING: (provider: string) => `There's a problem with your ${provider} key. Check Settings > Keys.`,
-    KEY_INVALID: (provider: string) => `There's a problem with your ${provider} key. Check Settings > Keys.`,
+    // The provider argument is kept for the log/diagnostics path but is
+    // deliberately NOT shown: a user cannot act on "your Anthropic key", and
+    // naming vendors leaks plumbing into the product.
+    KEY_MISSING: (_provider: string) => "The assistant isn't set up yet. Timers, notes, and your calendar still work.",
+    KEY_INVALID: (_provider: string) => "The assistant isn't available right now. Timers, notes, and your calendar still work.",
     RATE_LIMITED: "That service is busy right now. I'll be ready to retry in a moment.",
+    /** A capability that is simply unavailable in this build. Names the
+     *  capability, never a vendor or a settings screen the user may not have. */
+    CAPABILITY_OFF: (capability: string) => `${capability} isn't available right now.`,
+    /** Gmail is a user-connected account, so this one HAS a real action. */
+    ACCOUNT_NOT_CONNECTED: 'Connect your Google account in Settings > Accounts to use email.',
     OFFLINE: (unavailable: string, works: string) => `I'm offline, so I can't fetch ${unavailable}. ${works} still works.`,
     STT_DOWN: 'My hearing is acting up. You can keep typing to me.',
     TTS_DOWN: "I lost my voice for a moment; I'll answer as text and cards until it's back.",
@@ -195,8 +203,8 @@ export const STRINGS = {
     accountTitle: 'Sign in to Apollo',
     accountBody: 'Signing in turns on the assistant. Notes, calendar, timers, and reminders all work without it, and stay on this device either way.',
     accountSignedIn: "You're signed in.",
-    keysTitle: 'Connect your keys',
-    keysBody: 'This is a developer build, so it uses your own provider keys. Anthropic and Deepgram are required; the others unlock extras and can wait.',
+    keysTitle: 'Set up the assistant',
+    keysBody: 'This build runs on your own machine. Setup lives in Settings and can wait — notes, calendar, timers, and reminders work right now.',
     next: 'Next',
     back: 'Back',
     skip: 'Skip',
@@ -222,8 +230,8 @@ export const STRINGS = {
     signInBanner: 'Sign in to use Apollo’s assistant.',
     signInAction: 'Sign in',
     // BYOK builds only (developer path keeps a keys message).
-    byokKeysBanner: 'Add your provider keys in Settings → Keys to enable the assistant.',
-    byokKeysAction: 'Open Keys',
+    byokKeysBanner: "The assistant isn't set up yet. Everything local still works.",
+    byokKeysAction: 'Set up',
     dismiss: 'Dismiss',
     welcomeNote:
       'Things you can ask Apollo\n\n' +
@@ -339,7 +347,7 @@ export const STRINGS = {
       usageResets: (date: string) => `Resets ${date}`,
       nearLimit: "You're close to this period's limit.",
       overLimit: "You've used this period's requests. Local features keep working.",
-      byokNotice: 'This is a developer build using your own provider keys. Sign-in is not used.',
+      byokNotice: 'This build runs entirely on your own machine. No account needed.',
     },
     calendars: {
       title: 'Calendars',
@@ -608,7 +616,7 @@ export const STRINGS = {
       signedOut: 'Not signed in',
       signInPrompt: 'Sign in to use the assistant',
       localProfile: 'This device',
-      byokSubtitle: 'Developer build',
+      byokSubtitle: 'On this device',
       plan: (plan: string) => `${plan} plan`,
     },
     undo: { undid: (label: string) => `Undid: ${label}`, nothing: 'Nothing to undo' },
@@ -644,10 +652,10 @@ export const STRINGS = {
       editCancel: 'Cancel',
       speakThis: 'Speak this',
       dictate: 'Dictate into the composer',
-      dictateUnavailable: 'Add a Deepgram key to dictate',
+      dictateUnavailable: 'Dictation is unavailable right now',
       dictating: 'Listening… tap to stop',
       degradedBanner: (what: string) => `${what} is unavailable right now. Local requests like timers and notes still work.`,
-      degradedLlm: 'The assistant brain (Anthropic key)',
+      degradedLlm: 'The assistant',
       historyDisabled: 'Conversation history is off, so chats are not saved. You can still chat; turn history on in Settings → Privacy.',
       historyDisabledLink: 'Open Privacy settings',
       rename: 'Rename',

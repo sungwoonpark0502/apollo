@@ -54,8 +54,19 @@ export function assistantReadiness(input: ReadinessInputs): ReadinessState {
  *
  * Diagnostics stays inside About (L5) — it is for us, not for the user.
  */
-export function settingsTabsFor(mode: AppMode): string[] {
+export interface TabOptions {
+  /**
+   * Reveals the credentials screen. Off by default even in BYOK: credentials
+   * normally come from the environment, and a settings tab full of vendor
+   * names and "API key" fields is plumbing, not product. Set
+   * APOLLO_SHOW_KEYS=1 when a key genuinely has to be pasted in.
+   */
+  showKeys?: boolean;
+}
+
+export function settingsTabsFor(mode: AppMode, opts: TabOptions = {}): string[] {
   const core = ['general', 'account', 'capabilities', 'timeFocus', 'customize', 'privacy', 'about'];
-  // BYOK has no account to manage, and needs the Keys screen instead.
-  return mode === 'managed' ? core : [...core.filter((t) => t !== 'account'), 'keys'];
+  // BYOK has no account to manage.
+  const tabs = mode === 'managed' ? core : core.filter((t) => t !== 'account');
+  return opts.showKeys ? [...tabs, 'keys'] : tabs;
 }

@@ -52,7 +52,7 @@ export function createEmailTools(deps: EmailToolDeps): ToolDef[] {
       const blocked = emailBlocked(deps);
       if (blocked) return { llmText: blocked };
       const p = deps.provider();
-      if (!p.isConnected()) return { llmText: `ERROR ${STRINGS.errors.KEY_MISSING('Gmail')}` };
+      if (!p.isConnected()) return { llmText: `ERROR ${STRINGS.errors.ACCOUNT_NOT_CONNECTED}` };
       const items = await p.list(a.query, 20);
       if (items.length === 0) return { llmText: 'No emails matched.' };
       const lines = items.map((m, i) => `${i + 1}. ${m.unread ? '(unread) ' : ''}${m.from} — ${m.subject}: ${m.snippet}`);
@@ -74,7 +74,7 @@ export function createEmailTools(deps: EmailToolDeps): ToolDef[] {
       const blocked = emailBlocked(deps);
       if (blocked) return { llmText: blocked };
       const p = deps.provider();
-      if (!p.isConnected()) return { llmText: `ERROR ${STRINGS.errors.KEY_MISSING('Gmail')}` };
+      if (!p.isConnected()) return { llmText: `ERROR ${STRINGS.errors.ACCOUNT_NOT_CONNECTED}` };
       const raw = await p.read(a.id);
       const detail = toSanitizedDetail(
         { id: raw.id, from: raw.from, to: raw.to, subject: raw.subject, ts: raw.ts, html: raw.html },
@@ -99,7 +99,7 @@ export function createEmailTools(deps: EmailToolDeps): ToolDef[] {
       const blocked = emailBlocked(deps);
       if (blocked) return { llmText: blocked };
       const p = deps.provider();
-      if (!p.isConnected()) return { llmText: `ERROR ${STRINGS.errors.KEY_MISSING('Gmail')}` };
+      if (!p.isConnected()) return { llmText: `ERROR ${STRINGS.errors.ACCOUNT_NOT_CONNECTED}` };
       const items = await p.search(a.query, 20);
       if (items.length === 0) return { llmText: `No emails matched "${a.query}".` };
       const lines = items.map((m, i) => `${i + 1}. ${m.from} — ${m.subject}: ${m.snippet}`);
@@ -130,7 +130,7 @@ export function createEmailTools(deps: EmailToolDeps): ToolDef[] {
       const blocked = emailBlocked(deps);
       if (blocked) return { llmText: blocked };
       const p = deps.provider();
-      if (!p.isConnected()) return { llmText: `ERROR ${STRINGS.errors.KEY_MISSING('Gmail')}${OFFLINE_HINT}` };
+      if (!p.isConnected()) return { llmText: `ERROR ${STRINGS.errors.ACCOUNT_NOT_CONNECTED}${OFFLINE_HINT}` };
       const { id } = await p.send({ to: a.to, subject: a.subject, body: a.body });
       return {
         llmText: `Sent your email to ${a.to.join(', ')} (id ${id}).`,

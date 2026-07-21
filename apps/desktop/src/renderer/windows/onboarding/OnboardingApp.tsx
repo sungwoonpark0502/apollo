@@ -24,10 +24,14 @@ export function OnboardingApp(): React.JSX.Element {
   const [step, setStep] = useState(0);
   const [profileName, setProfileName] = useState('');
   const [mode, setMode] = useState<'managed' | 'byok'>('managed');
+  const [showKeys, setShowKeys] = useState(false);
 
   useEffect(() => {
     void window.apollo.call('settings.get', {}).then((s) => setProfileName(s.profile.name));
-    void window.apollo.call('app.mode', {}).then((m) => setMode(m.mode));
+    void window.apollo.call('app.mode', {}).then((m) => {
+      setMode(m.mode);
+      setShowKeys(m.showKeys);
+    });
   }, []);
 
   const finish = (): void => {
@@ -40,7 +44,11 @@ export function OnboardingApp(): React.JSX.Element {
           <Welcome key="w" />,
           <Profile key="pr" onNameChange={setProfileName} />,
           <Permissions key="p" />,
-          <Keys key="k" />,
+          // The credentials step is developer setup, not onboarding: keys come
+          // from the environment, and a first-run screen listing vendor names
+          // and "API key" fields is plumbing shown to a user. Revealed only
+          // with APOLLO_SHOW_KEYS.
+          ...(showKeys ? [<Keys key="k" />] : []),
           <WakeWord key="wa" />,
           <TryIt key="t" onDone={finish} />,
         ]
