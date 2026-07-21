@@ -185,7 +185,6 @@ const pushFixtures: Record<PushChannelName, unknown> = {
     },
     silent: false,
   },
-  'capture.result': { ok: true },
   'alert.ringing': { kind: 'timer', id: 't1', label: 'pasta', firedAt: 1_800_000_000_000, silent: false },
   'alert.stop': { id: 't1' },
   'update.state': { status: 'ready', version: '1.2.3' },

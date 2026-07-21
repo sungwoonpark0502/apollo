@@ -459,7 +459,6 @@ export const pushChannels = {
     silent: z.boolean().default(false),
     firstNudge: z.boolean().optional(), // I6: show the one-time proactivity explainer above this nudge
   }),
-  'capture.result': z.object({ ok: z.boolean() }), // main → capture window: morph + close, or shake
   // H6: main → orb ringing overlay
   'alert.ringing': z.object({ kind: z.enum(['timer', 'alarm', 'reminder']), id: z.string(), label: z.string().nullable(), firedAt: z.number(), silent: z.boolean().default(false) }),
   'alert.stop': z.object({ id: z.string() }), // main → orb: stop ringing (snoozed/dismissed elsewhere)

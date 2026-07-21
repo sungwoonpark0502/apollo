@@ -154,7 +154,7 @@ export function WorkspaceApp(): React.JSX.Element {
         {/* The account row replaces the gear: Settings and Log out both live in
             its menu, so signing out is one click from anywhere rather than
             buried at the bottom of a Settings tab. */}
-        <AccountMenu mode={mode} />
+        <AccountMenu mode={mode} onHelp={() => setHelpOpen(true)} />
       </nav>
       <main style={{ flex: 1, overflow: view === 'chat' ? 'hidden' : 'auto', display: view === 'chat' ? 'flex' : undefined }}>
         {view === 'chat' ? (

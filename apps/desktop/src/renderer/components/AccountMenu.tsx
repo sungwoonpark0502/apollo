@@ -17,7 +17,7 @@ interface AuthUser {
   plan: string;
 }
 
-export function AccountMenu({ mode }: { mode: 'managed' | 'byok' }): React.JSX.Element {
+export function AccountMenu({ mode, onHelp }: { mode: 'managed' | 'byok'; onHelp: () => void }): React.JSX.Element {
   const a = STRINGS.workspace.accountMenu;
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<AuthStatus>('signedOut');
@@ -71,7 +71,14 @@ export function AccountMenu({ mode }: { mode: 'managed' | 'byok' }): React.JSX.E
         <div role="menu" style={panel}>
           {signedIn ? <div style={emailHeader}>{user.email}</div> : null}
           <MenuItem icon="settings" label={a.settings} shortcut={a.settingsShortcut} onClick={openSettings} />
-          <MenuItem icon="help" label={a.help} onClick={openSettings} />
+          <MenuItem
+            icon="help"
+            label={a.help}
+            onClick={() => {
+              setOpen(false);
+              onHelp();
+            }}
+          />
           {signedIn ? (
             <>
               <div style={divider} />
@@ -139,13 +146,12 @@ function MenuItem({
   shortcut?: string;
   onClick: () => void;
 }): React.JSX.Element {
-  const [hover, setHover] = useState(false);
+  // Hover highlight is the app-wide CSS ::after overlay now, so it fades
+  // smoothly instead of the instant background snap this used to do.
   return (
     <button
       role="menuitem"
       onClick={onClick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -153,7 +159,7 @@ function MenuItem({
         width: '100%',
         padding: 'var(--sp-2) var(--sp-3)',
         border: 'none',
-        background: hover ? 'var(--accent-soft)' : 'transparent',
+        background: 'transparent',
         color: 'var(--text-1)',
         cursor: 'pointer',
         fontSize: 'var(--fs-body)',

@@ -49,7 +49,20 @@ body {
 .apollo-prose .tiptap ol { padding-left: var(--sp-5); }
 .apollo-prose .tiptap ul[data-type='taskList'] { list-style: none; padding-left: var(--sp-1); }
 .apollo-prose .tiptap ul[data-type='taskList'] li { display: flex; align-items: flex-start; gap: var(--sp-2); }
-.apollo-prose .tiptap ul[data-type='taskList'] li > label { margin-top: 2px; }
+/* The checkbox must sit on the first text line, not above it. line-height 1.6
+ * gives each line leading, so aligning to the line box's top left the box high
+ * and the glyph low. Making the label exactly one line tall and centering the
+ * box within it puts the two on the same optical line, and wrapped text still
+ * flows under the first line because the row itself aligns to flex-start. */
+.apollo-prose .tiptap ul[data-type='taskList'] li > label {
+  display: inline-flex;
+  align-items: center;
+  height: 1.6em;
+  margin: 0;
+  user-select: none;
+}
+.apollo-prose .tiptap ul[data-type='taskList'] li > div { flex: 1 1 auto; min-width: 0; }
+.apollo-prose .tiptap ul[data-type='taskList'] li > div > p { margin: 0; }
 .apollo-prose .tiptap ul[data-type='taskList'] li > div { flex: 1; }
 
 /* Round checklist marks, themed. The default square platform checkbox was the
@@ -158,22 +171,49 @@ body {
 }
 
 /* Interaction feedback, app-wide. Inline styles cannot express :hover, so
- * every button/select/summary gets a uniform overlay here: a currentColor
- * wash that works in BOTH themes (darkens light surfaces, lightens dark text
- * on dark surfaces) and follows each control's own border-radius. Pressed
- * deepens it, so clicks feel acknowledged. Reduced-motion users keep the
- * state change; the global reduced-motion rule already kills the transition.
+ * every button/summary/menu control gets a uniform overlay here: a currentColor
+ * wash that works in BOTH themes and follows each control's own radius.
+ *
+ * It is a pseudo-element whose OPACITY animates, not a box-shadow. Two reasons:
+ * a box-shadow transition from `none` does not interpolate (it snaps in, which
+ * read as choppy), and opacity is GPU-composited so the fade never repaints the
+ * button or competes with an inline `background` transition. The overlay never
+ * eats clicks (pointer-events:none) and inherits the radius so it can't poke
+ * past rounded corners.
  */
-button, select, summary, [role='button'], [role='option'], [role='menuitem'] {
-  transition: box-shadow 120ms var(--ease), background-color 120ms var(--ease);
+button, summary, [role='button'], [role='option'], [role='menuitem'] {
+  position: relative;
 }
-button:not(:disabled):hover, select:not(:disabled):hover, summary:hover,
-[role='button']:hover, [role='option']:hover, [role='menuitem']:hover {
-  box-shadow: inset 0 0 0 999px color-mix(in srgb, currentColor 8%, transparent);
+button::after, summary::after,
+[role='button']::after, [role='option']::after, [role='menuitem']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: currentColor;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms var(--ease);
 }
-button:not(:disabled):active, select:not(:disabled):active, summary:active,
-[role='button']:active, [role='option']:active, [role='menuitem']:active {
-  box-shadow: inset 0 0 0 999px color-mix(in srgb, currentColor 15%, transparent);
+button:not(:disabled):hover::after, summary:hover::after,
+[role='button']:hover::after, [role='option']:hover::after, [role='menuitem']:hover::after {
+  opacity: 0.08;
+}
+button:not(:disabled):active::after, summary:active::after,
+[role='button']:active::after, [role='option']:active::after, [role='menuitem']:active::after {
+  opacity: 0.14;
+  transition-duration: 60ms; /* press feels instant, release eases back */
+}
+/* select is a replaced element and cannot render ::after, so it keeps a plain
+ * background transition. */
+select {
+  transition: background-color 200ms var(--ease), border-color 200ms var(--ease);
+}
+@media (prefers-reduced-motion: reduce) {
+  button::after, summary::after,
+  [role='button']::after, [role='option']::after, [role='menuitem']::after {
+    transition: none;
+  }
 }
 
 /* Chat: the accent spark that marks Apollo speaking/thinking. */
